@@ -1,0 +1,30 @@
+[project]
+name = "toy-dt-v2"
+version = "0.1.0"
+description = "TWIN4DEM as a Django web app"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "celery>=5.5.3",
+    "django>=5.2.8",
+]
+
+[tool.uv]
+package = true
+
+[tool.uv.build-backend]
+namespace = true
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "twin4dem.settings"
+
+[dependency-groups]
+dev = [
+    "django-debug-toolbar>=6.1.0",
+    "pytest>=9.0.1",
+    "pytest-cov>=7.0.0",
+    "pytest-django>=4.11.1",
+]
+prod = [
+    "hypercorn[h3]>=0.18.0",
+]
