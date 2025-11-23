@@ -8,7 +8,13 @@
     {% vite_react_refresh nonce="{{ request.csp_nonce }}" %}
     {% vite_asset 'src/main.tsx' %}
 </head>
+</head>
 <body>
 <div id="root"></div>
+{% if user.is_authenticated %}
+  <a href="/accounts/logout/">Logout</a>
+{% else %}
+  <a href="/accounts/login/">Login</a>
+{% endif %}
 </body>
 </html>
