@@ -34,6 +34,7 @@ ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
 # Application definition
 
 INSTALLED_APPS = [
+    "daphne",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -82,7 +83,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "twin4dem.wsgi.application"
-
+ASGI_APPLICATION = "twin4dem.asgi.application"
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
@@ -153,7 +154,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # Vite
 DJANGO_VITE = {
     "default": DjangoViteConfig(
-        dev_mode=False,
+        dev_mode=True,
         dev_server_port=3000,
         manifest_path=FRONTEND_ROOT / ".vite" / "manifest.json",
     )
