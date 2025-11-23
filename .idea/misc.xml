@@ -3,6 +3,5 @@
   <component name="Black">
     <option name="sdkName" value="mistral-8x7b-ro" />
   </component>
-  <component name="KubernetesApiProvider"><![CDATA[{}]]></component>
   <component name="ProjectRootManager" version="2" project-jdk-name="Python 3.13 (toy-dt-v2)" project-jdk-type="Python SDK" />
 </project>

@@ -17,7 +17,6 @@ from django_vite import DjangoViteConfig
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
@@ -26,7 +25,6 @@ SECRET_KEY = "django-insecure-5v5lw%466qj#e3v^1qw49j7e0kmszoxxk#!o1)_bxon@bhuarh
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
-
 
 CSRF_TRUSTED_ORIGINS = ["http://localhost:8000"]
 ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
@@ -90,11 +88,14 @@ ASGI_APPLICATION = "twin4dem.asgi.application"
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": "twin4dem",
+        "USER": "twin4dem",
+        "PASSWORD": "twin4dem",
+        "HOST": "localhost",
+        "PORT": 5432,
     }
 }
-
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
@@ -114,7 +115,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
@@ -125,7 +125,6 @@ TIME_ZONE = "UTC"
 USE_I18N = True
 
 USE_TZ = True
-
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
@@ -159,3 +158,15 @@ DJANGO_VITE = {
         manifest_path=FRONTEND_ROOT / ".vite" / "manifest.json",
     )
 }
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("localhost", 6379)],
+        },
+    },
+}
+
+CELERY_BROKER_URL = "amqp://twin4dem:twin4dem@localhost:5672//"
+CELERY_RESULT_BACKEND = "rpc://"
