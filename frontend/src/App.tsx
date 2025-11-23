@@ -17,7 +17,8 @@ function App() {
         ws.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data);
-                setServerCount(() => data.counter)
+                if (data.counter !== null && typeof data.counter !== "undefined")
+                    setServerCount(() => data.counter)
             } catch {
                 console.error("failed to set counter")
             }
