@@ -119,11 +119,9 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = "static/"
-STATIC_ROOT = Path(BASE_DIR) / "frontend"
-STATICFILES_DIRS = [
-    ("assets", STATIC_ROOT / "assets"),
-    ("assets", STATIC_ROOT / "dist" / "assets"),
-]
+STATIC_ROOT = BASE_DIR.parent / "static"
+FRONTEND_ROOT = STATIC_ROOT / "frontend"
+STATICFILES_DIRS = [FRONTEND_ROOT]
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -135,6 +133,6 @@ DJANGO_VITE = {
     "default": DjangoViteConfig(
         dev_mode=False,
         dev_server_port=3000,
-        manifest_path=STATIC_ROOT / "dist" / ".vite" / "manifest.json",
+        manifest_path=FRONTEND_ROOT / ".vite" / "manifest.json",
     )
 }

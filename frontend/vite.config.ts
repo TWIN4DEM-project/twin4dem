@@ -2,12 +2,19 @@ import {resolve} from 'path'
 import {defineConfig} from 'vite'
 import react from '@vitejs/plugin-react'
 
-// https://vite.dev/config/
+const isDev = process.env.NODE_ENV !== "production";
+const base = "/static/"
+const devServerOrigin = "http://localhost:3000"
+const devBase = `${devServerOrigin}${base}`
+
 export default defineConfig({
-    base: "/static/",
+    base: isDev ? devBase: base,
+    root: ".",
     build: {
         manifest: true,
-        outDir: resolve("./dist"),
+        outDir: "../backend/static/frontend",
+        assetsDir: "assets",
+        emptyOutDir: true,
         rollupOptions: {
             input: resolve("./src/main.tsx")
         },
@@ -17,9 +24,9 @@ export default defineConfig({
     },
     server: {
         host: 'localhost',
-        port: 3000
+        port: 3000,
+        origin: "http://localhost:3000"
     },
-
     plugins: [
         react({
             babel: {
