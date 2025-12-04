@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   db:
     image: postgres:16-alpine
@@ -17,20 +15,26 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - twin4dem_dev
+      - twin4dem
 
   broker:
-    image: rabbitmq:3.13-alpine   # no management UI
+    image: rabbitmq:3.13-alpine
     restart: unless-stopped
     environment:
       RABBITMQ_DEFAULT_USER: twin4dem
       RABBITMQ_DEFAULT_PASS: twin4dem
     ports:
-      - "5672:5672"     # Celery broker AMQP port
+      - "5672:5672"
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - twin4dem_dev
+      - twin4dem
 
   redis:
     image: redis:7-alpine
@@ -45,7 +49,14 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
+    networks:
+      - twin4dem_dev
+      - twin4dem
 
 volumes:
   db_data:
   redis_data:
+
+networks:
+  twin4dem_dev:
+  twin4dem:

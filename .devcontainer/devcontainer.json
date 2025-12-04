@@ -1,0 +1,11 @@
+{
+  "name": "Twin4DEM Dev - Backend",
+  "dockerComposeFile": [
+    "../docker-compose.dev.yaml"
+  ],
+  "service": "backend",
+  "runServices": ["redis", "broker", "db", "frontend"],
+  "workspaceFolder": "/twin4dem/backend",
+  "shutdownAction": "stopCompose",
+  "postCreateCommand": "uv run python src/manage.py migrate"
+}

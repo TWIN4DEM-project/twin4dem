@@ -1,0 +1,50 @@
+include:
+  - docker-compose.common.yaml
+
+services:
+  backend:
+    build:
+      context: ./backend
+      target: web_prod
+    container_name: twin4dem-backend
+    command: >
+      sh -c "uv run python src/manage.py migrate &&
+             uv run daphne twin4dem.asgi:application --bind 0.0.0.0"
+    environment:
+      - TWIN4DEM_BACKEND_VITE_DEV_MODE=False
+      - TWIN4DEM_BACKEND_DB_HOST=db
+      - TWIN4DEM_BACKEND_REDIS_HOST=redis
+      - TWIN4DEM_BACKEND_CELERY_HOST=broker
+    depends_on:
+      db:
+        condition: service_healthy
+      broker:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      celery:
+        condition: service_started
+    ports:
+      - "8000:8000"
+    networks:
+      - twin4dem
+
+  celery:
+    build:
+      context: ./backend
+      target: backend_prod
+    container_name: twin4dem-celery
+    command: uv run celery -A twin4dem worker -l info
+    environment:
+      - TWIN4DEM_BACKEND_DB_HOST=db
+      - TWIN4DEM_BACKEND_REDIS_HOST=redis
+      - TWIN4DEM_BACKEND_CELERY_HOST=broker
+    depends_on:
+      broker:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+    networks:
+      - twin4dem

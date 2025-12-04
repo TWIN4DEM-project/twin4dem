@@ -1,0 +1,47 @@
+include:
+  - docker-compose.common.yaml
+
+services:
+  backend:
+    build:
+      context: ./backend
+      target: backend_dev
+    container_name: twin4dem-backend-dev
+    command: >
+      sh -c "uv run python src/manage.py migrate &&
+             (uv run celery -A twin4dem worker -l info & uv run python src/manage.py runserver 0.0.0.0:8000)"
+    volumes:
+      - ./backend/src:/twin4dem/backend/src
+      - ./backend/static:/twin4dem/backend/static
+    environment:
+      - TWIN4DEM_BACKEND_VITE_DEV_MODE=True
+      - TWIN4DEM_BACKEND_DB_HOST=db
+      - TWIN4DEM_BACKEND_REDIS_HOST=redis
+      - TWIN4DEM_BACKEND_CELERY_HOST=broker
+    ports:
+      - "8000:8000"
+    networks:
+      - twin4dem_dev
+    depends_on:
+      db:
+        condition: service_healthy
+      broker:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      frontend:
+        condition: service_started
+
+  frontend:
+    build:
+      context: ./frontend
+      target: frontend_dev
+    container_name: twin4dem-frontend-dev
+    command: npm run dev
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/assets:/app/assets
+    ports:
+      - "3000:3000"
+    networks:
+      - twin4dem_dev

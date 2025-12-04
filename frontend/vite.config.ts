@@ -12,7 +12,7 @@ export default defineConfig({
     root: ".",
     build: {
         manifest: true,
-        outDir: "../backend/static/frontend",
+        outDir: (isDev) ? "../backend/static/frontend": "dist",
         assetsDir: "assets",
         emptyOutDir: true,
         rollupOptions: {
@@ -23,7 +23,7 @@ export default defineConfig({
         }
     },
     server: {
-        host: 'localhost',
+        host: '0.0.0.0',
         port: 3000,
         origin: "http://localhost:3000"
     },

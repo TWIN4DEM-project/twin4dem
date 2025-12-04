@@ -9,7 +9,7 @@ https://docs.djangoproject.com/en/5.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
-
+import os
 from pathlib import Path
 
 from django_vite import DjangoViteConfig
@@ -89,11 +89,11 @@ ASGI_APPLICATION = "twin4dem.asgi.application"
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": "twin4dem",
-        "USER": "twin4dem",
-        "PASSWORD": "twin4dem",
-        "HOST": "localhost",
-        "PORT": 5432,
+        "NAME": os.getenv("TWIN4DEM_BACKEND_DB_NAME", "twin4dem"),
+        "USER": os.getenv("TWIN4DEM_BACKEND_DB_USER", "twin4dem"),
+        "PASSWORD": os.getenv("TWIN4DEM_BACKEND_DB_PASS", "twin4dem"),
+        "HOST": os.getenv("TWIN4DEM_BACKEND_DB_HOST", "localhost"),
+        "PORT": int(os.getenv("TWIN4DEM_BACKEND_DB_PORT", 5432)),
     }
 }
 
@@ -151,22 +151,29 @@ ACCOUNT_DEFAULT_HTTP_PROTOCOL = "http"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Vite
+VITE_DEV_MODE = str(os.getenv("TWIN4DEM_BACKEND_VITE_DEV_MODE", True)).lower() in {"y", "yes", "true", "1"}
 DJANGO_VITE = {
     "default": DjangoViteConfig(
-        dev_mode=True,
+        dev_mode=VITE_DEV_MODE,
         dev_server_port=3000,
         manifest_path=FRONTEND_ROOT / ".vite" / "manifest.json",
     )
 }
 
+REDIS_HOST = os.getenv("TWIN4DEM_BACKEND_REDIS_HOST", "localhost")
+REDIS_PORT = int(os.getenv("TWIN4DEM_BACKEND_REDIS_PORT", 6379))
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [("localhost", 6379)],
+            "hosts": [(REDIS_HOST, REDIS_PORT)],
         },
     },
 }
 
-CELERY_BROKER_URL = "amqp://twin4dem:twin4dem@localhost:5672//"
+CELERY_USER = os.getenv("TWIN4DEM_BACKEND_CELERY_USER", "twin4dem")
+CELERY_PASS = os.getenv("TWIN4DEM_BACKEND_CELERY_PASS", "twin4dem")
+CELERY_HOST = os.getenv("TWIN4DEM_BACKEND_CELERY_HOST", "localhost")
+CELERY_PORT = int(os.getenv("TWIN4DEM_BACKEND_CELERY_PORT", 5672))
+CELERY_BROKER_URL = f"amqp://{CELERY_USER}:{CELERY_PASS}@{CELERY_HOST}:{CELERY_PORT}//"
 CELERY_RESULT_BACKEND = "rpc://"
