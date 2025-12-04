@@ -33,5 +33,6 @@ dev = [
     "pytest-cov>=7.0.0",
     "pytest-django>=4.11.1",
     "types-channels>=4.3.0.20250822",
+    "pydantic>=2.12.5",
 ]
 prod = []

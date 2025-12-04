@@ -1,0 +1,75 @@
+{
+  "ministers": [
+    {
+      "id": 1,
+      "type": "Minister",
+      "party": "majority",
+      "influence": 1.0,
+      "weights": [0.1, 0.1, 0.15, 0.45, 0.1, 0.1],
+      "opinion": 0,
+      "support1": 0,
+      "support2": 0,
+      "is_pm": true
+    },
+    {
+      "id": 2,
+      "type": "Minister",
+      "party": "majority",
+      "influence": 0.6,
+      "weights": [0.1, 0.1, 0.15, 0.45, 0.1, 0.1],
+      "opinion": 1,
+      "support1": 0,
+      "support2": 1,
+      "is_pm": false
+    },
+    {
+      "id": 3,
+      "type": "Minister",
+      "party": "majority",
+      "influence": 0.6,
+      "weights": [0.1, 0.1, 0.15, 0.45, 0.1, 0.1],
+      "opinion": 1,
+      "support1": 0,
+      "support2": 1,
+      "is_pm": false
+    },
+    {
+      "id": 4,
+      "type": "Minister",
+      "party": "majority",
+      "influence": 0.6,
+      "weights": [0.1, 0.1, 0.15, 0.45, 0.1, 0.1],
+      "opinion": 1,
+      "support1": 0,
+      "support2": 1,
+      "is_pm": false
+    },
+    {
+      "id": 5,
+      "type": "Minister",
+      "party": "opposition",
+      "influence": 0.4,
+      "weights": [0.1, 0.1, 0.15, 0.45, 0.1, 0.1],
+      "opinion": 1,
+      "support1": 1,
+      "support2": 1,
+      "is_pm": false
+    },
+    {
+      "id": 6,
+      "type": "Minister",
+      "party": "majority",
+      "influence": 0.6,
+      "weights": [0.1, 0.1, 0.15, 0.45, 0.1, 0.1],
+      "opinion": 1,
+      "support1": 0,
+      "support2": 1,
+      "is_pm": false
+    }
+  ],
+  "kgov": 3,
+  "pact": 0.5,
+  "alpha": 0.4,
+  "epsilon": 0.05,
+  "gamma": 5.0
+}
