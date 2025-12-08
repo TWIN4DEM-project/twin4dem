@@ -1,3 +1,4 @@
+import json
 from time import sleep
 
 from asgiref.sync import async_to_sync
@@ -23,15 +24,14 @@ def count_to_ten(channel_name):
         sleep(0.5)
 
 @shared_task
-def run_government_steps(channel_name: str, config: GovernmentConfig, n_steps: int = 1):
-    gov = Government.from_config(config)
+def run_government_steps(channel_name: str, data: GovernmentConfig, n_steps: int = 1):
+    gov = Government.from_config(data)
 
     layer = get_channel_layer()
     send = async_to_sync(layer.send)
 
     for _ in range(n_steps):
         step_result = gov.step()
-
         send(
             channel_name, {
                 "type": "government.step",

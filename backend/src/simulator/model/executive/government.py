@@ -166,5 +166,5 @@ class Government:
             "t": self.t,
             "approved": approved,
             "path": path,
-            "votes": {m.id: m.vote for m in self.ministers},
+            "votes": {str(m.id): m.vote for m in self.ministers},
         }
