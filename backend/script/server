@@ -1,0 +1,20 @@
+#!/bin/sh
+
+# shellcheck disable=SC3041
+set -eEuxo pipefail
+
+CWD="$(pwd)"
+trap "cd ${CWD}"'&& echo >&2 "Error - exited with status $? at line $LINENO"' ERR
+ROOT_DIR="$(cd "$(dirname "$0")/.." 2> /dev/null; pwd -P)"
+
+cd "${ROOT_DIR}"
+echo "Current working directory: ${ROOT_DIR}"
+
+echo "Updating database"
+uv run python src/manage.py migrate
+
+echo "Starting Celery worker"
+uv run celery -A twin4dem worker -l info &
+
+echo "Running web app"
+exec uv run python src/manage.py runserver 0.0.0.0:8000

@@ -19,9 +19,10 @@ FROM backend_base AS backend_dev
 
 # copy the project
 COPY src ./src
+COPY script ./script
 
 EXPOSE 8000
-CMD ["sh", "-c", "uv run celery -A twin4dem worker -l info & uv run python src/manage.py runserver 0.0.0.0:8000"]
+CMD ["sh", "./script/server"]
 
 # ------------------------------------------------------------
 # test stage

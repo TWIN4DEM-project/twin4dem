@@ -68,6 +68,10 @@ Once running:
 Changes to backend or frontend code update automatically. You only need to open
 http://localhost:8000 in the browser.
 
+**Note**: you will need to set up an `admin` user account. This is easily done
+via the `python src/manage.py createsuperuser` command. The command can be
+executed from anywhere against Django's database. 
+
 ---
 
 # 🧪 Running Unit Tests
