@@ -4,7 +4,7 @@ include:
 services:
   backend:
     build:
-      context: ./backend
+      dockerfile: backend/Dockerfile
       target: backend_dev
     container_name: twin4dem-backend-dev
     command: >
@@ -34,7 +34,7 @@ services:
 
   frontend:
     build:
-      context: ./frontend
+      dockerfile: frontend/Dockerfile
       target: frontend_dev
     container_name: twin4dem-frontend-dev
     command: npm run dev

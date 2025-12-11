@@ -1,0 +1,17 @@
+@import "body";
+@import "layout";
+@import "buttons";
+
+@import "header";
+@import "main";
+@import "footer";
+
+@media (max-width: 900px) {
+  .hero-inner {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .hero-card {
+    order: -1;
+  }
+}

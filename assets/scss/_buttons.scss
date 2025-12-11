@@ -1,0 +1,47 @@
+@import "variables";
+
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.55rem 1.1rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+
+  &--primary {
+    background: linear-gradient(135deg, $primary, $accent);
+    border-color: transparent;
+    color: #fff;
+    box-shadow: $shadow-soft;
+
+    &:hover {
+      filter: brightness(1.05);
+    }
+  }
+
+  &--outline {
+    background: transparent;
+    color: $text;
+    border-color: rgba(255, 255, 255, 0.45);
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.06);
+    }
+  }
+
+  &--ghost {
+    background: rgba(9, 7, 30, 0.8);
+    border-color: rgba(255, 255, 255, 0.16);
+    color: $text;
+
+    &:hover {
+      background: rgba(9, 7, 30, 1);
+    }
+  }
+}

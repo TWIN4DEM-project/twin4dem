@@ -34,4 +34,9 @@ export default defineConfig({
             },
         }),
     ],
+    resolve: {
+        alias: {
+            "@scss": resolve(__dirname, "../assets/scss")
+        }
+    }
 })

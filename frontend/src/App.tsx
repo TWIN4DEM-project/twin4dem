@@ -1,5 +1,5 @@
 import {useEffect, useRef, useState} from 'react';
-import './App.css';
+import './App.scss';
 
 // --- Types mirroring the Pydantic models on the backend ---
 type Party = "majority" | "opposition" | "independent";

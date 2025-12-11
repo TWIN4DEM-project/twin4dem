@@ -1,0 +1,80 @@
+@import "variables";
+
+
+.site-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.hero {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  padding: 2rem 0 3rem;
+
+  .hero-inner {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1.1fr);
+    gap: 2rem;
+    align-items: center;
+  }
+
+  .hero-text {
+    max-width: 32rem;
+  }
+
+  .hero-kicker {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: $primary-soft;
+    margin-bottom: 0.75rem;
+  }
+
+  h1 {
+    font-size: clamp(2.1rem, 4vw, 2.7rem);
+    line-height: 1.12;
+    margin: 0 0 0.9rem;
+  }
+
+  .hero-lead {
+    font-size: 1rem;
+    color: $muted;
+    line-height: 1.6;
+    margin-bottom: 1.4rem;
+  }
+
+  .hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  // Hero card
+  .hero-card {
+    background: $surface;
+    border-radius: $radius-lg;
+    border: 1px solid $border-subtle;
+    padding: 1.6rem 1.5rem;
+    box-shadow: $shadow-soft;
+    backdrop-filter: blur(20px);
+
+    .hero-card-title {
+      font-size: 1.1rem;
+      margin: 0 0 0.75rem;
+    }
+
+    .hero-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      font-size: 0.95rem;
+      color: $muted;
+
+      li + li {
+        margin-top: 0.35rem;
+      }
+    }
+  }
+}

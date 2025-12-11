@@ -4,7 +4,7 @@ include:
 services:
   backend:
     build:
-      context: ./backend
+      dockerfile: ./backend/Dockerfile
       target: web_prod
     container_name: twin4dem-backend
     command: >
@@ -31,7 +31,7 @@ services:
 
   celery:
     build:
-      context: ./backend
+      dockerfile: ./backend/Dockerfile
       target: backend_prod
     container_name: twin4dem-celery
     command: uv run celery -A twin4dem worker -l info

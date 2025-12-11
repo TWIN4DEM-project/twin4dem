@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     "allauth.socialaccount.providers.google",
     "allauth.socialaccount.providers.microsoft",
     "django_vite",
+    "sass_processor",
     "web",
     "simulator",
 ]
@@ -130,9 +131,17 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = "static/"
-STATIC_ROOT = BASE_DIR.parent / "static"
+STATIC_ROOT = BASE_DIR.parent.parent / "assets"
 FRONTEND_ROOT = STATIC_ROOT / "frontend"
-STATICFILES_DIRS = [FRONTEND_ROOT]
+STATICFILES_DIRS = [FRONTEND_ROOT, STATIC_ROOT / "scss"]
+STATICFILES_FINDERS = [
+    'django.contrib.staticfiles.finders.FileSystemFinder',
+    'django.contrib.staticfiles.finders.AppDirectoriesFinder',
+    "sass_processor.finders.CssFinder"
+]
+
+SASS_PROCESSOR_ENABLED = True
+SASS_PROCESSOR_ROOT = STATIC_ROOT / "scss"
 
 AUTHENTICATION_BACKENDS = [
     "django.contrib.auth.backends.ModelBackend",

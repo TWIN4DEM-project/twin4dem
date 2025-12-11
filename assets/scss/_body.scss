@@ -1,0 +1,24 @@
+@import "variables";
+
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
+body.site-body {
+  min-height: 100vh;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
+    "Segoe UI", sans-serif;
+  color: $text;
+  background:
+    radial-gradient(circle at top left, #5a2bd2 0, transparent 55%),
+    radial-gradient(circle at bottom right, #ff6ed8 0, transparent 55%),
+    $bg;
+  display: flex;
+  flex-direction: column;
+}

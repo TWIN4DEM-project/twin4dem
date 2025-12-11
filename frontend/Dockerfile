@@ -4,7 +4,7 @@
 FROM node:24-alpine AS frontend_base
 WORKDIR /frontend
 
-COPY package*.json ./
+COPY frontend/package*.json ./
 RUN npm ci
 
 
@@ -14,7 +14,9 @@ RUN npm ci
 FROM frontend_base AS frontend_dev
 ARG VITE_SERVER_PORT=3000
 
-COPY . .
+COPY frontend .
+COPY assets ../assets
+
 EXPOSE $VITE_SERVER_PORT
 CMD ["npm", "run", "dev"]
 
@@ -22,7 +24,7 @@ CMD ["npm", "run", "dev"]
 # test stage
 # ------------------------------------------------------------
 FROM frontend_base AS test
-COPY . .
+COPY frontend .
 CMD ["npm", "test"]
 
 # ------------------------------------------------------------
@@ -30,7 +32,10 @@ CMD ["npm", "test"]
 # ------------------------------------------------------------
 FROM frontend_base AS frontend_build
 ENV NODE_ENV=production
-COPY . .
+
+COPY frontend .
+COPY assets ../assets
+
 RUN npm run build
 
 # ------------------------------------------------------------

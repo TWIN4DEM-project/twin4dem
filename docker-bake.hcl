@@ -3,13 +3,15 @@ group "default" {
 }
 
 target frontend_prod {
-  context = "./frontend"
+  context = "."
+  dockerfile = "./frontend/Dockerfile"
   target = "frontend_prod"
   tags = ["frontend_prod"]
 }
 
 target backend_prod {
-  context = "./backend"
+  context = "."
+  dockerfile = "./backend/Dockerfile"
   target = "web_prod"
   contexts = {
     frontend_prod = "target:frontend_prod"
