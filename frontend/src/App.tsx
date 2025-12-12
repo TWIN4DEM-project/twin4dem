@@ -143,7 +143,7 @@ function App() {
 
             <div className="config-layout-row">
                 <div className="config-table-container">
-                    <h2>GovernmentConfig nfjksfn kjsan ssss</h2>
+                    <h2>Government Configuration</h2>
                     <table className="config-table">
                         <thead>
                         <tr>
