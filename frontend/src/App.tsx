@@ -119,9 +119,6 @@ function App() {
         ws.onclose = () => {
             console.log('WebSocket disconnected');
         };
-        return () => {
-            ws.close();
-        };
     }, []);
 
     const handleSendSample = () => {
