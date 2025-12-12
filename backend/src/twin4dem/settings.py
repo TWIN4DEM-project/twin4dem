@@ -69,7 +69,9 @@ EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [
+            BASE_DIR / "twin4dem" / "templates"
+        ],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -140,7 +142,6 @@ STATICFILES_FINDERS = [
     "sass_processor.finders.CssFinder"
 ]
 
-SASS_PROCESSOR_ENABLED = True
 SASS_PROCESSOR_ROOT = STATIC_ROOT / "scss"
 
 AUTHENTICATION_BACKENDS = [
