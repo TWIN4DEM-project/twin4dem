@@ -217,7 +217,7 @@ function App() {
 
             <div style={{ margin: '1.5rem 0' }}>
                 <button type="button" onClick={handleSendSample} disabled={sendDisabled}>
-                    {sendDisabled ? "Running..." : "Send sample config"}
+                    {sendDisabled ? "Running..." : "Next Frame"}
                 </button>
             </div>
 
