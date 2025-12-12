@@ -222,6 +222,7 @@ function App() {
             </div>
 
             <h2>Raw Messages</h2>
+            <div className="simulatorMessageList">
             {messages.length === 0 ? (
                 <p>No messages received yet.</p>
             ) : (
@@ -233,6 +234,7 @@ function App() {
                     ))}
                 </ul>
             )}
+            </div>
         </div>
     );
 }
