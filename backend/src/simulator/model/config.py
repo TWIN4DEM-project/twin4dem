@@ -13,6 +13,7 @@ class MinisterConfig(BaseModel):
     support2: int = Field(..., ge=0, le=1)
     is_pm: bool = False
 
+
 class GovernmentConfig(BaseModel):
     ministers: List[MinisterConfig]
     kgov: int = Field(..., ge=1)

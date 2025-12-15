@@ -25,15 +25,16 @@ class Minister(Agent):
             is_pm=config.is_pm,
         )
 
+
 class Government:
     def __init__(
-            self,
-            ministers: List[Minister],
-            kgov: int,
-            pact: float,
-            alpha: float,
-            epsilon: float,
-            gamma: float,
+        self,
+        ministers: List[Minister],
+        kgov: int,
+        pact: float,
+        alpha: float,
+        epsilon: float,
+        gamma: float,
     ):
         self.ministers = ministers
         self.kgov = kgov
@@ -87,10 +88,9 @@ class Government:
             #   - are not m
             #   - have degree < kgov themselves
             candidates = [
-                i for i in ids
-                if i != m.id
-                   and i not in current
-                   and len(net[i]) < self.kgov
+                i
+                for i in ids
+                if i != m.id and i not in current and len(net[i]) < self.kgov
             ]
 
             random.shuffle(candidates)
@@ -107,7 +107,6 @@ class Government:
                 needed -= 1
 
         return {i: list(neigh) for i, neigh in net.items()}
-
 
     def _get_minister(self, mid: int) -> Minister:
         return next(m for m in self.ministers if m.id == mid)
@@ -130,7 +129,7 @@ class Government:
                 gamma=self.gamma,
                 ref_opinion=pm_opinion,
                 peers_prev_votes=peers_prev,
-                g="government"
+                g="government",
             )
 
         # 2. peer influence (Eq. 2)

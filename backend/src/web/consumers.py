@@ -20,7 +20,9 @@ class Twin4DemAsyncConsumer(AsyncWebsocketConsumer):
         if text_data is not None:
             task_args = dict(data=json.loads(text_data))
         # launch Celery task
-        self._task.apply_async(args=[self.channel_name], kwargs=task_args, serializer="pydantic")
+        self._task.apply_async(
+            args=[self.channel_name], kwargs=task_args, serializer="pydantic"
+        )
         await self._send_json({"status": "task started"})
 
     async def _send_json(self, obj):

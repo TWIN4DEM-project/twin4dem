@@ -2,7 +2,10 @@ import os
 
 from celery import Celery
 from kombu.serialization import register
-from simulator.model.serialization.pydantic_serializer import pydantic_dumps, pydantic_loads
+from simulator.model.serialization.pydantic_serializer import (
+    pydantic_dumps,
+    pydantic_loads,
+)
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "twin4dem.settings")
 
@@ -17,6 +20,7 @@ register(
     content_type="application/x-pydantic",
     content_encoding="utf-8",
 )
+
 
 @app.task(bind=True, ignore_result=True)
 def debug_task(self):

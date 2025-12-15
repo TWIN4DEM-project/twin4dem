@@ -65,8 +65,13 @@ class Agent:
                 same += 1
         return same / total if total > 0 else 0.5
 
-    def compute_individual_utilities(self, gamma: float, ref_opinion: float, peers_prev_votes: Sequence[Optional[int]],
-                                     g: str):
+    def compute_individual_utilities(
+        self,
+        gamma: float,
+        ref_opinion: float,
+        peers_prev_votes: Sequence[Optional[int]],
+        g: str,
+    ):
         """
         Compute U(i,t,for) and U(i,t,against) BEFORE peer influence (Eq. 1).
         ref_opinion: opinion of 'powerful' actor for component 4
@@ -75,21 +80,21 @@ class Agent:
                      - court president for judges
         """
         u_for = (
-                self.W[0] * self._u1_personal_opinion(1) +
-                self.W[1] * self._u2_power_of_office(1, g) +
-                self.W[2] * self._u3_stay_in_office(1, gamma) +
-                self.W[3] * self._u4_prestige_office(1, gamma, ref_opinion) +
-                self.W[4] * self._u5_support_groups(1) +
-                self.W[5] * self._u6_reputation(peers_prev_votes)
+            self.W[0] * self._u1_personal_opinion(1)
+            + self.W[1] * self._u2_power_of_office(1, g)
+            + self.W[2] * self._u3_stay_in_office(1, gamma)
+            + self.W[3] * self._u4_prestige_office(1, gamma, ref_opinion)
+            + self.W[4] * self._u5_support_groups(1)
+            + self.W[5] * self._u6_reputation(peers_prev_votes)
         )
 
         u_against = (
-                self.W[0] * self._u1_personal_opinion(0) +
-                self.W[1] * self._u2_power_of_office(0, g) +
-                self.W[2] * self._u3_stay_in_office(0, gamma) +
-                self.W[3] * self._u4_prestige_office(0, gamma, ref_opinion) +
-                self.W[4] * self._u5_support_groups(0) +
-                self.W[5] * self._u6_reputation(peers_prev_votes)
+            self.W[0] * self._u1_personal_opinion(0)
+            + self.W[1] * self._u2_power_of_office(0, g)
+            + self.W[2] * self._u3_stay_in_office(0, gamma)
+            + self.W[3] * self._u4_prestige_office(0, gamma, ref_opinion)
+            + self.W[4] * self._u5_support_groups(0)
+            + self.W[5] * self._u6_reputation(peers_prev_votes)
         )
         self.U_for = u_for
         self.U_against = u_against
@@ -107,9 +112,12 @@ class Agent:
             return
 
         if self.T_i in ["Minister", "Judge"]:
-            peer_for = sum(neigh.S_i * neigh.U_for for neigh in neighbors) / sum(neigh.S_i for neigh in neighbors)
-            peer_against = sum(neigh.S_i * neigh.U_against for neigh in neighbors) / sum(
-                neigh.S_i for neigh in neighbors)
+            peer_for = sum(neigh.S_i * neigh.U_for for neigh in neighbors) / sum(
+                neigh.S_i for neigh in neighbors
+            )
+            peer_against = sum(
+                neigh.S_i * neigh.U_against for neigh in neighbors
+            ) / sum(neigh.S_i for neigh in neighbors)
 
             self.U_for_star = alpha * self.U_for + (1 - alpha) * peer_for
             self.U_against_star = alpha * self.U_against + (1 - alpha) * peer_against

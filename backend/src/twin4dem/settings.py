@@ -9,6 +9,7 @@ https://docs.djangoproject.com/en/5.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
+
 import os
 from pathlib import Path
 
@@ -69,9 +70,7 @@ EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [
-            BASE_DIR / "twin4dem" / "templates"
-        ],
+        "DIRS": [BASE_DIR / "twin4dem" / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -137,9 +136,9 @@ STATIC_ROOT = BASE_DIR.parent.parent / "assets"
 FRONTEND_ROOT = STATIC_ROOT / "frontend"
 STATICFILES_DIRS = [FRONTEND_ROOT, STATIC_ROOT / "scss"]
 STATICFILES_FINDERS = [
-    'django.contrib.staticfiles.finders.FileSystemFinder',
-    'django.contrib.staticfiles.finders.AppDirectoriesFinder',
-    "sass_processor.finders.CssFinder"
+    "django.contrib.staticfiles.finders.FileSystemFinder",
+    "django.contrib.staticfiles.finders.AppDirectoriesFinder",
+    "sass_processor.finders.CssFinder",
 ]
 
 SASS_PROCESSOR_ROOT = STATIC_ROOT / "scss"
@@ -161,7 +160,12 @@ ACCOUNT_DEFAULT_HTTP_PROTOCOL = "http"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Vite
-VITE_DEV_MODE = str(os.getenv("TWIN4DEM_BACKEND_VITE_DEV_MODE", True)).lower() in {"y", "yes", "true", "1"}
+VITE_DEV_MODE = str(os.getenv("TWIN4DEM_BACKEND_VITE_DEV_MODE", True)).lower() in {
+    "y",
+    "yes",
+    "true",
+    "1",
+}
 DJANGO_VITE = {
     "default": DjangoViteConfig(
         dev_mode=VITE_DEV_MODE,

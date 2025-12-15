@@ -1,4 +1,3 @@
-import json
 from time import sleep
 
 from asgiref.sync import async_to_sync
@@ -16,12 +15,14 @@ def count_to_ten(channel_name):
 
     for i in range(1, 10):
         send(
-            channel_name, {
+            channel_name,
+            {
                 "type": "counter.update",
                 "value": i,
-            }
+            },
         )
         sleep(0.5)
+
 
 @shared_task
 def run_government_steps(channel_name: str, data: GovernmentConfig, n_steps: int = 1):
@@ -33,8 +34,9 @@ def run_government_steps(channel_name: str, data: GovernmentConfig, n_steps: int
     for _ in range(n_steps):
         step_result = gov.step()
         send(
-            channel_name, {
+            channel_name,
+            {
                 "type": "government.step",
                 "payload": step_result,
-            }
+            },
         )

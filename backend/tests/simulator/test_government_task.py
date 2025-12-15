@@ -10,6 +10,7 @@ from channels.layers import InMemoryChannelLayer
 import json
 from pathlib import Path
 
+
 def load_json(name):
     path = Path(__file__).parent.parent / "data" / name
     return json.loads(path.read_text())

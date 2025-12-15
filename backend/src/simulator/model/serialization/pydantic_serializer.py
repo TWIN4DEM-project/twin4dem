@@ -9,6 +9,7 @@ MODEL_REGISTRY: Dict[str, Type[BaseModel]] = {
     "MinisterConfig": MinisterConfig,
 }
 
+
 class PydanticSerializer(json.JSONEncoder):
     def default(self, obj: Any) -> Any:
         if isinstance(obj, BaseModel):
@@ -18,6 +19,7 @@ class PydanticSerializer(json.JSONEncoder):
                 "data": obj.model_dump(),
             }
         return super().default(obj)
+
 
 def pydantic_decoder(obj):
     model_name = obj.get("__pydantic_model__")
@@ -31,6 +33,7 @@ def pydantic_decoder(obj):
 # Encoder function
 def pydantic_dumps(obj):
     return json.dumps(obj, cls=PydanticSerializer)
+
 
 # Decoder function
 def pydantic_loads(obj):

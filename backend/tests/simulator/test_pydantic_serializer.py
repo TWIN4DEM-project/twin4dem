@@ -2,13 +2,13 @@ import json
 import pytest
 
 from src.simulator.model.serialization.pydantic_serializer import (
-    PydanticSerializer,
     pydantic_dumps,
     pydantic_loads,
     pydantic_decoder,
     MODEL_REGISTRY,
 )
 from src.simulator.model.config import GovernmentConfig, MinisterConfig
+
 
 @pytest.fixture
 def minister_config():
@@ -23,6 +23,7 @@ def minister_config():
         support2=0,
         is_pm=True,
     )
+
 
 @pytest.fixture
 def government_config(minister_config):
