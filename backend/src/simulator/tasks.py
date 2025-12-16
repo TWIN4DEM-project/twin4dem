@@ -1,3 +1,5 @@
+import asyncio
+
 from time import sleep
 
 from asgiref.sync import async_to_sync
@@ -7,14 +9,23 @@ from .model.config import GovernmentConfig
 from .model.executive.government import Government
 
 
+def send_sync(layer, channel_name, data):
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        send = async_to_sync(layer.send)
+        send(channel_name, data)
+    else:
+        return loop.create_task(layer.send(channel_name, data))
+
+
 @shared_task
 def count_to_ten(channel_name):
     layer = get_channel_layer()
-    send = async_to_sync(layer.send)
-    print(f"using {type(layer)} layer to communicate on channel {channel_name}")
 
     for i in range(1, 10):
-        send(
+        send_sync(
+            layer,
             channel_name,
             {
                 "type": "counter.update",
@@ -27,13 +38,12 @@ def count_to_ten(channel_name):
 @shared_task
 def run_government_steps(channel_name: str, data: GovernmentConfig, n_steps: int = 1):
     gov = Government.from_config(data)
-
     layer = get_channel_layer()
-    send = async_to_sync(layer.send)
 
     for _ in range(n_steps):
         step_result = gov.step()
-        send(
+        send_sync(
+            layer,
             channel_name,
             {
                 "type": "government.step",

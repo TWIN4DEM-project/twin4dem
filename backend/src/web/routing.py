@@ -1,8 +1,9 @@
 from django.urls import re_path
 
-from .consumers import SimulationProgressConsumer, ExecutiveModelConsumer
+from .channels import SimulationAsyncConsumer
 
 websocket_urlpatterns = [
-    re_path(r"ws/simulation/(?P<sim_id>\d+)/$", SimulationProgressConsumer.as_asgi()),
-    re_path(r"ws/executive/(?P<sim_id>\d+)/$", ExecutiveModelConsumer.as_asgi()),
+    re_path(
+        r"ws/simulation/(?P<simulation_id>\d+)/$", SimulationAsyncConsumer.as_asgi()
+    ),
 ]

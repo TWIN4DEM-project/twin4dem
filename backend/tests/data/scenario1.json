@@ -71,5 +71,6 @@
   "pact": 0.7,
   "alpha": 0.5,
   "epsilon": 0.1,
-  "gamma": 5.0
+  "gamma": 5.0,
+  "action": "step"
 }

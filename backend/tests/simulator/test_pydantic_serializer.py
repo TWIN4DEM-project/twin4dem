@@ -28,6 +28,7 @@ def minister_config():
 @pytest.fixture
 def government_config(minister_config):
     return GovernmentConfig(
+        action="start",
         ministers=[minister_config],
         kgov=3,
         pact=0.6,

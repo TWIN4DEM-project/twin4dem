@@ -1,12 +1,11 @@
 import json
+from abc import ABCMeta, abstractmethod
 
 from celery import Task
 from channels.generic.websocket import AsyncWebsocketConsumer
 
-from simulator.tasks import count_to_ten, run_government_steps
 
-
-class Twin4DemAsyncConsumer(AsyncWebsocketConsumer):
+class Twin4DemAsyncConsumer(AsyncWebsocketConsumer, metaclass=ABCMeta):
     def __init__(self, task: Task, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._task = task
@@ -23,21 +22,11 @@ class Twin4DemAsyncConsumer(AsyncWebsocketConsumer):
         self._task.apply_async(
             args=[self.channel_name], kwargs=task_args, serializer="pydantic"
         )
-        await self._send_json({"status": "task started"})
+        await self._on_task_started()
+
+    @abstractmethod
+    async def _on_task_started(self):
+        pass
 
     async def _send_json(self, obj):
         await self.send(text_data=json.dumps(obj))
-
-
-class SimulationProgressConsumer(Twin4DemAsyncConsumer):
-    def __init__(self):
-        super().__init__(count_to_ten)
-
-
-class ExecutiveModelConsumer(Twin4DemAsyncConsumer):
-    def __init__(self):
-        super().__init__(run_government_steps)
-
-    async def government_step(self, event):
-        await self._send_json(event["payload"])
-        await self._send_json({"status": "task completed"})

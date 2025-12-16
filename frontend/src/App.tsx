@@ -17,6 +17,7 @@ interface MinisterConfig {
 }
 
 interface GovernmentConfig {
+  action: string;
   ministers: MinisterConfig[];
   kgov: number; // >= 1
   pact: number; // [0, 1]
@@ -33,6 +34,7 @@ interface GovernmentConfigEnvelope {
 // Example config we send immediately when the WebSocket connection opens.
 // Adjust these values as needed to match your backend expectations.
 const sampleConfig: GovernmentConfig = {
+  action: "start",
   kgov: 3,
   pact: 0.7,
   alpha: 0.5,
@@ -86,7 +88,7 @@ function App() {
     const wsRef = useRef<WebSocket | null>(null);
 
     useEffect(() => {
-        const ws = new WebSocket(`ws://${window.location.host}/ws/executive/1/`);
+        const ws = new WebSocket(`ws://${window.location.host}/ws/simulation/1/`);
         wsRef.current = ws;
         ws.onopen = () => {
             console.log('WebSocket connected');
