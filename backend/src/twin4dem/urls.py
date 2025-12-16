@@ -25,6 +25,7 @@ urlpatterns = [
     path("", web.views.index),
     path("admin/", admin.site.urls),
     path("accounts/", include("allauth.urls")),
+    path("api/v1/", include("api.urls")),
 ]
 
 if not settings.VITE_DEV_MODE:

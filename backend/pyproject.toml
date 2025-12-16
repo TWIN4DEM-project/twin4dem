@@ -13,6 +13,7 @@ dependencies = [
     "django-allauth[socialaccount]>=65.13.1",
     "django-sass-processor>=1.4.2",
     "django-vite>=3.1.0",
+    "djangorestframework>=3.16.1",
     "jwt>=1.4.0",
     "psycopg2>=2.9.11",
     "pydantic>=2.12.5",
@@ -26,7 +27,8 @@ package = true
 namespace = true
 
 [tool.pytest.ini_options]
-DJANGO_SETTINGS_MODULE = "twin4dem.test_settings"
+DJANGO_SETTINGS_MODULE = "tests.settings"
+pythonpath = [".", "src"]
 
 [dependency-groups]
 dev = [
