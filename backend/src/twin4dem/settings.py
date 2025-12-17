@@ -33,6 +33,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "sass_processor",
     "django_vite",
+    "common",
     "api",
     "web",
     "simulator",

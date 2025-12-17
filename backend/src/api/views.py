@@ -2,20 +2,26 @@ from datetime import datetime, timezone
 from http import HTTPStatus
 
 from rest_framework.decorators import api_view, schema
+from rest_framework.exceptions import NotFound
 from rest_framework.response import Response
 from rest_framework.schemas import AutoSchema
+
+from common.models import UserSettings
+from .serializers import UserSettingsSerializer
+
 
 _SAMPLE_USER_SETTINGS = {
     "id": 1,
     "userId": 1,
-    "governmentSize": 5,
-    "governmentConnectivityDegree": 2,
+    "label": "default",
+    "governmentSize": 15,
+    "governmentConnectivityDegree": 3,
     "legislativePathProbability": 0.5,
     "parliamentSize": 100,
     "parties": [
-        {"id": 1, "memberCount": 25, "position": "majority"},
-        {"id": 2, "memberCount": 35, "position": "majority"},
-        {"id": 3, "memberCount": 40, "position": "opposition"},
+        {"id": 1, "label": "Party A", "memberCount": 25, "position": "majority"},
+        {"id": 2, "label": "Party B", "memberCount": 35, "position": "majority"},
+        {"id": 3, "label": "Party C", "memberCount": 40, "position": "opposition"},
     ],
     "abstentionThreshold": 0.2,
     "courtSize": 5,
@@ -36,16 +42,21 @@ _SAMPLE_SIMULATION = {
 @schema(AutoSchema)
 def list_settings(req):
     """List all settings for the current user."""
-    data = [_SAMPLE_USER_SETTINGS]
-    return Response(data)
+    qs = UserSettings.objects.all()
+    serializer = UserSettingsSerializer(qs, many=True, context={"view": "list"})
+    return Response(serializer.data)
 
 
 @api_view(["GET"])
 @schema(AutoSchema)
-def get_settings(req, **_):
+def get_settings(req, settings_id):
     """Retrieve individual settings for the current user by ID."""
-    data = _SAMPLE_USER_SETTINGS
-    return Response(data)
+    try:
+        qs = UserSettings.objects.get(id=settings_id)
+        serializer = UserSettingsSerializer(qs, many=False)
+        return Response(serializer.data)
+    except UserSettings.DoesNotExist:
+        raise NotFound()
 
 
 @api_view(["GET", "POST"])

@@ -5,6 +5,7 @@ description = "TWIN4DEM as a Django web app"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "case-switcher>=1.3.13",
     "celery>=5.5.3",
     "channels-redis>=4.3.0",
     "channels[daphne]>=4.3.2",
