@@ -12,6 +12,7 @@ class UserSettings(models.Model):
     government_connectivity_degree = models.PositiveSmallIntegerField(
         null=False, default=3
     )
+    government_probability_for = models.FloatField(default=0.5)
     parliament_size = models.PositiveSmallIntegerField(null=False, default=100)
     court_size = models.PositiveSmallIntegerField(null=False, default=5)
     abstention_threshold = models.FloatField(null=False, default=0.2)
@@ -53,6 +54,11 @@ class UserSettings(models.Model):
                 name="ck_usersettings_legislative_path_probability",
                 condition=Q(legislative_path_probability__gte=0.0)
                 & Q(legislative_path_probability__lte=1.0),
+            ),
+            models.CheckConstraint(
+                name="ck_usersettings_government_probability_for",
+                condition=Q(government_probability_for__gte=0.0)
+                & Q(government_probability_for__lte=1.0),
             ),
         ]
 
