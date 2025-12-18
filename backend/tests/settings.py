@@ -9,3 +9,4 @@ DATABASES = {
     }
 }
 CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
+ADAPTER_FACTORY = "simulator.config.ConfigAdapters"

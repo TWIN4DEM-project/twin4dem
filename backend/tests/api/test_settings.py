@@ -33,6 +33,7 @@ def test_get_by_id_success(admin_client):
         "dataUpdateFrequency": 10,
         "governmentConnectivityDegree": 3,
         "governmentSize": 15,
+        "governmentProbabilityFor": 0.5,
         "id": 1,
         "label": "default",
         "legislativePathProbability": 0.5,

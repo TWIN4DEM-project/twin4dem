@@ -25,7 +25,7 @@ def test_run_government_steps():
     receive = async_to_sync(layer.receive)
 
     with patch("simulator.tasks.get_channel_layer", return_value=layer):
-        run_government_steps.delay(channel_name, gov_cfg, 3)
+        run_government_steps.delay(channel_name, data=gov_cfg, n_steps=3)
 
     messages = [receive(channel_name) for _ in range(3)]
 
@@ -50,7 +50,7 @@ def test_government_scenario_1_output():
     receive = async_to_sync(layer.receive)
 
     with patch("simulator.tasks.get_channel_layer", return_value=layer):
-        run_government_steps.delay(channel_name, gov_cfg, n_steps)
+        run_government_steps.delay(channel_name, data=gov_cfg, n_steps=n_steps)
 
     messages: list[dict[str, Any]] = [receive(channel_name) for _ in range(n_steps)]
     payloads: list[dict[str, Any]] = [msg["payload"] for msg in messages]
@@ -73,7 +73,7 @@ def test_government_scenario_2_output():
     receive = async_to_sync(layer.receive)
 
     with patch("simulator.tasks.get_channel_layer", return_value=layer):
-        run_government_steps.delay(channel_name, gov_cfg, n_steps)
+        run_government_steps.delay(channel_name, data=gov_cfg, n_steps=n_steps)
 
     messages: list[dict[str, Any]] = [receive(channel_name) for _ in range(n_steps)]
     payloads: list[dict[str, Any]] = [msg["payload"] for msg in messages]

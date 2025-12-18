@@ -81,7 +81,6 @@ class GovernmentConfigAdapter(GovernmentAdapter[GovernmentConfig]):
 
         return Government(
             ministers=ministers,
-            kgov=config.kgov,
             pact=config.pact,
             alpha=config.alpha,
             epsilon=config.epsilon,

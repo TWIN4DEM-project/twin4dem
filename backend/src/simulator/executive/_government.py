@@ -9,7 +9,6 @@ class Government:
     def __init__(
         self,
         ministers: list[Minister],
-        kgov: int,
         pact: float,
         alpha: float,
         epsilon: float,
@@ -17,7 +16,6 @@ class Government:
         network: dict[int, list[int]],
     ):
         self.ministers = ministers
-        self.kgov = kgov
         self.pact = pact
         self.alpha = alpha
         self.epsilon = epsilon

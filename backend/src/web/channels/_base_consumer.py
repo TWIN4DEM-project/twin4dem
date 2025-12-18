@@ -15,12 +15,13 @@ class Twin4DemAsyncConsumer(AsyncWebsocketConsumer, metaclass=ABCMeta):
 
     async def receive(self, text_data=None, bytes_data=None):
         # we don't support gzip compression, msgpack, protobuf or avro for now
-        task_args = {}
+        url_route = self.scope.get("url_route", {})
+        task_kwargs = url_route.get("kwargs", {})
         if text_data is not None:
-            task_args = dict(data=json.loads(text_data))
-        # launch Celery task
+            task_kwargs.update(dict(data=json.loads(text_data)))
+        task_args = [self.channel_name, *url_route.get("args", [])]
         self._task.apply_async(
-            args=[self.channel_name], kwargs=task_args, serializer="pydantic"
+            args=task_args, kwargs=task_kwargs, serializer="pydantic"
         )
         await self._on_task_started()
 

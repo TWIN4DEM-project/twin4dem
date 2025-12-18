@@ -6,8 +6,9 @@ from celery import shared_task
 from channels.layers import get_channel_layer
 from django.conf import settings
 
+from common.models import Simulation
 from .adapters import AdapterFactory
-from .config import GovernmentConfig, ConfigAdapters
+from .config import GovernmentConfig
 
 
 def send_sync(layer, channel_name, data):
@@ -24,16 +25,24 @@ def get_adapter_factory() -> AdapterFactory:
     fqcn = getattr(settings, "ADAPTER_FACTORY")
     last_dot_idx = fqcn.rindex(".")
     module_name = fqcn[:last_dot_idx]
-    class_name = fqcn[last_dot_idx+1:]
+    class_name = fqcn[last_dot_idx + 1 :]
     module = importlib.import_module(module_name)
     cls = getattr(module, class_name)
     return cls()
 
 
 @shared_task
-def run_government_steps(channel_name: str, data: GovernmentConfig, n_steps: int = 1):
+def run_government_steps(
+    channel_name: str,
+    simulation_id: int | None = None,
+    data: GovernmentConfig | None = None,
+    n_steps: int = 1,
+):
     factory = get_adapter_factory()
-    gov = factory.new_government_adapter().convert(data)
+    input_data = data
+    if simulation_id is not None:
+        input_data = Simulation.objects.get(pk=int(simulation_id))
+    gov = factory.new_government_adapter().convert(input_data)
     layer = get_channel_layer()
 
     for _ in range(n_steps):
