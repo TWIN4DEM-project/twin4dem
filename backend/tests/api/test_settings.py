@@ -1,6 +1,3 @@
-from api.views import _SAMPLE_USER_SETTINGS
-
-
 def test_list_success(admin_client):
     response = admin_client.get("/api/v1/settings/")
 
@@ -30,7 +27,23 @@ def test_get_by_id_success(admin_client):
     response = admin_client.get("/api/v1/settings/1/")
 
     assert response.status_code == 200
-    assert response.json() == _SAMPLE_USER_SETTINGS
+    assert response.json() == {
+        "abstentionThreshold": 0.2,
+        "courtSize": 5,
+        "dataUpdateFrequency": 10,
+        "governmentConnectivityDegree": 3,
+        "governmentSize": 15,
+        "id": 1,
+        "label": "default",
+        "legislativePathProbability": 0.5,
+        "parliamentSize": 100,
+        "parties": [
+            {"id": 1, "label": "Party A", "memberCount": 25, "position": "majority"},
+            {"id": 2, "label": "Party B", "memberCount": 35, "position": "majority"},
+            {"id": 3, "label": "Party C", "memberCount": 40, "position": "opposition"},
+        ],
+        "userId": 1,
+    }
 
 
 def test_get_by_id_404(admin_client):

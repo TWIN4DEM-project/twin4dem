@@ -5,13 +5,6 @@ from django.db import IntegrityError, transaction
 from common.models import UserSettings, PartySettings
 
 
-@pytest.fixture
-def test_user(db, django_user_model):
-    return django_user_model.objects.create_user(
-        username="testuser", password="testpass"
-    )
-
-
 @pytest.mark.django_db
 def test_create_default_user_settings(test_user):
     settings = UserSettings.objects.get(user=test_user)
