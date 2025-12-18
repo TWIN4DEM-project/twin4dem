@@ -67,6 +67,7 @@ TEMPLATES = [
 ]
 WSGI_APPLICATION = "twin4dem.wsgi.application"
 ASGI_APPLICATION = "twin4dem.asgi.application"
+ADAPTER_FACTORY = "simulator.config.ConfigAdapters"
 
 # API
 REST_FRAMEWORK = {

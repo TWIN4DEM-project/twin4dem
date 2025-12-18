@@ -2,7 +2,7 @@ import os
 
 from celery import Celery
 from kombu.serialization import register
-from simulator.model.serialization.pydantic_serializer import (
+from simulator.serialization.pydantic_serializer import (
     pydantic_dumps,
     pydantic_loads,
 )

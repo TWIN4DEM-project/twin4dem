@@ -1,12 +1,13 @@
 import asyncio
-
-from time import sleep
+import importlib
 
 from asgiref.sync import async_to_sync
 from celery import shared_task
 from channels.layers import get_channel_layer
-from .model.config import GovernmentConfig
-from .model.executive.government import Government
+from django.conf import settings
+
+from .adapters import AdapterFactory
+from .config import GovernmentConfig, ConfigAdapters
 
 
 def send_sync(layer, channel_name, data):
@@ -19,25 +20,20 @@ def send_sync(layer, channel_name, data):
         return loop.create_task(layer.send(channel_name, data))
 
 
-@shared_task
-def count_to_ten(channel_name):
-    layer = get_channel_layer()
-
-    for i in range(1, 10):
-        send_sync(
-            layer,
-            channel_name,
-            {
-                "type": "counter.update",
-                "value": i,
-            },
-        )
-        sleep(0.5)
+def get_adapter_factory() -> AdapterFactory:
+    fqcn = getattr(settings, "ADAPTER_FACTORY")
+    last_dot_idx = fqcn.rindex(".")
+    module_name = fqcn[:last_dot_idx]
+    class_name = fqcn[last_dot_idx+1:]
+    module = importlib.import_module(module_name)
+    cls = getattr(module, class_name)
+    return cls()
 
 
 @shared_task
 def run_government_steps(channel_name: str, data: GovernmentConfig, n_steps: int = 1):
-    gov = Government.from_config(data)
+    factory = get_adapter_factory()
+    gov = factory.new_government_adapter().convert(data)
     layer = get_channel_layer()
 
     for _ in range(n_steps):

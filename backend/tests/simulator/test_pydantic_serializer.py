@@ -1,13 +1,13 @@
 import json
 import pytest
 
-from src.simulator.model.serialization.pydantic_serializer import (
+from simulator.serialization.pydantic_serializer import (
     pydantic_dumps,
     pydantic_loads,
     pydantic_decoder,
     MODEL_REGISTRY,
 )
-from src.simulator.model.config import GovernmentConfig, MinisterConfig
+from simulator.config import GovernmentConfig, MinisterConfig
 
 
 @pytest.fixture

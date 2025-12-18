@@ -1,14 +1,13 @@
-from typing import Any, Dict, List
-
-from src.simulator.tasks import run_government_steps
-from src.simulator.model.config import GovernmentConfig
-
-from asgiref.sync import async_to_sync
-from unittest.mock import patch
-from channels.layers import InMemoryChannelLayer
-
 import json
 from pathlib import Path
+from typing import Any
+
+from asgiref.sync import async_to_sync
+from channels.layers import InMemoryChannelLayer
+from unittest.mock import patch
+
+from simulator.tasks import run_government_steps
+from simulator.config import GovernmentConfig
 
 
 def load_json(name):
@@ -25,7 +24,7 @@ def test_run_government_steps():
     layer = InMemoryChannelLayer()
     receive = async_to_sync(layer.receive)
 
-    with patch("src.simulator.tasks.get_channel_layer", return_value=layer):
+    with patch("simulator.tasks.get_channel_layer", return_value=layer):
         run_government_steps.delay(channel_name, gov_cfg, 3)
 
     messages = [receive(channel_name) for _ in range(3)]
@@ -50,11 +49,11 @@ def test_government_scenario_1_output():
     layer = InMemoryChannelLayer()
     receive = async_to_sync(layer.receive)
 
-    with patch("src.simulator.tasks.get_channel_layer", return_value=layer):
+    with patch("simulator.tasks.get_channel_layer", return_value=layer):
         run_government_steps.delay(channel_name, gov_cfg, n_steps)
 
-    messages: List[Dict[str, Any]] = [receive(channel_name) for _ in range(n_steps)]
-    payloads: List[Dict[str, Any]] = [msg["payload"] for msg in messages]
+    messages: list[dict[str, Any]] = [receive(channel_name) for _ in range(n_steps)]
+    payloads: list[dict[str, Any]] = [msg["payload"] for msg in messages]
 
     for p in payloads:
         assert "approved" in p
@@ -73,11 +72,11 @@ def test_government_scenario_2_output():
     layer = InMemoryChannelLayer()
     receive = async_to_sync(layer.receive)
 
-    with patch("src.simulator.tasks.get_channel_layer", return_value=layer):
+    with patch("simulator.tasks.get_channel_layer", return_value=layer):
         run_government_steps.delay(channel_name, gov_cfg, n_steps)
 
-    messages: List[Dict[str, Any]] = [receive(channel_name) for _ in range(n_steps)]
-    payloads: List[Dict[str, Any]] = [msg["payload"] for msg in messages]
+    messages: list[dict[str, Any]] = [receive(channel_name) for _ in range(n_steps)]
+    payloads: list[dict[str, Any]] = [msg["payload"] for msg in messages]
 
     for p in payloads:
         assert "approved" in p
