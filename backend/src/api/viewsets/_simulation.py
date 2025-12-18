@@ -74,6 +74,7 @@ class SimulationViewSet(
 
         cabinet = Cabinet.objects.create(
             label=f"{user_settings.user.username}-{sim_label}",
+            government_probability_for=user_settings.government_probability_for,
             legislative_probability=user_settings.legislative_path_probability,
         )
 

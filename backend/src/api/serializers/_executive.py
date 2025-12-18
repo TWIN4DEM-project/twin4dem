@@ -38,6 +38,8 @@ class CabinetSerializer(LCCModelSerializer):
         fields = [
             "id",
             "label",
+            "government_probability_for",
+            "legislative_probability",
             "ministers",
         ]
 

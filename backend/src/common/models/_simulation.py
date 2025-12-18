@@ -16,20 +16,10 @@ class Simulation(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     status = models.CharField(choices=Status.choices, default=Status.NEW)
     current_step = models.PositiveBigIntegerField(default=0)
-    government_probability_for = models.FloatField(default=0.5)
 
     user_settings = models.ForeignKey(
         to=UserSettings, on_delete=models.CASCADE, related_name="simulations"
     )
-
-    class Meta:
-        constraints = [
-            models.CheckConstraint(
-                name="ck_government_probability_for_is_prob",
-                condition=models.Q(government_probability_for__gte=0)
-                & models.Q(government_probability_for__lte=1),
-            ),
-        ]
 
 
 class SimulationParams(models.Model):

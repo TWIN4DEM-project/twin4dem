@@ -22,6 +22,7 @@ class InfluencerModel(models.Model):
 class Cabinet(models.Model):
     id = models.AutoField(primary_key=True)
     label = models.CharField(max_length=50, unique=True)
+    government_probability_for = models.FloatField(default=0.5)
     legislative_probability = models.FloatField()
     simulation_param = GenericRelation(
         to=SimulationParams,
@@ -29,6 +30,15 @@ class Cabinet(models.Model):
         object_id_field="content_id",
         related_query_name="cabinet",
     )
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                name="ck_government_probability_for_is_prob",
+                condition=models.Q(government_probability_for__gte=0)
+                & models.Q(government_probability_for__lte=1),
+            ),
+        ]
 
 
 class Minister(InfluencerModel):
