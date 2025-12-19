@@ -1,9 +1,15 @@
 import random
 
-from simulator.config import MinisterConfig, GovernmentConfig
+from simulator.config import (
+    MinisterConfig,
+    GovernmentConfig,
+    MPConfig,
+    ParliamentConfig,
+)
 from simulator.executive import Government, Minister
+from simulator.legislative import MP, Parliament
 
-from simulator.adapters import GovernmentAdapter, AgentAdapter
+from simulator.adapters import GovernmentAdapter, AgentAdapter, ParliamentAdapter
 
 
 class MinisterConfigAdapter(AgentAdapter[MinisterConfig, Minister]):
@@ -87,3 +93,38 @@ class GovernmentConfigAdapter(GovernmentAdapter[GovernmentConfig]):
             gamma=config.gamma,
             network=self._build_network(config, ministers),
         )
+
+
+class MPConfigAdapter(AgentAdapter[MPConfig, MP]):
+    def convert(self, config: MPConfig) -> MP:
+
+        return MP(
+            id=config.id,
+            T_i=config.type,  # "MP"
+            P_i=config.party,  # "majority" | "opposition" | "independent"
+            S_i=config.influence,
+            W=config.weights,
+            o_i=config.opinion,
+            o_sup1=config.support1,
+            o_sup2=config.support2,
+            is_head=config.is_head,
+        )
+
+
+class ParliamentConfigAdapter(ParliamentAdapter[ParliamentConfig]):
+    def __init__(self):
+        self.__mp_adp = MPConfigAdapter()
+
+    def convert(self, config: ParliamentConfig) -> Parliament:
+        mps = list(map(self.__mp_adp.convert, config.mps))
+
+        parl = Parliament(
+            mps=mps,
+            n_party=config.n_party,
+            n_sits=config.n_sits,
+            alpha=config.alpha,
+            epsilon=config.epsilon,
+            gamma=config.gamma,
+        )
+
+        return parl

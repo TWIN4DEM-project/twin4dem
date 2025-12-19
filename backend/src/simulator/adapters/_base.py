@@ -3,6 +3,7 @@ from typing import Generic
 
 from simulator.common import TInput, TAgent, TOutput
 from simulator.executive import Government
+from simulator.legislative import Parliament
 
 
 class Adapter(Generic[TInput, TOutput], metaclass=ABCMeta):
@@ -12,6 +13,10 @@ class Adapter(Generic[TInput, TOutput], metaclass=ABCMeta):
 
 
 class GovernmentAdapter(Adapter[TInput, Government], metaclass=ABCMeta):
+    pass
+
+
+class ParliamentAdapter(Adapter[TInput, Parliament], metaclass=ABCMeta):
     pass
 
 

@@ -1,0 +1,52 @@
+{
+  "mps": [
+    {
+      "id": 1,
+      "type": "MP",
+      "party": "majority",
+      "influence": 0.0,
+      "weights": [0.1667, 0.1667, 0.1667, 0.1667, 0.1667, 0.1667],
+      "opinion": 1,
+      "support1": 1,
+      "support2": 1,
+      "is_head": true
+    },
+    {
+      "id": 2,
+      "type": "MP",
+      "party": "majority",
+      "influence": 0.0,
+      "weights": [0.1667, 0.1667, 0.1667, 0.1667, 0.1667, 0.1667],
+      "opinion": 0,
+      "support1": 1,
+      "support2": 0
+    },
+    {
+      "id": 3,
+      "type": "MP",
+      "party": "opposition",
+      "influence": 0.0,
+      "weights": [0.1667, 0.1667, 0.1667, 0.1667, 0.1667, 0.1667],
+      "opinion": 0,
+      "support1": 0,
+      "support2": 0,
+      "is_head": true
+    },
+    {
+      "id": 4,
+      "type": "MP",
+      "party": "opposition",
+      "influence": 0.0,
+      "weights": [0.1667, 0.1667, 0.1667, 0.1667, 0.1667, 0.1667],
+      "opinion": 1,
+      "support1": 0,
+      "support2": 1
+    }
+  ],
+  "n_party": 2,
+  "n_sits": [2, 2],
+  "position_p": ["majority", "opposition"],
+  "alpha": 1.0,
+  "epsilon": 0.1,
+  "gamma": 5.0
+}

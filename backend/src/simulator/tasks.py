@@ -8,7 +8,7 @@ from django.conf import settings
 
 from common.models import Simulation
 from .adapters import AdapterFactory
-from .config import GovernmentConfig
+from .config import GovernmentConfig, ParliamentConfig
 
 
 def send_sync(layer, channel_name, data):
@@ -32,10 +32,29 @@ def get_adapter_factory() -> AdapterFactory:
 
 
 @shared_task
+def run_legislative_steps(channel_name: str, data: ParliamentConfig):
+    factory = get_adapter_factory()
+    parl = factory.new_parliament_adapter().convert(data)
+    layer = get_channel_layer()
+
+    parl_step_result = parl.step()
+
+    send_sync(
+        layer,
+        channel_name,
+        {
+            "type": "parliament.step",
+            "payload": parl_step_result,
+        },
+    )
+
+
+@shared_task
 def run_government_steps(
     channel_name: str,
     simulation_id: int | None = None,
     data: GovernmentConfig | None = None,
+    parl_data: ParliamentConfig | None = None,
     n_steps: int = 1,
 ):
     factory = get_adapter_factory()
@@ -47,6 +66,10 @@ def run_government_steps(
 
     for _ in range(n_steps):
         step_result = gov.step()
+
+        approved = bool(step_result.get("approved"))
+        path = step_result.get("path")  # "legislative act" | "decree" | None
+
         send_sync(
             layer,
             channel_name,
@@ -55,3 +78,18 @@ def run_government_steps(
                 "payload": step_result,
             },
         )
+
+        if approved and path == "legislative act":
+            if parl_data is None:
+                continue
+
+            run_legislative_steps.apply_async(args=[channel_name, parl_data])
+        else:
+            send_sync(
+                layer,
+                channel_name,
+                {
+                    "type": "government.step",
+                    "payload": step_result,
+                },
+            )
