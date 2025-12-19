@@ -1,4 +1,4 @@
-from random import choice, random, sample, randint
+from random import choice, random, sample, randint, expovariate
 
 from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
@@ -29,6 +29,7 @@ class SimulationViewSet(
     mixins.RetrieveModelMixin,
     viewsets.GenericViewSet,
 ):
+    __WEIGHTS_COUNT = 6
     permission_classes = [permissions.IsAuthenticated]
     http_method_names = ["get", "post", "patch"]
 
@@ -53,6 +54,12 @@ class SimulationViewSet(
             {"detail": f"simulation {sim_id} updated"},
             status=status.HTTP_202_ACCEPTED,
         )
+
+    @staticmethod
+    def _random_weights(n: int = 6) -> list[float]:
+        x = [expovariate(1.0) for _ in range(n)]
+        s = sum(x)
+        return [x_i / s for x_i in x]
 
     @transaction.atomic
     def perform_create(self, serializer):
@@ -89,6 +96,7 @@ class SimulationViewSet(
             is_prime_minister=True,
             cabinet=cabinet,
             influence=1.0,
+            weights=cls._random_weights(cls.__WEIGHTS_COUNT),
         )
 
         ministers = [
@@ -98,6 +106,7 @@ class SimulationViewSet(
                 is_prime_minister=False,
                 cabinet=cabinet,
                 influence=random(),
+                weights=cls._random_weights(cls.__WEIGHTS_COUNT),
             )
             for i in range(1, n)
         ]

@@ -16,6 +16,8 @@ def test_post_success(admin_client, django_user_model):
     assert data["createdAt"] is not None
     assert data["currentStep"] == 0
     assert data["id"] is not None
+    assert data["officeRetentionSensitivity"] == 5.0
+    assert data["socialInfluenceSusceptibility"] == 0.5
     assert "params" in data and len(data["params"]) > 0
     first_param = data["params"][0]
     assert first_param["type"] == "cabinet"
@@ -30,8 +32,14 @@ def test_post_success(admin_client, django_user_model):
     pm = next(m for m in ministers if m["isPrimeMinister"])
     assert len(pm["neighboursOut"]) == admin_settings.government_size - 1
     assert pm["influence"] == 1.0
+    assert len(pm["weights"]) == 6
+    assert all(0 <= x <= 1 for x in pm["weights"])
+    assert round(sum(pm["weights"])) == 1
     minister_dict = {m["id"]: m for m in ministers}
     for m in ministers:
+        assert len(m["weights"]) == 6
+        assert all(0 <= x <= 1 for x in m["weights"])
+        assert round(sum(m["weights"])) == 1, f"sum of weights of {m["id"]} != 1"
         if not m["isPrimeMinister"]:
             assert (
                 len(m["neighboursOut"]) <= admin_settings.government_connectivity_degree

@@ -37,12 +37,14 @@ def test_get_by_id_success(admin_client):
         "id": 1,
         "label": "default",
         "legislativePathProbability": 0.5,
+        "officeRetentionSensitivity": 5.0,
         "parliamentSize": 100,
         "parties": [
             {"id": 1, "label": "Party A", "memberCount": 25, "position": "majority"},
             {"id": 2, "label": "Party B", "memberCount": 35, "position": "majority"},
             {"id": 3, "label": "Party C", "memberCount": 40, "position": "opposition"},
         ],
+        "socialInfluenceSusceptibility": 0.5,
         "userId": 1,
     }
 

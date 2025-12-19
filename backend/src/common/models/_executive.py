@@ -1,13 +1,13 @@
 from django.contrib.contenttypes.fields import GenericRelation
 from django.db import models
-from django.db.models import FloatField, BooleanField, ForeignKey, AutoField, CharField
 
+from common import fields
 from common.models._settings import PartySettings
 from ._simulation import SimulationParams
 
 
 class InfluencerModel(models.Model):
-    influence = FloatField(null=False, default=0.0)
+    influence = models.FloatField(null=False, default=0.0)
 
     class Meta:
         abstract = True
@@ -42,13 +42,16 @@ class Cabinet(models.Model):
 
 
 class Minister(InfluencerModel):
-    id = AutoField(primary_key=True)
-    label = CharField(max_length=50)
-    is_prime_minister = BooleanField(null=False, default=False)
-    party = ForeignKey(
+    id = models.AutoField(primary_key=True)
+    label = models.CharField(max_length=50)
+    is_prime_minister = models.BooleanField(null=False, default=False)
+    party = models.ForeignKey(
         to=PartySettings, on_delete=models.RESTRICT, related_name="ministers"
     )
-    cabinet = ForeignKey(to=Cabinet, on_delete=models.CASCADE, related_name="ministers")
+    cabinet = models.ForeignKey(
+        to=Cabinet, on_delete=models.CASCADE, related_name="ministers"
+    )
+    weights = fields.SeparatedValuesField(base_field=models.FloatField(), blank=True)
     neighbours_out = models.ManyToManyField(
         "self",
         through="MinisterLink",

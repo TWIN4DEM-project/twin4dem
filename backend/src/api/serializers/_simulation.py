@@ -2,8 +2,6 @@ from rest_framework import serializers
 
 from api.serializers._base import LCCModelSerializer
 from common.models import Cabinet, Simulation, SimulationParams
-
-
 from ._executive import CabinetSerializer
 
 
@@ -32,8 +30,24 @@ class SimulationSerializer(LCCModelSerializer):
 
     class Meta:
         model = Simulation
-        read_only_fields = ["id", "created_at", "updated_at"]
-        fields = ["id", "created_at", "updated_at", "status", "current_step", "params"]
+        read_only_fields = [
+            "id",
+            "created_at",
+            "updated_at",
+            "current_step",
+            "office_retention_sensitivity",
+            "social_influence_susceptibility",
+        ]
+        fields = [
+            "id",
+            "created_at",
+            "updated_at",
+            "status",
+            "current_step",
+            "office_retention_sensitivity",
+            "social_influence_susceptibility",
+            "params",
+        ]
 
     def get_params(self, obj: Simulation):
         qs = obj.params.all()

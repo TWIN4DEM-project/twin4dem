@@ -1,5 +1,9 @@
+from typing import cast
 from rest_framework import serializers
+
+from common.fields import SeparatedValuesField
 from common.models import Cabinet, Minister
+from api import fields
 from ._base import LCCModelSerializer
 
 
@@ -7,6 +11,9 @@ class MinisterNetworkSerializer(LCCModelSerializer):
     neighbours_in = serializers.SerializerMethodField()
     neighbours_out = serializers.SerializerMethodField()
     party_label = serializers.SerializerMethodField()
+    weights = fields.SeparatedValuesSerializerField(
+        model_field=cast(SeparatedValuesField, Minister._meta.get_field("weights"))
+    )
 
     class Meta:
         model = Minister
@@ -16,6 +23,7 @@ class MinisterNetworkSerializer(LCCModelSerializer):
             "is_prime_minister",
             "party_label",
             "influence",
+            "weights",
             "neighbours_in",
             "neighbours_out",
         ]

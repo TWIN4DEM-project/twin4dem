@@ -15,6 +15,9 @@ class UserSettings(models.Model):
     government_probability_for = models.FloatField(default=0.5)
     parliament_size = models.PositiveSmallIntegerField(null=False, default=100)
     court_size = models.PositiveSmallIntegerField(null=False, default=5)
+    # general parameters
+    office_retention_sensitivity = models.FloatField(default=5.0)
+    social_influence_susceptibility = models.FloatField(default=0.5)
     abstention_threshold = models.FloatField(null=False, default=0.2)
     data_update_frequency = models.PositiveSmallIntegerField(null=False, default=10)
     legislative_path_probability = models.FloatField(null=False, default=0.5)
@@ -59,6 +62,15 @@ class UserSettings(models.Model):
                 name="ck_usersettings_government_probability_for",
                 condition=Q(government_probability_for__gte=0.0)
                 & Q(government_probability_for__lte=1.0),
+            ),
+            models.CheckConstraint(
+                name="ck_usersettings_office_retention_sensitivity",
+                condition=Q(office_retention_sensitivity__gte=5.0),
+            ),
+            models.CheckConstraint(
+                name="ck_usersettings_social_influence_susceptibility",
+                condition=Q(social_influence_susceptibility__gte=0.0)
+                & Q(social_influence_susceptibility__lte=1.0),
             ),
         ]
 

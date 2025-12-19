@@ -9,8 +9,6 @@ from channels.layers import InMemoryChannelLayer
 from simulator.tasks import run_government_steps, run_legislative_steps
 from simulator.config import GovernmentConfig, ParliamentConfig
 
-from simulator.executive import Government
-
 
 def load_json(name: str) -> dict[str, Any]:
     path = Path(__file__).parent.parent / "data" / name
@@ -24,7 +22,6 @@ def test_flow_triggers_legislative_task_on_legislative_act():
     parl_cfg = ParliamentConfig.model_validate(load_json("legislative.json"))
 
     layer = InMemoryChannelLayer()
-    receive = async_to_sync(layer.receive)
 
     gov = MagicMock()
     gov.step.return_value = {"approved": True, "path": "legislative act", "votes": {}}
@@ -43,7 +40,9 @@ def test_flow_triggers_legislative_task_on_legislative_act():
         patch("simulator.tasks.get_adapter_factory", return_value=factory),
         patch.object(run_legislative_steps, "apply_async") as mocked_apply_async,
     ):
-        run_government_steps.delay(channel_name, data=gov_cfg, parl_data=parl_cfg, n_steps=1)
+        run_government_steps.delay(
+            channel_name, data=gov_cfg, parl_data=parl_cfg, n_steps=1
+        )
 
     mocked_apply_async.assert_called_once_with(args=[channel_name, parl_cfg])
 
@@ -71,7 +70,9 @@ def test_flow_does_not_trigger_legislative_task_on_decree_and_sends_government_s
         patch("simulator.tasks.get_adapter_factory", return_value=factory),
         patch.object(run_legislative_steps, "apply_async") as mocked_apply_async,
     ):
-        run_government_steps.delay(channel_name, data=gov_cfg, parl_data=parl_cfg, n_steps=1)
+        run_government_steps.delay(
+            channel_name, data=gov_cfg, parl_data=parl_cfg, n_steps=1
+        )
 
     mocked_apply_async.assert_not_called()
 
