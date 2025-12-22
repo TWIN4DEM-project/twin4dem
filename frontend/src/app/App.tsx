@@ -11,7 +11,12 @@ export function App() {
     <BrowserRouter>
       <Routes>
         <Route element={<SidePaneLayout side={<SimulationList />} />}>
-          <Route index element={<EmptySelectionPane />} />
+          <Route
+            index
+            element={
+              <EmptySelectionPane text="Please select a simulation &#129760;" />
+            }
+          />
           <Route
             path="simulations/:simulationId"
             element={<SimulationDetails />}

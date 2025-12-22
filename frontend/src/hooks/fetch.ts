@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import axios, { type AxiosRequestConfig } from "axios";
+import axios, { type AxiosRequestConfig, type Method } from "axios";
 import { z } from "zod";
 
 type UseFetchOptions<T> = {
   url: string | null;
+  method: Method;
   schema: z.ZodSchema<T>;
   config?: AxiosRequestConfig;
   initialValue?: T;
@@ -15,11 +16,17 @@ export function useFetch<T>({
   schema,
   config,
   initialValue,
+  method = "GET",
   deps = [],
 }: UseFetchOptions<T>) {
   const [data, setData] = useState<T | undefined>(initialValue);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<unknown>(null);
+  const [nonce, setNonce] = useState(0);
+
+  function refetch() {
+    setNonce((n) => n + 1);
+  }
 
   useEffect(() => {
     if (!url) return;
@@ -28,8 +35,11 @@ export function useFetch<T>({
       try {
         setLoading(true);
         setError(null);
-
-        const res = await axios.get(url, config);
+        const res = await axios.request({
+          url,
+          method,
+          ...config,
+        });
         const parsed = schema.parse(res.data);
 
         setData(parsed);
@@ -39,7 +49,7 @@ export function useFetch<T>({
         setLoading(false);
       }
     })();
-  }, [url, ...deps]);
+  }, [url, nonce, ...deps]);
 
-  return { data, loading, error };
+  return { data, loading, error, refetch };
 }

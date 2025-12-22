@@ -14,7 +14,6 @@ const SimulationIdParamSchema = z.coerce.number().int().positive();
 
 export function SimulationDetails() {
   const { simulationId } = useParams();
-  const [ministerVotes, setMinisterVotes] = useState<MinisterVote[]>([]);
   const [path, setPath] = useState<string>("-");
   const [stepNo, setStepNo] = useState<number>(0);
   const parsed = SimulationIdParamSchema.safeParse(simulationId);
@@ -27,10 +26,19 @@ export function SimulationDetails() {
   const ministers = useMemo(() => {
     return cabinet?.ministers ? cabinet.ministers : [];
   }, [cabinet]);
-
+  const [ministerVotes, setMinisterVotes] = useState<MinisterVote[]>([]);
   const { send, stream } = useWebSocketStream<SimulationState>(
     `ws://localhost:8000/ws/simulation/${simulationId}/`,
   );
+
+  useEffect(() => {
+    setMinisterVotes(
+      ministers.map((m) => ({
+        minister: m,
+        vote: null,
+      })),
+    );
+  }, [ministers]);
 
   useEffect(() => {
     let cancelled = false;
@@ -60,13 +68,15 @@ export function SimulationDetails() {
   return (
     <div className="simulationDetails">
       <div className="simulationHeader">
-        <h3>Simulation {simulationId}</h3>
-        <div className="simulationToolbar">
+        <div className="simulationToolbar simulationDetailsToolbar">
+          <h3 className="simulationDetailsTitle">Simulation {simulationId}</h3>
           <button
-            className="simulationStep"
+            className="simulationToolbarButton"
             onClick={() => send({ action: "step" })}
+            aria-label={`Step ${stepNo + 1}`}
+            title={`Step ${stepNo + 1}`}
           >
-            Step {stepNo + 1}
+            &#x23ED;{` ${stepNo + 1}`}
           </button>
         </div>
         <div>

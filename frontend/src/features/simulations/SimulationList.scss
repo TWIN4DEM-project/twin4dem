@@ -1,17 +1,25 @@
 @import "@scss/variables";
+@import "./_common";
 
-.simulationList {
-  background: whitesmoke;
+.simulationListContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
   min-width: 240px;
-  height: 100%;
-  overflow-y: auto;
-  margin: 0 16px 0 0;
-  border-radius: 8px;
+  min-height: 100vh;
   margin-left: 16px;
 
-  li {
-    padding: 16px 4px;
-    text-decoration: none;
-    border-bottom: dotted 1px $muted;
+  .simulationList {
+    background: whitesmoke;
+    min-height: 100vh;
+    overflow-y: auto;
+    margin: 0;
+    border-radius: $radius-sm;
+
+    li {
+      padding: 0 16px 0 4px;
+      text-decoration: none;
+      border-bottom: dotted 1px $muted;
+    }
   }
 }

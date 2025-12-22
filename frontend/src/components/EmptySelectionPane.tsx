@@ -1,9 +1,15 @@
 import "./EmptySelectionPane.scss";
 
-export function EmptySelectionPane() {
+interface EmptySelectionPaneProps {
+  text: string;
+}
+
+export function EmptySelectionPane({
+  text = "No data...",
+}: EmptySelectionPaneProps) {
   return (
     <div className="emptySelection">
-      <p>Please select a simulation &#129760;</p>
+      <p>{text}</p>
     </div>
   );
 }

@@ -1,0 +1,55 @@
+.simulationToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  border: 1px solid $border-subtle;
+  border-radius: $radius-sm;
+  box-shadow: $shadow-soft;
+  height: 48px;
+
+  .simulationToolbarButton {
+    font-family: $font-family;
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 1;
+
+    min-width: 36px;
+    height: 36px;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    color: $text;
+    background: linear-gradient(135deg, $primary, $accent);
+
+    border: none;
+    border-radius: $radius-sm;
+    cursor: pointer;
+
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+    transition:
+      transform 0.15s ease,
+      box-shadow 0.15s ease,
+      filter 0.15s ease;
+
+    &:not(:first-child) {
+      margin-left: 16px;
+    }
+    &:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
+      filter: brightness(1.05);
+    }
+
+    &:active {
+      transform: translateY(0);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+    }
+
+    &:focus-visible {
+      outline: 2px solid $primary-soft;
+      outline-offset: 2px;
+    }
+  }
+}

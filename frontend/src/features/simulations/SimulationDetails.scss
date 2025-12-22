@@ -1,0 +1,11 @@
+@use "./_common" as *;
+
+.simulationDetailsToolbar {
+  justify-content: space-between;
+  column-gap: 16px;
+}
+
+.simulationDetailsTitle {
+  margin: 0;
+  color: $text;
+}
