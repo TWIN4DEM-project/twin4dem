@@ -1,0 +1,48 @@
+@import "@scss/variables";
+
+.ministerNetworkContainer {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+
+  svg {
+    width: 50%;
+    height: 100%;
+    display: block;
+
+    marker {
+      fill: $text;
+    }
+    path {
+      stroke: $text;
+    }
+
+    text {
+      fill: $text;
+      font-size: 5px;
+      pointer-events: none;
+      user-select: none;
+    }
+  }
+
+  .node {
+    fill: $accent;
+    stroke: $border;
+    stroke-width: 1;
+    transition:
+      fill 0.2s ease,
+      stroke 0.2s ease;
+
+    &--approve {
+      fill: $approve;
+    }
+
+    &--reject {
+      fill: $reject;
+    }
+
+    &--abstain {
+      fill: $muted;
+    }
+  }
+}

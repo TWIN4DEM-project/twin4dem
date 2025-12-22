@@ -29,11 +29,11 @@
         </nav>
     </div>
 </header>
-<main class="site-main">
-    {% if user.is_authenticated %}
-        {# React app only for logged-in users #}
-        <div id="root" class="app-root"></div>
-    {% else %}
+{% if user.is_authenticated %}
+    <div id="root">
+    </div>
+{% else %}
+    <main class="site-main">
         <section class="hero">
             <div class="container hero-inner">
                 <div class="hero-text">
@@ -78,8 +78,8 @@
                 </div>
             </div>
         </section>
-    {% endif %}
-</main>
+    </main>
+{% endif %}
 <footer class="site-footer">
     <div class="container footer-inner">
         <p class="footer-meta">

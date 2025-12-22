@@ -4,4 +4,8 @@
     <option name="sdkName" value="mistral-8x7b-ro" />
   </component>
   <component name="ProjectRootManager" version="2" project-jdk-name="Python 3.13 (toy-dt-v2)" project-jdk-type="Python SDK" />
+  <component name="ViteConfiguration">
+    <option name="mode" value="MANUAL" />
+    <option name="path" value="$PROJECT_DIR$/frontend/vite.config.ts" />
+  </component>
 </project>

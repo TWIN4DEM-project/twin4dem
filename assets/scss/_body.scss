@@ -12,8 +12,7 @@ html, body {
 
 body.site-body {
   min-height: 100vh;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
-    "Segoe UI", sans-serif;
+  font-family: $font-family;
   color: $text;
   background:
     radial-gradient(circle at top left, #5a2bd2 0, transparent 55%),
