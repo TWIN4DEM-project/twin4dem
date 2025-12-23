@@ -6,7 +6,6 @@ from celery import shared_task
 from channels.layers import get_channel_layer
 from django.conf import settings
 
-from common.models import Simulation
 from .adapters import AdapterFactory
 from .config import GovernmentConfig, ParliamentConfig
 
@@ -58,10 +57,7 @@ def run_government_steps(
     n_steps: int = 1,
 ):
     factory = get_adapter_factory()
-    input_data = data
-    if simulation_id is not None:
-        input_data = Simulation.objects.get(pk=int(simulation_id))
-    gov = factory.new_government_adapter().convert(input_data)
+    gov = factory.new_government_adapter().convert(simulation_id or data)
     layer = get_channel_layer()
 
     for _ in range(n_steps):

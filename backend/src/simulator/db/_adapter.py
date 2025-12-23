@@ -1,4 +1,5 @@
 import random
+from typing import Any
 
 from django.contrib.contenttypes.models import ContentType
 
@@ -21,26 +22,24 @@ class MinisterDbAdapter(AgentAdapter[MinisterModel, Minister]):
     def _random_frequency(center: float, lo: float = 0.0, hi: float = 1.0) -> float:
         return hi if random.random() < center else lo
 
-    def convert(self, input_value: MinisterModel) -> Minister:
+    def convert(self, value: MinisterModel) -> Minister:
         return Minister(
-            id=input_value.id,
+            id=value.id,
             T_i="Minister",
-            is_pm=input_value.is_prime_minister,
-            P_i=input_value.party.position,
-            S_i=input_value.influence,
-            W=input_value.weights,
-            o_i=self._random_gauss(input_value.cabinet.government_probability_for),
+            is_pm=value.is_prime_minister,
+            P_i=value.party.position,
+            S_i=value.influence,
+            W=value.weights,
+            o_i=self._random_gauss(value.cabinet.government_probability_for),
             # support group 1 = ones who have the power to affect the status of the minister (appoint, revoke, etc)
-            o_sup1=self._random_frequency(
-                input_value.cabinet.government_probability_for
-            ),
+            o_sup1=self._random_frequency(value.cabinet.government_probability_for),
             # support group 2 = people who are directly benefitting from ministers getting more power
             # setting this to 1.0 until better ideas about how to compute this value emerge
             o_sup2=1.0,
         )
 
 
-class GovernmentDbAdapter(GovernmentAdapter[Simulation]):
+class GovernmentDbAdapter(GovernmentAdapter[int]):
     def __init__(self):
         self.__minister_adapter = MinisterDbAdapter()
 
@@ -51,9 +50,10 @@ class GovernmentDbAdapter(GovernmentAdapter[Simulation]):
             for minister in ministers
         }
 
-    def convert(self, input_value: Simulation) -> Government:
+    def convert(self, simulation_id: int, **kwargs: Any) -> Government:
+        value = Simulation.objects.get(pk=simulation_id)
         param = (
-            input_value.params.filter(type=ContentType.objects.get_for_model(Cabinet))
+            value.params.filter(type=ContentType.objects.get_for_model(Cabinet))
             .select_related("type")
             .first()
         )
@@ -65,21 +65,22 @@ class GovernmentDbAdapter(GovernmentAdapter[Simulation]):
 
         return Government(
             pact=cabinet.legislative_probability,
-            alpha=input_value.social_influence_susceptibility,
-            gamma=input_value.office_retention_sensitivity,
-            epsilon=input_value.user_settings.abstention_threshold,
+            alpha=value.social_influence_susceptibility,
+            gamma=value.office_retention_sensitivity,
+            epsilon=value.user_settings.abstention_threshold,
             ministers=ministers,
             network=self._build_network(minister_models),
         )
 
 
-class ParliamentDbAdapter(ParliamentAdapter[Simulation]):
-    def convert(self, input_value: Simulation) -> Parliament:
+class ParliamentDbAdapter(ParliamentAdapter[int]):
+    def convert(self, simulation_id: int) -> Parliament:
+        value = Simulation.objects.get(pk=simulation_id)
         return Parliament(
-            mps=input_value.user_settings.parliament_size,
-            n_party=len(input_value.user_settings.parties.all()),
-            n_sits=[p.member_count for p in input_value.user_settings.parties.all()],
-            alpha=input_value.social_influence_susceptibility,
-            epsilon=input_value.user_settings.abstention_threshold,
-            gamma=input_value.office_retention_sensitivity,
+            mps=value.user_settings.parliament_size,
+            n_party=len(value.user_settings.parties.all()),
+            n_sits=[p.member_count for p in value.user_settings.parties.all()],
+            alpha=value.social_influence_susceptibility,
+            epsilon=value.user_settings.abstention_threshold,
+            gamma=value.office_retention_sensitivity,
         )
