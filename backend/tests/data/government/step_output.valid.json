@@ -1,0 +1,10 @@
+{
+  "t": 1,
+  "approved": true,
+  "path": "decree",
+  "votes": {
+    "0": true,
+    "1": false,
+    "2": true
+  }
+}

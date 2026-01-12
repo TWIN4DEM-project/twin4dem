@@ -10,9 +10,6 @@ class Twin4DemAsyncConsumer(AsyncWebsocketConsumer, metaclass=ABCMeta):
         super().__init__(*args, **kwargs)
         self._task = task
 
-    async def connect(self):
-        await self.accept()
-
     async def receive(self, text_data=None, bytes_data=None):
         # we don't support gzip compression, msgpack, protobuf or avro for now
         url_route = self.scope.get("url_route", {})

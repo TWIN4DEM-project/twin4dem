@@ -33,3 +33,14 @@ def load_json(data_dir) -> Callable[[str], dict]:
             return json.load(fp)
 
     return _
+
+
+@pytest.fixture
+def load_pydantic(load_json) -> Callable[[str], dict]:
+    def _(filename: str) -> dict:
+        return {
+            "__pydantic_model__": "GovernmentConfig",
+            "data": load_json(filename),
+        }
+
+    return _

@@ -21,6 +21,7 @@ xcuserdata/
 *.xcscmblueprint
 *.xccheckout
 .idea/data_source_mapping.xml
+.idea/db-forest-config.xml
 .idea/**/workspace.xml
 .idea/**/tasks.xml
 .idea/**/usage.statistics.xml
