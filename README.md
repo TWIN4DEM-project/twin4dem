@@ -41,7 +41,8 @@ prior Docker experience required.
 
 To run the **backend + frontend + all required services** for development:
 
-### 1. Install Docker Desktop  
+### 1. Install Docker Desktop
+
 https://www.docker.com/products/docker-desktop/
 
 ### 2. Start the dev stack
@@ -52,13 +53,13 @@ docker compose -f docker-compose.dev.yaml up --build
 
 This will start:
 
-| Service     | Description                                     |
-|-------------|-------------------------------------------------|
-| `frontend`  | Vite dev server (hot reload, React + TS)        |
-| `backend`   | Django dev server + Celery worker (combined)    |
-| `db`        | PostgreSQL 16                                   |
-| `broker`    | RabbitMQ (Celery broker)                        |
-| `redis`     | Redis (Channels layer)                          |
+| Service    | Description                                  |
+| ---------- | -------------------------------------------- |
+| `frontend` | Vite dev server (hot reload, React + TS)     |
+| `backend`  | Django dev server + Celery worker (combined) |
+| `db`       | PostgreSQL 16                                |
+| `broker`   | RabbitMQ (Celery broker)                     |
+| `redis`    | Redis (Channels layer)                       |
 
 Once running:
 
@@ -68,9 +69,7 @@ Once running:
 Changes to backend or frontend code update automatically. You only need to open
 http://localhost:8000 in the browser.
 
-**Note**: you will need to set up an `admin` user account. This is easily done
-via the `python src/manage.py createsuperuser` command. The command can be
-executed from anywhere against Django's database. 
+**Note**: you will need to set up an `admin` user account. This is done via the `createsuperuser` Django command, which you can run from the command line using `docker exec -it twin4dem-backend-dev uv run python src/manage.py createsuperuser`, or with `uv run python src/manage.py createsuperuser` from inside the backend Docker container.
 
 ---
 
@@ -82,6 +81,7 @@ building their respective Docker image stages.
 ### Build the test image
 
 For the backend:
+
 ```sh
 docker build -f backend/Dockerfile --target test -t backend-test .
 ```
@@ -125,7 +125,7 @@ docker compose -f docker-compose.prod.yaml up --build
 The stack uses:
 
 - `frontend_prod` → prebuilt React bundle (`dist/`)
-- `backend_prod`  → Daphne production ASGI server
+- `backend_prod` → Daphne production ASGI server
 - Celery worker
 - PostgreSQL / Redis / RabbitMQ
 
@@ -153,17 +153,17 @@ This is ideal for CI/CD and local validation.
 
 ## 🗄 PostgreSQL (`db`)
 
-- Stores all persistent backend data  
+- Stores all persistent backend data
 - Exposed on port `5432`
 
 ## ✉️ RabbitMQ (`broker`)
 
-- Handles Celery task distribution  
+- Handles Celery task distribution
 - Exposed on port `5672`
 
 ## ⚡ Redis (`redis`)
 
-- Channels layer backend  
+- Channels layer backend
 - Also useful for caching or ephemeral data
 
 ---
@@ -201,4 +201,3 @@ docker compose logs -f backend
 Contributions are welcome! Make sure you read our code of conduct.  
 Please open an issue or PR if you'd like to improve documentation, fix bugs, or
 add features.
-
