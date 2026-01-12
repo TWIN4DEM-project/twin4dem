@@ -1,0 +1,39 @@
+{
+  "action": "step",
+  "judges": [
+    {
+      "id": 1,
+      "type": "Judge",
+      "party": "independent",
+      "influence": 0.5,
+      "weights": [0.1667, 0.1667, 0.1667, 0.1667, 0.1667, 0.1667],
+      "opinion": 1,
+      "support1": 1,
+      "support2": 1,
+      "is_president": true
+    },
+    {
+      "id": 2,
+      "type": "Judge",
+      "party": "independent",
+      "influence": 0.4,
+      "weights": [0.1667, 0.1667, 0.1667, 0.1667, 0.1667, 0.1667],
+      "opinion": 0,
+      "support1": 1,
+      "support2": 0
+    },
+    {
+      "id": 3,
+      "type": "Judge",
+      "party": "independent",
+      "influence": 0.4,
+      "weights": [0.1667, 0.1667, 0.1667, 0.1667, 0.1667, 0.1667],
+      "opinion": 1,
+      "support1": 0,
+      "support2": 1
+    }
+  ],
+  "alpha": 0.7,
+  "epsilon": 0.1,
+  "gamma": 5.0
+}

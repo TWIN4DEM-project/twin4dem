@@ -6,8 +6,12 @@ from unittest.mock import patch, MagicMock
 from asgiref.sync import async_to_sync
 from channels.layers import InMemoryChannelLayer
 
-from simulator.tasks import run_government_steps, run_legislative_steps
-from simulator.config import GovernmentConfig, ParliamentConfig
+from simulator.tasks import (
+    run_government_steps,
+    run_legislative_steps,
+    run_judiciary_steps,
+)
+from simulator.config import GovernmentConfig, ParliamentConfig, CouncilConfig
 
 
 def load_json(name: str) -> dict[str, Any]:
@@ -107,3 +111,44 @@ def test_run_legislative_steps_sends_parliament_step():
     msg = receive(channel_name)
     assert msg["type"] == "parliament.step"
     assert "votes" in msg["payload"]
+
+
+def test_flow_triggers_judiciary_task_on_decree():
+    channel_name = "test-flow-decree-triggers-judiciary"
+
+    gov_cfg = GovernmentConfig.model_validate(load_json("scenario3.json"))
+    parl_cfg = ParliamentConfig.model_validate(load_json("legislative.json"))
+    council_cfg = CouncilConfig.model_validate(load_json("judiciary.json"))
+
+    layer = InMemoryChannelLayer()
+    receive = async_to_sync(layer.receive)
+
+    gov = MagicMock()
+    gov.step.return_value = {"approved": True, "path": "decree", "votes": {}}
+
+    gov_adapter = MagicMock()
+    gov_adapter.convert.return_value = gov
+
+    factory = MagicMock()
+    factory.new_government_adapter.return_value = gov_adapter
+
+    with (
+        patch("simulator.tasks.get_channel_layer", return_value=layer),
+        patch("simulator.tasks.get_adapter_factory", return_value=factory),
+        patch.object(run_legislative_steps, "apply_async") as mocked_leg_apply_async,
+        patch.object(run_judiciary_steps, "apply_async") as mocked_jud_apply_async,
+    ):
+        run_government_steps.delay(
+            channel_name,
+            data=gov_cfg,
+            parl_data=parl_cfg,
+            council_data=council_cfg,
+            n_steps=1,
+        )
+
+    mocked_leg_apply_async.assert_not_called()
+
+    mocked_jud_apply_async.assert_called_once_with(args=[channel_name, council_cfg])
+
+    msg = receive(channel_name)
+    assert msg["payload"]["path"] == "decree"

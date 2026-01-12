@@ -1,4 +1,10 @@
-from ._base import Adapter, AgentAdapter, GovernmentAdapter, ParliamentAdapter
+from ._base import (
+    Adapter,
+    AgentAdapter,
+    GovernmentAdapter,
+    ParliamentAdapter,
+    CouncilAdapter,
+)
 from ._factory import AdapterFactory
 
 __all__ = [
@@ -7,4 +13,5 @@ __all__ = [
     "AgentAdapter",
     "GovernmentAdapter",
     "ParliamentAdapter",
+    "CouncilAdapter",
 ]

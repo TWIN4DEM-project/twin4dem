@@ -5,11 +5,19 @@ from simulator.config import (
     GovernmentConfig,
     MPConfig,
     ParliamentConfig,
+    JudgeConfig,
+    CouncilConfig,
 )
 from simulator.executive import Government, Minister
 from simulator.legislative import MP, Parliament
+from simulator.judiciary import Judge, Council
 
-from simulator.adapters import GovernmentAdapter, AgentAdapter, ParliamentAdapter
+from simulator.adapters import (
+    GovernmentAdapter,
+    AgentAdapter,
+    ParliamentAdapter,
+    CouncilAdapter,
+)
 
 
 class MinisterConfigAdapter(AgentAdapter[MinisterConfig, Minister]):
@@ -97,7 +105,6 @@ class GovernmentConfigAdapter(GovernmentAdapter[GovernmentConfig]):
 
 class MPConfigAdapter(AgentAdapter[MPConfig, MP]):
     def convert(self, config: MPConfig) -> MP:
-
         return MP(
             id=config.id,
             T_i=config.type,  # "MP"
@@ -128,3 +135,41 @@ class ParliamentConfigAdapter(ParliamentAdapter[ParliamentConfig]):
         )
 
         return parl
+
+
+class JudgeConfigAdapter(AgentAdapter[JudgeConfig, Judge]):
+    def convert(self, config: JudgeConfig) -> Judge:
+        return Judge(
+            id=config.id,
+            T_i=config.type,
+            P_i=config.party,  # "majority" | "opposition" | "independent"
+            S_i=config.influence,
+            W=config.weights,
+            o_i=config.opinion,
+            o_sup1=config.support1,
+            o_sup2=config.support2,
+            is_president=config.is_president,
+        )
+
+
+class CouncilConfigAdapter(CouncilAdapter[CouncilConfig]):
+    def __init__(self):
+        self.__judge_adp = JudgeConfigAdapter()
+
+    @classmethod
+    def _build_network(cls, judges: list[Judge]) -> dict[int, list[int]]:
+        ids = [j.id for j in judges]
+        return {i: [j for j in ids if j != i] for i in ids}
+
+    def convert(self, config: CouncilConfig) -> Council:
+        judges = list(map(self.__judge_adp.convert, config.judges))
+
+        council = Council(
+            judges=judges,
+            alpha=config.alpha,
+            epsilon=config.epsilon,
+            gamma=config.gamma,
+            network=self._build_network(judges),
+        )
+
+        return council

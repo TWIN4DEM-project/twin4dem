@@ -1,0 +1,86 @@
+from __future__ import annotations
+
+from simulator.judiciary._judge import Judge
+
+
+class Council:
+    def __init__(
+        self,
+        judges: list[Judge],
+        alpha: float,
+        epsilon: float,
+        gamma: float,
+        network: dict[int, list[int]],
+    ):
+        self.judges = judges
+        self.alpha = alpha
+        self.epsilon = epsilon
+        self.gamma = gamma
+        self.t = 0
+        self.network = network
+
+    def _get_judge(self, jid: int) -> Judge:
+        return next(j for j in self.judges if j.id == jid)
+
+    def step(self, has_decree: bool = True):
+        """
+        1. if executive did NOT initiate OR the form is legislative act => skip
+        2. Compute U(i,t,for) and U(i,t,against) for each judge
+        3. The utility is updated on the basis of social influence
+        4. Agents vote and a decision on aggrandisement
+        5. If the majority is in favour of the aggrandisement (i.e., V¯t > 0.5), the path of aggrandizement
+        is randomly chosen based on the pact parameter
+        """
+
+        # 1) Skip if not a decree review step
+        if not has_decree:
+            self.t += 1
+            return {
+                "t": self.t,
+                "approved": None,
+                "vbar": None,
+                "votes": {j.id: None for j in self.judges},
+            }
+
+        pres = next(m for m in self.judges if m.is_president)
+        pres_opinion = pres.o_i
+
+        # 2) compute individual utilities (no peer influence yet)
+        for j in self.judges:
+            peers_prev = [p.vote_prev for p in self.judges if p.id != j.id]
+            j.compute_individual_utilities(
+                gamma=self.gamma,
+                ref_opinion=pres_opinion,  # prestige compares to president (Section 2.2.4)
+                peers_prev_votes=peers_prev,
+                g="council",  # power-of-office group is courts (Eq. 5)
+            )
+
+        # 3) peer influence (Eq. 2)
+        for m in self.judges:
+            neighbors = [self._get_judge(j) for j in self.network[m.id]]
+            m.apply_peer_influence(self.alpha, neighbors)
+
+        # 4) vote (Eq. 3)
+        for j in self.judges:
+            j.decide_vote(self.epsilon)
+
+        # 5) majority rule ignoring abstentions
+        votes = [j.vote for j in self.judges if j.vote is not None]
+        if votes:
+            vbar = sum(votes) / len(votes)
+            approved = vbar > 0.5
+        else:
+            vbar = None
+            approved = False
+
+        # update vote_prev for reputation at next step
+        for j in self.judges:
+            j.vote_prev = j.vote
+
+        self.t += 1
+        return {
+            "t": self.t,
+            "approved": approved,
+            "vbar": vbar,
+            "votes": {j.id: j.vote for j in self.judges},
+        }

@@ -1,7 +1,14 @@
 import json
 from pydantic import BaseModel
 from typing import Any, Dict, Type
-from ..config import GovernmentConfig, MinisterConfig, ParliamentConfig, MPConfig
+from ..config import (
+    GovernmentConfig,
+    MinisterConfig,
+    ParliamentConfig,
+    MPConfig,
+    JudgeConfig,
+    CouncilConfig,
+)
 
 
 MODEL_REGISTRY: Dict[str, Type[BaseModel]] = {
@@ -9,6 +16,8 @@ MODEL_REGISTRY: Dict[str, Type[BaseModel]] = {
     "MinisterConfig": MinisterConfig,
     "MPConfig": MPConfig,
     "ParliamentConfig": ParliamentConfig,
+    "CouncilConfig": CouncilConfig,
+    "JudgeConfig": JudgeConfig,
 }
 
 

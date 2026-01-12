@@ -7,7 +7,7 @@ from channels.layers import get_channel_layer
 from django.conf import settings
 
 from .adapters import AdapterFactory
-from .config import GovernmentConfig, ParliamentConfig
+from .config import GovernmentConfig, ParliamentConfig, CouncilConfig
 
 
 def send_sync(layer, channel_name, data):
@@ -28,6 +28,24 @@ def get_adapter_factory() -> AdapterFactory:
     module = importlib.import_module(module_name)
     cls = getattr(module, class_name)
     return cls()
+
+
+@shared_task
+def run_judiciary_steps(channel_name: str, data: CouncilConfig):
+    factory = get_adapter_factory()
+    parl = factory.new_council_adapter().convert(data)
+    layer = get_channel_layer()
+
+    council_step_result = parl.step()
+
+    send_sync(
+        layer,
+        channel_name,
+        {
+            "type": "council.step",
+            "payload": council_step_result,
+        },
+    )
 
 
 @shared_task
@@ -54,6 +72,7 @@ def run_government_steps(
     simulation_id: int | None = None,
     data: GovernmentConfig | None = None,
     parl_data: ParliamentConfig | None = None,
+    council_data: CouncilConfig | None = None,
     n_steps: int = 1,
 ):
     factory = get_adapter_factory()
@@ -80,12 +99,9 @@ def run_government_steps(
                 continue
 
             run_legislative_steps.apply_async(args=[channel_name, parl_data])
-        else:
-            send_sync(
-                layer,
-                channel_name,
-                {
-                    "type": "government.step",
-                    "payload": step_result,
-                },
-            )
+
+        elif approved and path == "decree":
+            if council_data is None:
+                continue
+
+            run_judiciary_steps.apply_async(args=[channel_name, council_data])
