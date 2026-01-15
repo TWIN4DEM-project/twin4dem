@@ -32,10 +32,56 @@ export const CabinetSchema = z.object({
   ministers: z.array(MinisterSchema),
 });
 
-export const SimulationParamSchema = z.object({
-  type: z.literal("cabinet"),
-  cabinet: CabinetSchema,
+export const MPSchema = z.object({
+  id: z.number(),
+  label: z.string(),
+  isHead: z.boolean(),
+  partyLabel: z.string(),
+  partyPosition: z.string(),
+  weights: z.array(z.number()),
 });
+
+export const ParliamentSchema = z.object({
+  id: z.number(),
+  label: z.string(),
+  majorityProbabilityFor: z.number(),
+  oppositionProbabilityFor: z.number(),
+  members: z.array(MPSchema),
+});
+
+export const JudgeSchema = z.object({
+  id: z.number(),
+  label: z.string(),
+  isPresident: z.boolean(),
+  partyLabel: z.string(),
+  partyPosition: z.string(),
+  influence: z.number(),
+  weights: z.array(z.number()),
+  neighboursIn: z.array(z.number()),
+  neighboursOut: z.array(z.number()),
+});
+
+export const CourtSchema = z.object({
+  id: z.number(),
+  label: z.string(),
+  probabilityFor: z.number(),
+  judges: z.array(JudgeSchema),
+});
+
+export const SimulationParamSchema = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("cabinet"),
+    cabinet: CabinetSchema,
+  }),
+  z.object({
+    type: z.literal("parliament"),
+    parliament: ParliamentSchema,
+  }),
+  z.object({
+    type: z.literal("court"),
+    court: CourtSchema,
+  }),
+]);
 
 export const SimulationSchema = z.object({
   id: z.number(),
@@ -50,5 +96,9 @@ export const SimulationSchema = z.object({
 
 export type Minister = z.infer<typeof MinisterSchema>;
 export type Cabinet = z.infer<typeof CabinetSchema>;
+export type MemberOfParliament = z.infer<typeof MPSchema>;
+export type Parliament = z.infer<typeof ParliamentSchema>;
+export type Judge = z.infer<typeof JudgeSchema>;
+export type Court = z.infer<typeof CourtSchema>;
 export type SimulationParam = z.infer<typeof SimulationParamSchema>;
 export type Simulation = z.infer<typeof SimulationSchema>;
