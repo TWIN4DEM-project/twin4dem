@@ -1,3 +1,4 @@
+from itertools import permutations
 from random import choice, random, sample, randint, expovariate
 
 from django.contrib.contenttypes.models import ContentType
@@ -16,6 +17,9 @@ from common.models import (
     MinisterLink,
     Parliament,
     MemberOfParliament,
+    Court,
+    Judge,
+    JudgeLink,
 )
 from api.serializers import (
     SimulationSerializer,
@@ -80,6 +84,10 @@ class SimulationViewSet(
         SimulationParams.objects.create(
             simulation=sim, type=ct, content_id=parliament.id
         )
+
+        court = self._create_court(sim, user_settings)
+        ct = ContentType.objects.get_for_model(Court)
+        SimulationParams.objects.create(simulation=sim, type=ct, content_id=court.id)
 
     @classmethod
     def _get_label(
@@ -200,6 +208,32 @@ class SimulationViewSet(
             )
         MemberOfParliament.objects.bulk_create(mp_objects)
         return parliament
+
+    @classmethod
+    def _create_court(cls, simulation, user_settings: UserSettings) -> Court:
+        court_label = cls._get_label(simulation, user_settings, "-court")
+        court = Court.objects.create(
+            label=court_label,
+            probability_for=user_settings.court_probability_for,
+        )
+        parties = list(user_settings.parties.all())
+        judges = [
+            Judge(
+                label=f"{court_label}-{idx:02}" if idx != 0 else f"{court_label}-P",
+                is_president=(idx == 0),
+                influence=random() if idx != 0 else 1.0,
+                weights=cls._random_weights(6),
+                court=court,
+                party=choice(parties),
+            )
+            for idx in range(user_settings.court_size)
+        ]
+        links = [
+            JudgeLink(from_judge=j1, to_judge=j2) for j1, j2 in permutations(judges, 2)
+        ]
+        Judge.objects.bulk_create(judges)
+        JudgeLink.objects.bulk_create(links)
+        return court
 
 
 router = routers.SimpleRouter()

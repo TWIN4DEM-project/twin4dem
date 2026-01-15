@@ -3,20 +3,8 @@ from django.db import models
 
 from common import fields
 from common.models._settings import PartySettings
+from ._influence import InfluencerModel
 from ._simulation import SimulationParams
-
-
-class InfluencerModel(models.Model):
-    influence = models.FloatField(null=False, default=0.0)
-
-    class Meta:
-        abstract = True
-        constraints = [
-            models.CheckConstraint(
-                name="ck_influencer_influence",
-                condition=models.Q(influence__gte=0.0) & models.Q(influence__lte=1.0),
-            )
-        ]
 
 
 class Cabinet(models.Model):

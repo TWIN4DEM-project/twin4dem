@@ -16,7 +16,7 @@ def test_post_success_basic_data(admin_client, admin_user):
     assert data["id"] is not None
     assert data["officeRetentionSensitivity"] == 5.0
     assert data["socialInfluenceSusceptibility"] == 0.5
-    assert "params" in data and len(data["params"]) == 2
+    assert "params" in data and len(data["params"]) == 3
 
 
 def test_post_success_cabinet_is_created(admin_client, admin_user):
@@ -94,6 +94,36 @@ def test_post_success_parliament_is_created(admin_client, admin_user):
             total=Sum("member_count")
         )
     }
+
+
+def test_post_judiciary_is_created(admin_client, admin_user):
+    admin_settings = UserSettings.objects.get(user=admin_user)
+    admin_settings.court_probability_for = 0.42
+    admin_settings.save()
+
+    response = admin_client.post("/api/v1/simulation/")
+
+    data = response.json()
+    court_param = data["params"][2]
+    assert court_param["type"] == "court"
+    court = court_param["court"]
+    assert court["id"] == 1
+    assert court["label"] == "test_admin-simulation-000001-court"
+    assert court["probabilityFor"] == 0.42
+    judges = court["judges"]
+    assert len(judges) == admin_settings.court_size
+    party_positions = set(
+        x["position"] for x in admin_settings.parties.values("position").distinct()
+    )
+    party_labels = set(
+        x["label"] for x in admin_settings.parties.values("label").distinct()
+    )
+    heads = 0
+    for judge in judges:
+        heads += judge["isPresident"]
+        assert math.isclose(sum(judge["weights"]), 1)
+        assert judge["partyLabel"] in party_labels
+        assert judge["partyPosition"] in party_positions
 
 
 def test_post_anonymous_forbidden(client):

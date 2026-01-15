@@ -1,5 +1,5 @@
 import random
-from typing import Any
+from typing import Any, Generic, TypeVar
 
 from django.contrib.contenttypes.models import ContentType
 
@@ -10,6 +10,8 @@ from common.models import (
     Parliament as ParliamentModel,
     MemberOfParliament,
     PartySettings,
+    Court as CourtModel,
+    Judge as JudgeModel,
 )
 from simulator.adapters import (
     GovernmentAdapter,
@@ -18,7 +20,7 @@ from simulator.adapters import (
     CouncilAdapter,
 )
 from simulator.executive import Government, Minister
-from simulator.judiciary import Council
+from simulator.judiciary import Council, Judge
 from simulator.legislative import Parliament, MP
 
 
@@ -32,6 +34,22 @@ def _random_gauss(
 
 def _random_frequency(center: float, lo: float = 0.0, hi: float = 1.0) -> float:
     return hi if random.random() < center else lo
+
+
+T = TypeVar("T", Cabinet, ParliamentModel, CourtModel)
+
+
+class RelatedInstitutionFinder(Generic[T]):
+    @classmethod
+    def _find_institution(cls, simulation: Simulation, model_class: type[T]) -> T:
+        related_of_type = simulation.params.filter(
+            type=ContentType.objects.get_for_model(model_class)
+        ).select_related("type")
+        if not related_of_type.exists():
+            raise ValueError(
+                f"there are no {model_class.__name__} models in simulation {simulation.id}"
+            )
+        return related_of_type.first().params
 
 
 class MinisterDbAdapter(AgentAdapter[MinisterModel, Minister]):
@@ -54,7 +72,7 @@ class MinisterDbAdapter(AgentAdapter[MinisterModel, Minister]):
         )
 
 
-class GovernmentDbAdapter(GovernmentAdapter[int]):
+class GovernmentDbAdapter(GovernmentAdapter[int], RelatedInstitutionFinder[Cabinet]):
     def __init__(self):
         self.__minister_adapter = MinisterDbAdapter()
 
@@ -67,12 +85,7 @@ class GovernmentDbAdapter(GovernmentAdapter[int]):
 
     def convert(self, simulation_id: int, **kwargs: Any) -> Government:
         value = Simulation.objects.get(pk=simulation_id)
-        param = (
-            value.params.filter(type=ContentType.objects.get_for_model(Cabinet))
-            .select_related("type")
-            .first()
-        )
-        cabinet: Cabinet = param.params if param else None
+        cabinet = self._find_institution(value, Cabinet)
         minister_models = list(
             cabinet.ministers.all().prefetch_related("cabinet", "neighbours_in")
         )
@@ -121,15 +134,12 @@ class MPDbAdapter(AgentAdapter[MemberOfParliament, MP]):
         )
 
 
-class ParliamentDbAdapter(ParliamentAdapter[int]):
+class ParliamentDbAdapter(
+    ParliamentAdapter[int], RelatedInstitutionFinder[ParliamentModel]
+):
     def convert(self, simulation_id: int) -> Parliament:
         value = Simulation.objects.get(pk=simulation_id)
-        sim_parliaments = value.params.filter(
-            type=ContentType.objects.get_for_model(ParliamentModel)
-        ).select_related("type")
-        if not sim_parliaments.exists():
-            raise ValueError(f"simulation {value.id} does not have a parliament")
-        parliament: ParliamentModel = sim_parliaments.first().params
+        parliament = self._find_institution(value, ParliamentModel)
         parliament_members = list(
             parliament.members.all().prefetch_related("parliament")
         )
@@ -147,13 +157,42 @@ class ParliamentDbAdapter(ParliamentAdapter[int]):
         )
 
 
-class CouncilDbAdapter(CouncilAdapter[int]):
+class JudgeDbAdapter(AgentAdapter[JudgeModel, Judge]):
+    def __init__(self, probability_for: float):
+        self._p = probability_for
+
+    def convert(self, judge: JudgeModel) -> Judge:
+        personal_opinion = int(round(_random_gauss(self._p, spread=0.1)))
+        return Judge(
+            id=judge.id,
+            is_president=judge.is_president,
+            T_i="judge",
+            P_i=judge.party.position,
+            S_i=judge.influence,
+            W=judge.weights,
+            o_i=personal_opinion,
+            o_sup1=0,
+            o_sup2=0,
+        )
+
+
+class CouncilDbAdapter(CouncilAdapter[int], RelatedInstitutionFinder[CourtModel]):
+    @staticmethod
+    def _build_network(judges: list[JudgeModel]) -> dict[int, list[int]]:
+        return {to.id: [fro.id for fro in to.neighbours_in.all()] for to in judges}
+
     def convert(self, simulation_id: int) -> Council:
         value = Simulation.objects.get(pk=simulation_id)
+        court = self._find_institution(value, CourtModel)
+        judge_adapter = JudgeDbAdapter(court.probability_for)
+        court_judges = list(
+            court.judges.all().prefetch_related("court", "neighbours_in")
+        )
+
         return Council(
-            judges=[],
+            judges=list(map(judge_adapter.convert, court_judges)),
             alpha=value.social_influence_susceptibility,
             epsilon=value.user_settings.abstention_threshold,
             gamma=value.office_retention_sensitivity,
-            network={},
+            network=self._build_network(court_judges),
         )

@@ -152,3 +152,17 @@ def test_check_change_party_members(test_user):
             "Sum of party member_count (101) must equal parliament_size (100).",
         ]
     }
+
+
+@pytest.mark.parametrize("oob_value", [-0.01, 1.01])
+def test_court_probability_for_out_of_range(test_settings, oob_value):
+    with transaction.atomic():
+        test_settings.court_probability_for = oob_value
+
+        with pytest.raises(IntegrityError) as err_proxy:
+            test_settings.save()
+
+    assert (
+        str(err_proxy.value)
+        == "CHECK constraint failed: ck_usersettings_court_probability_for"
+    )

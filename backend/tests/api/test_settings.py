@@ -46,6 +46,7 @@ def test_get_by_id_success(admin_client):
     assert response.json() == {
         "abstentionThreshold": 0.1,
         "courtSize": 5,
+        "courtProbabilityFor": 0.5,
         "dataUpdateFrequency": 10,
         "governmentConnectivityDegree": 3,
         "governmentSize": 6,
