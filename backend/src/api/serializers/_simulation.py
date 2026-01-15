@@ -1,8 +1,9 @@
 from rest_framework import serializers
 
 from api.serializers._base import LCCModelSerializer
-from common.models import Cabinet, Simulation, SimulationParams
+from common.models import Cabinet, Simulation, SimulationParams, Parliament
 from ._executive import CabinetSerializer
+from ._legislative import ParliamentSerializer
 
 
 class SimulationParamSerializer(serializers.Serializer):
@@ -14,15 +15,20 @@ class SimulationParamSerializer(serializers.Serializer):
         if obj is None:
             return None
 
-        if not isinstance(obj, Cabinet):
+        if isinstance(obj, Cabinet):
+            return {
+                "type": "cabinet",
+                "cabinet": CabinetSerializer(obj).data,
+            }
+        elif isinstance(obj, Parliament):
+            return {
+                "type": "parliament",
+                "parliament": ParliamentSerializer(obj).data,
+            }
+        else:
             raise NotImplementedError(
                 f"Unsupported simulation param type: {obj.__class__.__name__}"
             )
-
-        return {
-            "type": "cabinet",
-            "cabinet": CabinetSerializer(obj).data,
-        }
 
 
 class SimulationSerializer(LCCModelSerializer):

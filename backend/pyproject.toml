@@ -30,18 +30,12 @@ namespace = true
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "tests.settings"
 pythonpath = [".", "src"]
-addopts = "--cov=src --cov-report xml:./coverage.xml"
+addopts = "--cov=src --cov-branch --cov-report xml:./coverage.xml --cov-report term-missing:skip-covered"
 
 [tool.black]
 line-length = 88
 target-version = ['py313']
 include = '\.pyi?$'
-extend-exclude = '''
-/(
-  # The following are specific to Black, you probably don't want those.
-  script/
-)
-'''
 
 [dependency-groups]
 dev = [

@@ -33,6 +33,9 @@ clean:
 	@# Clean untracked files but keep .venv if present
 	git clean -fdx -e .venv
 
+migrations: bootstrap
+	uv run python src/manage.py makemigrations
+
 format: bootstrap
 	uv tool run black --fast .
 	uv tool run ruff check --fix .

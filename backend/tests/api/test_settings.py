@@ -50,6 +50,8 @@ def test_get_by_id_success(admin_client):
         "governmentConnectivityDegree": 3,
         "governmentSize": 6,
         "governmentProbabilityFor": 0.7,
+        "parliamentMajorityProbabilityFor": 0.5,
+        "parliamentOppositionProbabilityFor": 0.5,
         "id": 1,
         "label": "test_admin settings",
         "legislativePathProbability": 0.7,

@@ -13,6 +13,8 @@ class UserSettings(models.Model):
         null=False, default=3
     )
     government_probability_for = models.FloatField(default=0.5)
+    parliament_majority_probability_for = models.FloatField(default=0.5)
+    parliament_opposition_probability_for = models.FloatField(default=0.5)
     parliament_size = models.PositiveSmallIntegerField(null=False, default=100)
     court_size = models.PositiveSmallIntegerField(null=False, default=5)
     # general parameters
@@ -62,6 +64,16 @@ class UserSettings(models.Model):
                 name="ck_usersettings_government_probability_for",
                 condition=Q(government_probability_for__gte=0.0)
                 & Q(government_probability_for__lte=1.0),
+            ),
+            models.CheckConstraint(
+                name="ck_usersettings_parliament_majority_probability_for",
+                condition=Q(parliament_majority_probability_for__gte=0.0)
+                & Q(parliament_majority_probability_for__lte=1.0),
+            ),
+            models.CheckConstraint(
+                name="ck_usersettings_parliament_opposition_probability_for",
+                condition=Q(parliament_opposition_probability_for__gte=0.0)
+                & Q(parliament_opposition_probability_for__lte=1.0),
             ),
             models.CheckConstraint(
                 name="ck_usersettings_office_retention_sensitivity",

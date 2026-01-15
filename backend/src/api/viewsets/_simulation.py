@@ -14,6 +14,8 @@ from common.models import (
     Minister,
     PartySettings,
     MinisterLink,
+    Parliament,
+    MemberOfParliament,
 )
 from api.serializers import (
     SimulationSerializer,
@@ -73,14 +75,25 @@ class SimulationViewSet(
         ct = ContentType.objects.get_for_model(Cabinet)
         SimulationParams.objects.create(simulation=sim, type=ct, content_id=cab.id)
 
+        parliament = self._create_parliament(sim, user_settings)
+        ct = ContentType.objects.get_for_model(Parliament)
+        SimulationParams.objects.create(
+            simulation=sim, type=ct, content_id=parliament.id
+        )
+
+    @classmethod
+    def _get_label(
+        cls, simulation, user_settings: UserSettings, suffix: str = ""
+    ) -> str:
+        return f"{user_settings.user.username}-simulation-{simulation.id:06}{suffix}"
+
     @classmethod
     def _create_cabinet(cls, simulation, user_settings: UserSettings) -> Cabinet:
-        sim_label = f"simulation-{simulation.id:06}"
         n = user_settings.government_size
         k = user_settings.government_connectivity_degree
-
+        cabinet_label = cls._get_label(simulation, user_settings, "-cabinet")
         cabinet = Cabinet.objects.create(
-            label=f"{user_settings.user.username}-{sim_label}",
+            label=cabinet_label,
             government_probability_for=user_settings.government_probability_for,
             legislative_probability=user_settings.legislative_path_probability,
         )
@@ -91,7 +104,7 @@ class SimulationViewSet(
 
         # --- create ministers ---
         prime_minister = Minister.objects.create(
-            label=f"{sim_label}-pm",
+            label=f"{cabinet_label}-pm",
             party=choice(majority_parties),
             is_prime_minister=True,
             cabinet=cabinet,
@@ -101,7 +114,7 @@ class SimulationViewSet(
 
         ministers = [
             Minister.objects.create(
-                label=f"{sim_label}-{i:02}",
+                label=f"{cabinet_label}-{i:02}",
                 party=choice(majority_parties),
                 is_prime_minister=False,
                 cabinet=cabinet,
@@ -155,6 +168,38 @@ class SimulationViewSet(
                     remaining_indegree[target.id] -= 1
 
         return links
+
+    @classmethod
+    def _create_parliament(cls, simulation, user_settings: UserSettings) -> Parliament:
+        parliament_label = cls._get_label(simulation, user_settings, "-parliament")
+        parliament = Parliament.objects.create(
+            label=parliament_label,
+            majority_probability_for=user_settings.parliament_majority_probability_for,
+            opposition_probability_for=user_settings.parliament_opposition_probability_for,
+        )
+        mp_objects = []
+        for party in user_settings.parties.all():
+            mp_objects.append(
+                MemberOfParliament(
+                    label=f"{parliament_label}-{party.label}-head",
+                    is_head=True,
+                    weights=cls._random_weights(cls.__WEIGHTS_COUNT),
+                    party=party,
+                    parliament=parliament,
+                )
+            )
+            mp_objects.extend(
+                MemberOfParliament(
+                    label=f"{parliament_label}-{party.label}-member-{idx:03}",
+                    is_head=False,
+                    weights=cls._random_weights(cls.__WEIGHTS_COUNT),
+                    party=party,
+                    parliament=parliament,
+                )
+                for idx in range(1, party.member_count)
+            )
+        MemberOfParliament.objects.bulk_create(mp_objects)
+        return parliament
 
 
 router = routers.SimpleRouter()

@@ -1,13 +1,12 @@
 import json
+import math
 
-import pytest
+from django.db.models import Sum
 
 from common.models import UserSettings
 
 
-@pytest.mark.django_db
-def test_post_success(admin_client, admin_user):
-    admin_settings = UserSettings.objects.get(user=admin_user)
+def test_post_success_basic_data(admin_client, admin_user):
     response = admin_client.post("/api/v1/simulation/")
 
     assert response.status_code == 201
@@ -17,7 +16,14 @@ def test_post_success(admin_client, admin_user):
     assert data["id"] is not None
     assert data["officeRetentionSensitivity"] == 5.0
     assert data["socialInfluenceSusceptibility"] == 0.5
-    assert "params" in data and len(data["params"]) > 0
+    assert "params" in data and len(data["params"]) == 2
+
+
+def test_post_success_cabinet_is_created(admin_client, admin_user):
+    response = admin_client.post("/api/v1/simulation/")
+
+    admin_settings = UserSettings.objects.get(user=admin_user)
+    data = response.json()
     first_param = data["params"][0]
     assert first_param["type"] == "cabinet"
     assert first_param["cabinet"] is not None
@@ -25,7 +31,7 @@ def test_post_success(admin_client, admin_user):
     assert cabinet_settings["id"] is not None
     assert (
         cabinet_settings["label"]
-        == f"test_admin-simulation-{cabinet_settings["id"]:06}"
+        == f"test_admin-simulation-{cabinet_settings["id"]:06}-cabinet"
     )
     assert cabinet_settings["ministers"] is not None
 
@@ -56,7 +62,40 @@ def test_post_success(admin_client, admin_user):
             assert m["id"] in minister_dict[in_n]["neighboursOut"]
 
 
-@pytest.mark.django_db
+def test_post_success_parliament_is_created(admin_client, admin_user):
+    admin_settings = UserSettings.objects.get(user=admin_user)
+    admin_settings.parliament_opposition_probability_for = 0.8
+    admin_settings.parliament_majority_probability_for = 0.42
+    admin_settings.save()
+
+    response = admin_client.post("/api/v1/simulation/")
+
+    data = response.json()
+    parliament_param = data["params"][1]
+    assert parliament_param["type"] == "parliament"
+    parliament = parliament_param["parliament"]
+    assert parliament["id"] == 1
+    assert parliament["label"] == "test_admin-simulation-000001-parliament"
+    assert parliament["majorityProbabilityFor"] == 0.42
+    assert parliament["oppositionProbabilityFor"] == 0.8
+    mps = parliament["members"]
+    assert len(mps) == admin_settings.parliament_size
+    heads = 0
+    party_members = {party.label: 0 for party in admin_settings.parties.all()}
+    for mp in mps:
+        heads += mp["isHead"]
+        party_members[mp["partyLabel"]] += 1
+        assert math.isclose(sum(mp["weights"]), 1)
+
+    assert heads == admin_settings.parties.count()
+    assert party_members == {
+        item["label"]: item["total"]
+        for item in admin_settings.parties.values("label").annotate(
+            total=Sum("member_count")
+        )
+    }
+
+
 def test_post_anonymous_forbidden(client):
     response = client.get("/api/v1/simulation/")
 
@@ -66,7 +105,6 @@ def test_post_anonymous_forbidden(client):
     }
 
 
-@pytest.mark.django_db
 def test_list_success(admin_client):
     admin_client.post("/api/v1/simulation/")
     response = admin_client.get("/api/v1/simulation/")
@@ -81,7 +119,6 @@ def test_list_success(admin_client):
     assert data[0]["status"] == "new"
 
 
-@pytest.mark.django_db
 def test_list_anonymous_forbidden(client):
     response = client.get("/api/v1/simulation/")
 
@@ -91,7 +128,6 @@ def test_list_anonymous_forbidden(client):
     }
 
 
-@pytest.mark.django_db
 def test_patch_success(admin_client):
     admin_client.post("/api/v1/simulation/")
     response = admin_client.patch(
@@ -104,7 +140,6 @@ def test_patch_success(admin_client):
     assert response.json() == {"detail": "simulation 1 updated"}
 
 
-@pytest.mark.django_db
 def test_patch_not_found(admin_client):
     response = admin_client.patch(
         "/api/v1/simulation/1/",
@@ -115,7 +150,6 @@ def test_patch_not_found(admin_client):
     assert response.status_code == 404
 
 
-@pytest.mark.django_db
 def test_patch_bad_status(admin_client):
     admin_client.post("/api/v1/simulation/")
     response = admin_client.patch(
@@ -130,7 +164,6 @@ def test_patch_bad_status(admin_client):
     }
 
 
-@pytest.mark.django_db
 def test_patch_bad_field(admin_client):
     admin_client.post("/api/v1/simulation/")
     response = admin_client.patch(
@@ -143,7 +176,6 @@ def test_patch_bad_field(admin_client):
     assert response.json() == {"currentStep": ["not allowed to update field"]}
 
 
-@pytest.mark.django_db
 def test_patch_anonymous_forbidden(client):
     response = client.patch("/api/v1/simulation/1/")
 

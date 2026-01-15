@@ -5,6 +5,7 @@ from typing import Callable
 
 import pytest
 from django.core.management import call_command
+from common.models import UserSettings
 
 
 @pytest.fixture(autouse=True)
@@ -57,3 +58,8 @@ def django_db_setup(django_db_setup, django_db_blocker, data_dir):
 @pytest.fixture
 def admin_user(django_db_setup, django_user_model):
     return django_user_model.objects.get(username="test_admin")
+
+
+@pytest.fixture
+def test_settings(admin_user):
+    return UserSettings.objects.get(user=admin_user)
