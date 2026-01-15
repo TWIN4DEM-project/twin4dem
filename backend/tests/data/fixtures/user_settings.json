@@ -1,0 +1,40 @@
+[
+  {
+    "model": "common.usersettings",
+    "pk": 1,
+    "fields": {
+      "user": 1,
+      "label": "test_admin settings",
+      "government_size": 6,
+      "government_connectivity_degree": 3,
+      "government_probability_for": 0.7,
+      "parliament_size": 100,
+      "court_size": 5,
+      "office_retention_sensitivity": 5.0,
+      "social_influence_susceptibility": 0.5,
+      "abstention_threshold": 0.1,
+      "data_update_frequency": 10,
+      "legislative_path_probability": 0.7
+    }
+  },
+  {
+    "model": "common.partysettings",
+    "pk": 1,
+    "fields": {
+      "user_settings": 1,
+      "label": "majority",
+      "member_count": 51,
+      "position": "majority"
+    }
+  },
+  {
+    "model": "common.partysettings",
+    "pk": 2,
+    "fields": {
+      "user_settings": 1,
+      "label": "opposition",
+      "member_count": 49,
+      "position": "opposition"
+    }
+  }
+]

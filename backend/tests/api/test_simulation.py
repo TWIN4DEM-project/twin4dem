@@ -6,9 +6,8 @@ from common.models import UserSettings
 
 
 @pytest.mark.django_db
-def test_post_success(admin_client, django_user_model):
-    admin = django_user_model.objects.first()
-    admin_settings = UserSettings.objects.get(user=admin)
+def test_post_success(admin_client, admin_user):
+    admin_settings = UserSettings.objects.get(user=admin_user)
     response = admin_client.post("/api/v1/simulation/")
 
     assert response.status_code == 201
@@ -24,8 +23,12 @@ def test_post_success(admin_client, django_user_model):
     assert first_param["cabinet"] is not None
     cabinet_settings = first_param["cabinet"]
     assert cabinet_settings["id"] is not None
-    assert cabinet_settings["label"] == f"admin-simulation-{cabinet_settings["id"]:06}"
+    assert (
+        cabinet_settings["label"]
+        == f"test_admin-simulation-{cabinet_settings["id"]:06}"
+    )
     assert cabinet_settings["ministers"] is not None
+
     ministers = cabinet_settings["ministers"]
     assert len(ministers) == admin_settings.government_size
     assert len([m for m in ministers if m["isPrimeMinister"]]) == 1

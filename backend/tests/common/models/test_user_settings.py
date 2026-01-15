@@ -5,13 +5,18 @@ from django.db import IntegrityError, transaction
 from common.models import UserSettings, PartySettings
 
 
+@pytest.fixture
+def test_user(django_user_model):
+    return django_user_model.objects.get(username="test_user")
+
+
 @pytest.mark.django_db
 def test_create_default_user_settings(test_user):
     settings = UserSettings.objects.get(user=test_user)
 
     assert settings is not None
     assert settings.id > 0
-    assert settings.user.username == "testuser"
+    assert settings.user.username == test_user.username
     assert settings.label == "default"
     assert settings.government_size == 15
     assert settings.government_connectivity_degree == 3
@@ -48,6 +53,22 @@ def test_check_probability_values(test_user, property_name, check_name, invalid_
 @pytest.mark.django_db
 def test_check_too_few_total_party_members(test_user):
     settings = UserSettings.objects.get(user=test_user)
+    settings.parties.bulk_create(
+        [
+            PartySettings(
+                user_settings=settings,
+                label="party 1",
+                member_count="58",
+                position="majority",
+            ),
+            PartySettings(
+                user_settings=settings,
+                label="party 2",
+                member_count="42",
+                position="opposition",
+            ),
+        ]
+    )
 
     with pytest.raises(ValidationError) as err_proxy:
         with transaction.atomic():
@@ -59,7 +80,7 @@ def test_check_too_few_total_party_members(test_user):
 
     assert err_proxy.value.message_dict == {
         "parliament_size": [
-            "Sum of party member_count (75) must equal parliament_size (100).",
+            "Sum of party member_count (42) must equal parliament_size (100).",
         ]
     }
 
@@ -67,6 +88,22 @@ def test_check_too_few_total_party_members(test_user):
 @pytest.mark.django_db
 def test_check_too_many_total_party_members(test_user):
     settings = UserSettings.objects.get(user=test_user)
+    settings.parties.bulk_create(
+        [
+            PartySettings(
+                user_settings=settings,
+                label="party 1",
+                member_count="58",
+                position="majority",
+            ),
+            PartySettings(
+                user_settings=settings,
+                label="party 2",
+                member_count="42",
+                position="opposition",
+            ),
+        ]
+    )
 
     with pytest.raises(ValidationError) as err_proxy:
         with transaction.atomic():
@@ -85,6 +122,22 @@ def test_check_too_many_total_party_members(test_user):
 @pytest.mark.django_db
 def test_check_change_party_members(test_user):
     settings = UserSettings.objects.get(user=test_user)
+    settings.parties.bulk_create(
+        [
+            PartySettings(
+                user_settings=settings,
+                label="party 1",
+                member_count="58",
+                position="majority",
+            ),
+            PartySettings(
+                user_settings=settings,
+                label="party 2",
+                member_count="42",
+                position="opposition",
+            ),
+        ]
+    )
 
     with pytest.raises(ValidationError) as err_proxy:
         with transaction.atomic():

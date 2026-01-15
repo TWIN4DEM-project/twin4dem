@@ -4,8 +4,14 @@ from typing import Any
 from django.contrib.contenttypes.models import ContentType
 
 from common.models import Simulation, Cabinet, Minister as MinisterModel
-from simulator.adapters import GovernmentAdapter, AgentAdapter, ParliamentAdapter
+from simulator.adapters import (
+    GovernmentAdapter,
+    AgentAdapter,
+    ParliamentAdapter,
+    CouncilAdapter,
+)
 from simulator.executive import Government, Minister
+from simulator.judiciary import Council
 from simulator.legislative import Parliament
 
 
@@ -23,6 +29,10 @@ class MinisterDbAdapter(AgentAdapter[MinisterModel, Minister]):
         return hi if random.random() < center else lo
 
     def convert(self, value: MinisterModel) -> Minister:
+        random_opinion = self._random_gauss(
+            value.cabinet.government_probability_for, 0.1
+        )
+        personal_opinion = int(round(random_opinion))
         return Minister(
             id=value.id,
             T_i="Minister",
@@ -30,7 +40,7 @@ class MinisterDbAdapter(AgentAdapter[MinisterModel, Minister]):
             P_i=value.party.position,
             S_i=value.influence,
             W=value.weights,
-            o_i=self._random_gauss(value.cabinet.government_probability_for),
+            o_i=personal_opinion,
             # support group 1 = ones who have the power to affect the status of the minister (appoint, revoke, etc)
             o_sup1=self._random_frequency(value.cabinet.government_probability_for),
             # support group 2 = people who are directly benefitting from ministers getting more power
@@ -83,4 +93,16 @@ class ParliamentDbAdapter(ParliamentAdapter[int]):
             alpha=value.social_influence_susceptibility,
             epsilon=value.user_settings.abstention_threshold,
             gamma=value.office_retention_sensitivity,
+        )
+
+
+class CouncilDbAdapter(CouncilAdapter[int]):
+    def convert(self, simulation_id: int) -> Council:
+        value = Simulation.objects.get(pk=simulation_id)
+        return Council(
+            judges=[],
+            alpha=value.social_influence_susceptibility,
+            epsilon=value.user_settings.abstention_threshold,
+            gamma=value.office_retention_sensitivity,
+            network={},
         )

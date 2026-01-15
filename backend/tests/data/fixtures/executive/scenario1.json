@@ -1,0 +1,225 @@
+[
+  {
+    "model": "common.simulation",
+    "pk": 1,
+    "fields": {
+      "status": "new",
+      "current_step": 0,
+      "created_at": "20260113T14:15:16Z",
+      "updated_at": "20260113T14:15:16Z",
+      "office_retention_sensitivity": 5.0,
+      "social_influence_susceptibility": 0.5,
+      "user_settings": 1
+    }
+  },
+  {
+    "model": "common.simulationparams",
+    "pk": 1,
+    "fields": {
+      "simulation": 1,
+      "type": 13,
+      "content_id": 1
+    }
+  },
+  {
+    "model": "common.cabinet",
+    "pk": 1,
+    "fields": {
+      "label": "scenario 1",
+      "government_probability_for": 0.7,
+      "legislative_probability": 0.5
+    }
+  },
+  {
+    "model": "common.minister",
+    "pk": 1,
+    "fields": {
+      "influence": 1.0,
+      "label": "scenario 1 - prime minister",
+      "is_prime_minister": true,
+      "party": 1,
+      "cabinet": 1,
+      "weights": "0.3, 0.2, 0.2, 0.1, 0.1, 0.1"
+    }
+  },
+  {
+    "model": "common.minister",
+    "pk": 2,
+    "fields": {
+      "influence": 0.3,
+      "label": "scenario 1 - minister #2",
+      "is_prime_minister": false,
+      "party": 1,
+      "cabinet": 1,
+      "weights": "0.3, 0.2, 0.2, 0.1, 0.1, 0.1"
+    }
+  },
+  {
+    "model": "common.minister",
+    "pk": 3,
+    "fields": {
+      "influence": 0.5,
+      "label": "scenario 1 - minister #3",
+      "is_prime_minister": false,
+      "party": 1,
+      "cabinet": 1,
+      "weights": "0.3, 0.2, 0.2, 0.1, 0.1, 0.1"
+    }
+  },
+  {
+    "model": "common.minister",
+    "pk": 4,
+    "fields": {
+      "influence": 0.5,
+      "label": "scenario 1 - minister #4",
+      "is_prime_minister": false,
+      "party": 1,
+      "cabinet": 1,
+      "weights": "0.3, 0.2, 0.2, 0.1, 0.1, 0.1"
+    }
+  },
+  {
+    "model": "common.minister",
+    "pk": 5,
+    "fields": {
+      "influence": 0.5,
+      "label": "scenario 1 - minister #5",
+      "is_prime_minister": false,
+      "party": 1,
+      "cabinet": 1,
+      "weights": "0.3, 0.2, 0.2, 0.1, 0.1, 0.1"
+    }
+  },
+  {
+    "model": "common.minister",
+    "pk": 6,
+    "fields": {
+      "influence": 0.5,
+      "label": "scenario 1 - minister #6",
+      "is_prime_minister": false,
+      "party": 1,
+      "cabinet": 1,
+      "weights": "0.3, 0.2, 0.2, 0.1, 0.1, 0.1"
+    }
+  },
+  {
+    "model": "common.ministerlink",
+    "pk": 1,
+    "fields": {
+      "from_minister": 1,
+      "to_minister": 2
+    }
+  },
+  {
+    "model": "common.ministerlink",
+    "pk": 2,
+    "fields": {
+      "from_minister": 1,
+      "to_minister": 3
+    }
+  },
+  {
+    "model": "common.ministerlink",
+    "pk": 3,
+    "fields": {
+      "from_minister": 1,
+      "to_minister": 4
+    }
+  },
+  {
+    "model": "common.ministerlink",
+    "pk": 4,
+    "fields": {
+      "from_minister": 1,
+      "to_minister": 5
+    }
+  },
+  {
+    "model": "common.ministerlink",
+    "pk": 5,
+    "fields": {
+      "from_minister": 1,
+      "to_minister": 6
+    }
+  },
+  {
+    "model": "common.ministerlink",
+    "pk": 6,
+    "fields": {
+      "from_minister": 2,
+      "to_minister": 3
+    }
+  },
+  {
+    "model": "common.ministerlink",
+    "pk": 7,
+    "fields": {
+      "from_minister": 2,
+      "to_minister": 4
+    }
+  },
+  {
+    "model": "common.ministerlink",
+    "pk": 8,
+    "fields": {
+      "from_minister": 3,
+      "to_minister": 4
+    }
+  },
+  {
+    "model": "common.ministerlink",
+    "pk": 9,
+    "fields": {
+      "from_minister": 3,
+      "to_minister": 5
+    }
+  },
+  {
+    "model": "common.ministerlink",
+    "pk": 10,
+    "fields": {
+      "from_minister": 4,
+      "to_minister": 5
+    }
+  },
+  {
+    "model": "common.ministerlink",
+    "pk": 11,
+    "fields": {
+      "from_minister": 4,
+      "to_minister": 6
+    }
+  },
+  {
+    "model": "common.ministerlink",
+    "pk": 12,
+    "fields": {
+      "from_minister": 5,
+      "to_minister": 6
+    }
+  },
+  {
+    "model": "common.ministerlink",
+    "pk": 13,
+    "fields": {
+      "from_minister": 5,
+      "to_minister": 2
+    }
+  },
+  {
+    "model": "common.ministerlink",
+    "pk": 14,
+    "fields": {
+      "from_minister": 6,
+      "to_minister": 2
+    }
+  },
+  {
+    "model": "common.ministerlink",
+    "pk": 15,
+    "fields": {
+      "from_minister": 6,
+      "to_minister": 3
+    }
+  }
+]

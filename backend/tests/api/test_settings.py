@@ -4,13 +4,29 @@ def test_list_success(admin_client):
     assert response.status_code == 200
     assert response.json() == [
         {
+            "courtSize": 5,
+            "governmentConnectivityDegree": 3,
+            "governmentSize": 6,
             "id": 1,
+            "label": "test_admin settings",
+            "parliamentSize": 100,
+        },
+        {
             "courtSize": 5,
             "governmentConnectivityDegree": 3,
             "governmentSize": 15,
+            "id": 2,
             "label": "default",
             "parliamentSize": 100,
-        }
+        },
+        {
+            "courtSize": 5,
+            "governmentConnectivityDegree": 3,
+            "governmentSize": 15,
+            "id": 3,
+            "label": "default",
+            "parliamentSize": 100,
+        },
     ]
 
 
@@ -28,21 +44,25 @@ def test_get_by_id_success(admin_client):
 
     assert response.status_code == 200
     assert response.json() == {
-        "abstentionThreshold": 0.2,
+        "abstentionThreshold": 0.1,
         "courtSize": 5,
         "dataUpdateFrequency": 10,
         "governmentConnectivityDegree": 3,
-        "governmentSize": 15,
-        "governmentProbabilityFor": 0.5,
+        "governmentSize": 6,
+        "governmentProbabilityFor": 0.7,
         "id": 1,
-        "label": "default",
-        "legislativePathProbability": 0.5,
+        "label": "test_admin settings",
+        "legislativePathProbability": 0.7,
         "officeRetentionSensitivity": 5.0,
         "parliamentSize": 100,
         "parties": [
-            {"id": 1, "label": "Party A", "memberCount": 25, "position": "majority"},
-            {"id": 2, "label": "Party B", "memberCount": 35, "position": "majority"},
-            {"id": 3, "label": "Party C", "memberCount": 40, "position": "opposition"},
+            {"id": 1, "label": "majority", "memberCount": 51, "position": "majority"},
+            {
+                "id": 2,
+                "label": "opposition",
+                "memberCount": 49,
+                "position": "opposition",
+            },
         ],
         "socialInfluenceSusceptibility": 0.5,
         "userId": 1,

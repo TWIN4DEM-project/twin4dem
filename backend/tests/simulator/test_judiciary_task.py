@@ -1,30 +1,30 @@
-import json
-from pathlib import Path
-from typing import Any
 from unittest.mock import MagicMock, patch
 
-from asgiref.sync import async_to_sync
-from channels.layers import InMemoryChannelLayer
+import pytest
 
+from simulator.adapters import Adapter, AdapterFactory
 from simulator.tasks import run_judiciary_steps
 
-from simulator.config import CouncilConfig
 from simulator.config._adapter import CouncilConfigAdapter
 
 
-def load_json(name: str) -> dict[str, Any]:
-    path = Path(__file__).parent.parent / "data" / name
-    return json.loads(path.read_text())
+@pytest.fixture
+def council(judiciary_config):
+    return CouncilConfigAdapter().convert(judiciary_config)
 
 
-def build_council_from_config(cfg: CouncilConfig):
-    return CouncilConfigAdapter().convert(cfg)
+@pytest.fixture(autouse=True)
+def adapter_factory(council):
+    mock_adapter = MagicMock(name="mockadapter", spec=Adapter)
+    mock_adapter.convert.return_value = council
+    mock_factory = MagicMock(name="mockfactory", spec=AdapterFactory)
+    mock_factory.new_council_adapter.return_value = mock_adapter
+    with patch("simulator.tasks.get_adapter_factory") as mock:
+        mock.return_value = mock_factory
+        yield mock
 
 
-def test_council_step_no_decree_skips_voting():
-    cfg = CouncilConfig.model_validate(load_json("judiciary.json"))
-    council = build_council_from_config(cfg)
-
+def test_council_step_no_decree_skips_voting(council):
     result = council.step(has_decree=False)
 
     assert result["approved"] is None
@@ -34,10 +34,7 @@ def test_council_step_no_decree_skips_voting():
     assert all(v is None for v in result["votes"].values())
 
 
-def test_council_step_decree_returns_votes_shape():
-    cfg = CouncilConfig.model_validate(load_json("judiciary.json"))
-    council = build_council_from_config(cfg)
-
+def test_council_step_decree_returns_votes_shape(council):
     result = council.step(has_decree=True)
 
     assert "t" in result
@@ -54,43 +51,28 @@ def test_council_step_decree_returns_votes_shape():
     assert result["vbar"] is None or isinstance(result["vbar"], float)
 
 
-def test_council_president_detected():
-    cfg = CouncilConfig.model_validate(load_json("judiciary.json"))
-    council = build_council_from_config(cfg)
-
+def test_council_president_detected(council):
     presidents = [j for j in council.judges if j.is_president]
     assert len(presidents) == 1
 
 
-def test_run_judiciary_steps_sends_council_step():
-    channel_name = "test-council-step"
+def test_run_judiciary_steps_sends_council_step(
+    channel_layer, judiciary_config, council, monkeypatch
+):
+    step_mock = MagicMock(
+        name="parliament.step",
+        spec=council.step,
+        return_value={"t": 1, "approved": True, "vbar": 1.0, "votes": {1: 1, 2: 1}},
+    )
+    monkeypatch.setattr(council, "step", step_mock)
+    expected_channel_name = "test-council-step"
 
-    cfg = CouncilConfig.model_validate(load_json("judiciary.json"))
+    run_judiciary_steps.delay(expected_channel_name, data=judiciary_config)
 
-    layer = InMemoryChannelLayer()
-    receive = async_to_sync(layer.receive)
-
-    council = MagicMock()
-    council.step.return_value = {
-        "t": 1,
-        "approved": True,
-        "vbar": 1.0,
-        "votes": {1: 1, 2: 1},
-    }
-
-    council_adapter = MagicMock()
-    council_adapter.convert.return_value = council
-
-    factory = MagicMock()
-    factory.new_council_adapter.return_value = council_adapter
-
-    with (
-        patch("simulator.tasks.get_channel_layer", return_value=layer),
-        patch("simulator.tasks.get_adapter_factory", return_value=factory),
-    ):
-        run_judiciary_steps.delay(channel_name, cfg)
-
-    msg = receive(channel_name)
-    assert msg["type"] == "council.step"
-    assert "votes" in msg["payload"]
-    assert "approved" in msg["payload"]
+    assert channel_layer.send.call_count == 1
+    actual_channel_name, data = channel_layer.send.call_args_list[0].args
+    assert actual_channel_name == expected_channel_name
+    assert "type" in data
+    assert "payload" in data
+    assert data["type"] == "council.step"
+    assert "votes" in data["payload"]

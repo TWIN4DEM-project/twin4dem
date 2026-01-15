@@ -1,4 +1,3 @@
-import json
 from unittest.mock import ANY, call
 
 import pytest
@@ -30,9 +29,12 @@ async def sim_comm(new_communicator, simulation_id, simulation_task_mock):
     indirect=("simulation_id",),
 )
 async def test_simulation_started(
-    sim_comm, simulation_id, simulation_task_mock, load_pydantic, expected_message
+    sim_comm,
+    simulation_id,
+    simulation_task_mock,
+    expected_message,
 ):
-    await sim_comm.send_to(text_data=json.dumps(load_pydantic("scenario1.json")))
+    await sim_comm.send_json_to({"action": "step"})
 
     response = await sim_comm.receive_json_from()
 
@@ -49,11 +51,10 @@ async def test_simulation_started(
 
 @pytest.mark.asyncio
 async def test_government_step_event(
-    sim_comm, load_json, load_pydantic, get_channel_name, channel_layer
+    sim_comm, load_json, get_channel_name, channel_layer
 ):
     payload = load_json("government/step_output.valid.json")
-    data = load_pydantic("scenario1.json")
-    await sim_comm.send_json_to(data)
+    await sim_comm.send_json_to({"action": "step"})
     await sim_comm.receive_json_from(timeout=0.1)
 
     await channel_layer.send(

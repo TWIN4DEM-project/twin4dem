@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Callable
 
 import pytest
+from django.core.management import call_command
 
 
 @pytest.fixture(autouse=True)
@@ -44,3 +45,15 @@ def load_pydantic(load_json) -> Callable[[str], dict]:
         }
 
     return _
+
+
+@pytest.fixture(scope="session")
+def django_db_setup(django_db_setup, django_db_blocker, data_dir):
+    with django_db_blocker.unblock():
+        call_command("loaddata", "user_data.json")
+        call_command("loaddata", "user_settings.json")
+
+
+@pytest.fixture
+def admin_user(django_db_setup, django_user_model):
+    return django_user_model.objects.get(username="test_admin")

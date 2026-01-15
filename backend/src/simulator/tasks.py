@@ -84,24 +84,23 @@ def run_government_steps(
 
         approved = bool(step_result.get("approved"))
         path = step_result.get("path")  # "legislative act" | "decree" | None
-
         send_sync(
-            layer,
-            channel_name,
-            {
-                "type": "government.step",
-                "payload": step_result,
-            },
+            layer, channel_name, {"type": "government.step", "payload": step_result}
         )
 
-        if approved and path == "legislative act":
-            if parl_data is None:
-                continue
+        if not approved:
+            continue
 
-            run_legislative_steps.apply_async(args=[channel_name, parl_data])
+        data = task = None
+        match path:
+            case "legislative act":
+                data, task = parl_data, run_legislative_steps
+            case "decree":
+                data, task = council_data, run_judiciary_steps
+            case _:
+                raise ValueError(f"unexpected path '{path}'")
 
-        elif approved and path == "decree":
-            if council_data is None:
-                continue
+        if data is None:
+            continue
 
-            run_judiciary_steps.apply_async(args=[channel_name, council_data])
+        task.apply_async(args=[channel_name, data])
