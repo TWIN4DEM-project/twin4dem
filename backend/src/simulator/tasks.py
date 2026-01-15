@@ -31,39 +31,29 @@ def get_adapter_factory() -> AdapterFactory:
 
 
 @shared_task
-def run_judiciary_steps(channel_name: str, data: CouncilConfig):
+def run_judiciary_steps(data: CouncilConfig):
     factory = get_adapter_factory()
-    parl = factory.new_council_adapter().convert(data)
-    layer = get_channel_layer()
+    council = factory.new_council_adapter().convert(data)
 
-    council_step_result = parl.step()
+    council_step_result = council.step()
 
-    send_sync(
-        layer,
-        channel_name,
-        {
-            "type": "council.step",
-            "payload": council_step_result,
-        },
-    )
+    return {
+        "type": "court",
+        **council_step_result,
+    }
 
 
 @shared_task
-def run_legislative_steps(channel_name: str, data: ParliamentConfig):
+def run_legislative_steps(data: ParliamentConfig):
     factory = get_adapter_factory()
     parl = factory.new_parliament_adapter().convert(data)
-    layer = get_channel_layer()
 
     parl_step_result = parl.step()
 
-    send_sync(
-        layer,
-        channel_name,
-        {
-            "type": "parliament.step",
-            "payload": parl_step_result,
-        },
-    )
+    return {
+        "type": "parliament",
+        **parl_step_result,
+    }
 
 
 @shared_task
@@ -79,28 +69,32 @@ def run_government_steps(
     gov = factory.new_government_adapter().convert(simulation_id or data)
     layer = get_channel_layer()
 
-    for _ in range(n_steps):
-        step_result = gov.step()
+    for step in range(n_steps):
+        step_result = {"t": step, "results": []}
+        cabinet_result = gov.step()
+        results = [{"type": "cabinet", **cabinet_result}]
 
-        approved = bool(step_result.get("approved"))
-        path = step_result.get("path")  # "legislative act" | "decree" | None
+        approved = bool(cabinet_result.get("approved"))
+        path = cabinet_result.get("path")  # "legislative act" | "decree" | None
+
+        if approved:
+            data = task = None
+            match path:
+                case "legislative act":
+                    data, task = parl_data or simulation_id, run_legislative_steps
+                case "decree":
+                    data, task = council_data or simulation_id, run_judiciary_steps
+                case _:
+                    raise ValueError(f"unexpected path '{path}'")
+
+            if data is not None:
+                result = task.apply_async(args=[data])
+                try:
+                    results.append(result.get(timeout=300, disable_sync_subtasks=False))
+                except TimeoutError:
+                    pass  # introduce logging or implement conditional task chains
+
+        step_result["results"] = results
         send_sync(
-            layer, channel_name, {"type": "government.step", "payload": step_result}
+            layer, channel_name, {"type": "step.finished", "payload": step_result}
         )
-
-        if not approved:
-            continue
-
-        data = task = None
-        match path:
-            case "legislative act":
-                data, task = parl_data, run_legislative_steps
-            case "decree":
-                data, task = council_data, run_judiciary_steps
-            case _:
-                raise ValueError(f"unexpected path '{path}'")
-
-        if data is None:
-            continue
-
-        task.apply_async(args=[channel_name, data])

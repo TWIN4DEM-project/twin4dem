@@ -59,20 +59,17 @@ def test_council_president_detected(council):
 def test_run_judiciary_steps_sends_council_step(
     channel_layer, judiciary_config, council, monkeypatch
 ):
+    expected_data = {"t": 1, "approved": True, "vbar": 1.0, "votes": {1: 1, 2: 1}}
     step_mock = MagicMock(
         name="parliament.step",
         spec=council.step,
-        return_value={"t": 1, "approved": True, "vbar": 1.0, "votes": {1: 1, 2: 1}},
+        return_value=expected_data,
     )
     monkeypatch.setattr(council, "step", step_mock)
-    expected_channel_name = "test-council-step"
 
-    run_judiciary_steps.delay(expected_channel_name, data=judiciary_config)
+    result = run_judiciary_steps.delay(data=judiciary_config)
+    actual = result.get()
 
-    assert channel_layer.send.call_count == 1
-    actual_channel_name, data = channel_layer.send.call_args_list[0].args
-    assert actual_channel_name == expected_channel_name
-    assert "type" in data
-    assert "payload" in data
-    assert data["type"] == "council.step"
-    assert "votes" in data["payload"]
+    assert channel_layer.send.call_count == 0
+    assert actual.pop("type") == "court"
+    assert actual == expected_data

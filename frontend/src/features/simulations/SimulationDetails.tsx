@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { useParams } from "react-router";
 import { useSimulation } from "@/features/simulations/hooks.ts";
 import { z } from "zod";
@@ -24,14 +24,19 @@ export function SimulationDetails() {
     return cabinets ? cabinets[0].cabinet : undefined;
   }, [data]);
   const ministers = useMemo(() => {
-    return cabinet?.ministers ? cabinet.ministers : [];
+    if (cabinet === null || typeof cabinet === 'undefined') {
+      return []
+    }
+    return cabinet.ministers;
   }, [cabinet]);
+  const ministerRef = useRef(ministers)
   const [ministerVotes, setMinisterVotes] = useState<MinisterVote[]>([]);
   const { send, stream } = useWebSocketStream<SimulationState>(
     `ws://localhost:8000/ws/simulation/${simulationId}/`,
   );
 
   useEffect(() => {
+    ministerRef.current = ministers
     setMinisterVotes(
       ministers.map((m) => ({
         minister: m,
@@ -41,28 +46,23 @@ export function SimulationDetails() {
   }, [ministers]);
 
   useEffect(() => {
-    let cancelled = false;
-
     (async () => {
       for await (const msg of stream) {
-        const stepResult = await SimulationStateSchema.safeParseAsync(msg);
-        if (!stepResult.success) continue;
-        if (cancelled) break;
-        setMinisterVotes(
-          ministers.map((m) => {
-            const raw = stepResult.data.votes?.[m.id] ?? null; // 0 | 1 | null
+        const res = await SimulationStateSchema.safeParseAsync(msg);
+        if (!res.success) continue;
+        const cabinetResults = res.data.results.filter((r)=> r.type=="cabinet")
+        if (cabinetResults.length === 0) continue;
+        const cabinet = cabinetResults[0]
+        const ministerVotes = ministerRef.current.map((m) => {
+            const raw = cabinet.votes?.[m.id] ?? null; // 0 | 1 | null
             const vote = raw === 1 ? true : raw === 0 ? false : null; // boolean | null
             return { minister: m, vote };
-          }),
-        );
-        setPath(stepResult.data.path);
-        setStepNo(stepResult.data.t);
+          })
+        setMinisterVotes(ministerVotes);
+        setPath(cabinet.path);
+        setStepNo(res.data.t);
       }
     })();
-
-    return () => {
-      cancelled = true;
-    };
   }, [stream, ministers]);
 
   return (

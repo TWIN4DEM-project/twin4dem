@@ -61,20 +61,16 @@ def test_party_heads_detected(parliament):
 def test_response_message_structure(
     channel_layer, parliament_config, parliament, monkeypatch
 ):
+    expected_data = {"t": 1, "approved": True, "vbar": 0.75, "votes": {1: 1}}
     step_mock = MagicMock(
         name="parliament.step",
         spec=parliament.step,
-        return_value={"t": 1, "approved": True, "vbar": 0.75, "votes": {1: 1}},
+        return_value=expected_data,
     )
     monkeypatch.setattr(parliament, "step", step_mock)
-    expected_channel_name = "test-parliament-step"
+    result = run_legislative_steps.delay(parliament_config)
+    actual = result.get()
 
-    run_legislative_steps.delay(expected_channel_name, parliament_config)
-
-    assert channel_layer.send.call_count == 1
-    actual_channel_name, data = channel_layer.send.call_args_list[0].args
-    assert actual_channel_name == expected_channel_name
-    assert "type" in data
-    assert "payload" in data
-    assert data["type"] == "parliament.step"
-    assert "votes" in data["payload"]
+    assert channel_layer.send.call_count == 0
+    assert actual.pop("type") == "parliament"
+    assert actual == expected_data

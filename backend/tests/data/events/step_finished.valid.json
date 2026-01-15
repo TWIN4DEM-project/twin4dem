@@ -1,0 +1,26 @@
+{
+  "t": 1,
+  "results": [
+    {
+      "type": "cabinet",
+      "approved": true,
+      "path": "decree",
+      "votes": {
+        "0": true,
+        "1": false,
+        "2": true,
+        "3": false,
+        "4": true
+      }
+    },
+    {
+      "type": "court",
+      "approved": false,
+      "votes": {
+        "0": true,
+        "1": false,
+        "2": false
+      }
+    }
+  ]
+}

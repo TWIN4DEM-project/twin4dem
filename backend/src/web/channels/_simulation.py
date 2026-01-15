@@ -6,7 +6,7 @@ class SimulationAsyncConsumer(Twin4DemAsyncConsumer):
     def __init__(self):
         super().__init__(run_government_steps)
 
-    async def government_step(self, event):
+    async def step_finished(self, event):
         await self._send_json(event["payload"])
         await self._send_json({"status": "task completed"})
 

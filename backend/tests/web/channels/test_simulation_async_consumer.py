@@ -50,16 +50,16 @@ async def test_simulation_started(
 
 
 @pytest.mark.asyncio
-async def test_government_step_event(
+async def test_step_finished_event(
     sim_comm, load_json, get_channel_name, channel_layer
 ):
-    payload = load_json("government/step_output.valid.json")
+    payload = load_json("events/step_finished.valid.json")
     await sim_comm.send_json_to({"action": "step"})
     await sim_comm.receive_json_from(timeout=0.1)
 
     await channel_layer.send(
         get_channel_name(),
-        {"type": "government.step", "payload": payload},
+        {"type": "step.finished", "payload": payload},
     )
     actual = await sim_comm.receive_json_from(timeout=0.1)
     status = await sim_comm.receive_json_from(timeout=0.1)
