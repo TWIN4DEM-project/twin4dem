@@ -1,18 +1,47 @@
+from django import forms
 from django.contrib import admin
 from ..models._settings import UserSettings, PartySettings
 
 
 from django.core.exceptions import ValidationError
-from django.db import transaction
+
+
+class UserSettingsAdminForm(forms.ModelForm):
+    class Meta:
+        model = UserSettings
+        # fields = '__all__'
+        exclude = ["parties"]
+
+
+class PartySettingsInlineFormSet(forms.BaseInlineFormSet):
+    def clean(self):
+        """Validate that sum of member_count equals parliament_size."""
+        super().clean()
+
+        total_members = 0
+        for form in self.forms:
+            if form.cleaned_data and not form.cleaned_data.get("DELETE", False):
+                total_members += form.cleaned_data.get("member_count", 0)
+
+        parliament_size = self.instance.parliament_size
+
+        # Validate the constraint
+        if total_members != parliament_size:
+            raise ValidationError(
+                f"Sum of party member_count ({total_members}) must equal "
+                f"parliament_size ({parliament_size})."
+            )
 
 
 class PartySettingsInline(admin.TabularInline):
     model = PartySettings
+    formset = PartySettingsInlineFormSet
     extra = 0
 
 
 @admin.register(UserSettings)
 class UserSettingsAdmin(admin.ModelAdmin):
+    form = UserSettingsAdminForm
     list_display = (
         "id",
         "label",
@@ -25,19 +54,8 @@ class UserSettingsAdmin(admin.ModelAdmin):
     search_fields = ("label", "user__username")
     inlines = [PartySettingsInline]
 
-    def save_related(self, request, form, formsets, change):
-        with transaction.atomic():
-            # Save parent object
-            self.save_form(request, form, change)
-
-            # Save all inline formsets
-            for formset in formsets:
-                self.save_formset(request, form, formset, change)
-
-            # Now verify the constraint
-            parliament = form.instance
-            total_members = sum(p.member_count for p in parliament.parties.all())
-            if total_members != parliament.parliament_size:
-                raise ValidationError(
-                    f"Sum of party member_count ({total_members}) must equal parliament_size ({parliament.parliament_size})."
-                )
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        if obj is not None:
+            obj._skip_parliament_validation = True
+        return form

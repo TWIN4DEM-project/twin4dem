@@ -30,12 +30,16 @@ class UserSettings(models.Model):
 
     def clean(self):
         super().clean()
+        if not self.pk:
+            return
+
         parties = self.parties.all()
         if not parties.exists():
             return
+        if getattr(self, "_skip_parliament_validation", False):
+            return
 
         total_members = parties.aggregate(total=Sum("member_count"))["total"] or 0
-
         if total_members != self.parliament_size:
             raise ValidationError(
                 {
@@ -109,6 +113,10 @@ class PartySettings(models.Model):
     label = models.CharField(max_length=50)
     member_count = models.PositiveSmallIntegerField()
     position = models.CharField(choices=PartyPosition.choices)
+
+    @property
+    def parliament_size(self):
+        return self.user_settings.parliament_size
 
     def clean(self):
         super().clean()

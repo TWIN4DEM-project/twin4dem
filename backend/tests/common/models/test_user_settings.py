@@ -50,7 +50,7 @@ def test_check_probability_values(test_user, property_name, check_name, invalid_
     assert str(err_proxy.value) == f"CHECK constraint failed: {check_name}"
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=False)
 def test_check_too_few_total_party_members(test_user):
     settings = UserSettings.objects.get(user=test_user)
     settings.parties.bulk_create(
@@ -69,14 +69,11 @@ def test_check_too_few_total_party_members(test_user):
             ),
         ]
     )
+    first_party = settings.parties.first()
 
     with pytest.raises(ValidationError) as err_proxy:
-        with transaction.atomic():
-            all_party_settings = PartySettings.objects.filter(
-                user_settings=settings
-            ).first()
-            all_party_settings.delete()
-            settings.clean()
+        first_party.delete()
+        settings.clean()
 
     assert err_proxy.value.message_dict == {
         "parliament_size": [
