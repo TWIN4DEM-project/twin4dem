@@ -31,9 +31,13 @@ def get_adapter_factory() -> AdapterFactory:
 
 
 @shared_task
-def run_judiciary_steps(data: CouncilConfig):
+def run_judiciary_steps(simulation_id: int | None = None, data: CouncilConfig | None = None):
     factory = get_adapter_factory()
-    council = factory.new_council_adapter().convert(data)
+
+    if simulation_id is not None:
+        council = factory.new_council_adapter().convert(simulation_id)
+    else:
+        council = factory.new_council_adapter().convert(data)
 
     council_step_result = council.step()
 
@@ -44,9 +48,13 @@ def run_judiciary_steps(data: CouncilConfig):
 
 
 @shared_task
-def run_legislative_steps(data: ParliamentConfig):
+def run_legislative_steps(simulation_id: int | None = None, data: ParliamentConfig | None = None):
     factory = get_adapter_factory()
-    parl = factory.new_parliament_adapter().convert(data)
+
+    if simulation_id is not None:
+        parl = factory.new_parliament_adapter().convert(simulation_id)
+    else:
+        parl = factory.new_parliament_adapter().convert(data)
 
     parl_step_result = parl.step()
 
@@ -78,19 +86,31 @@ def run_government_steps(
         path = cabinet_result.get("path")  # "legislative act" | "decree" | None
 
         if approved:
-            data = task = None
+            task = None
+            fallback_data = None
+
             match path:
                 case "legislative act":
-                    data, task = parl_data or simulation_id, run_legislative_steps
+                    task = run_legislative_steps
+                    fallback_data = parl_data
                 case "decree":
-                    data, task = council_data or simulation_id, run_judiciary_steps
+                    task = run_judiciary_steps
+                    fallback_data = council_data
                 case _:
                     raise ValueError(f"unexpected path '{path}'")
 
-            if data is not None:
-                result = task.apply_async(args=[data])
+            kwargs = None
+            if simulation_id is not None:
+                kwargs = {"simulation_id": simulation_id}
+            elif fallback_data is not None:
+                kwargs = {"data": fallback_data}
+
+            if kwargs is not None:
+                async_result = task.apply_async(kwargs=kwargs)
                 try:
-                    results.append(result.get(timeout=300, disable_sync_subtasks=False))
+                    results.append(
+                        async_result.get(timeout=300, disable_sync_subtasks=False)
+                    )
                 except TimeoutError:
                     pass  # introduce logging or implement conditional task chains
 

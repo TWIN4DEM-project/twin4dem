@@ -1,0 +1,77 @@
+[
+  {
+    "model": "common.simulation",
+    "pk": 1,
+    "fields": {
+      "status": "new",
+      "current_step": 0,
+      "created_at": "20260113T14:15:16Z",
+      "updated_at": "20260113T14:15:16Z",
+      "office_retention_sensitivity": 5.0,
+      "social_influence_susceptibility": 0.5,
+      "user_settings": 1
+    }
+  },
+  {
+    "model": "common.simulationparams",
+    "pk": 1,
+    "fields": {
+      "simulation": 1,
+      "type": ["common", "parliament"],
+      "content_id": 1
+    }
+  },
+  {
+    "model": "common.parliament",
+    "pk": 1,
+    "fields": {
+      "label": "scenario 1",
+      "majority_probability_for": 0.5,
+      "opposition_probability_for": 0.5
+    }
+  },
+  {
+    "model": "common.memberofparliament",
+    "pk": 1,
+    "fields": {
+      "label": "scenario 1 - mp #1",
+      "is_head": true,
+      "weights": "0.1667, 0.1667, 0.1667, 0.1667, 0.1667, 0.1667",
+      "party": 1,
+      "parliament": 1
+    }
+  },
+  {
+    "model": "common.memberofparliament",
+    "pk": 2,
+    "fields": {
+      "label": "scenario 1 - mp #2",
+      "is_head": false,
+      "weights": "0.1667, 0.1667, 0.1667, 0.1667, 0.1667, 0.1667",
+      "party": 1,
+      "parliament": 1
+    }
+  },
+  {
+    "model": "common.memberofparliament",
+    "pk": 3,
+    "fields": {
+      "label": "scenario 1 - mp #3",
+      "is_head": true,
+      "weights": "0.1667, 0.1667, 0.1667, 0.1667, 0.1667, 0.1667",
+      "party": 2,
+      "parliament": 1
+    }
+  },
+  {
+    "model": "common.memberofparliament",
+    "pk": 4,
+    "fields": {
+      "label": "scenario 1 - mp #4",
+      "is_head": false,
+      "weights": "0.1667, 0.1667, 0.1667, 0.1667, 0.1667, 0.1667",
+      "party": 2,
+      "parliament": 1
+    }
+  }
+]

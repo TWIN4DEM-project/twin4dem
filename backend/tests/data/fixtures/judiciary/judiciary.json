@@ -1,0 +1,68 @@
+[
+  {
+    "model": "common.simulation",
+    "pk": 1,
+    "fields": {
+      "status": "new",
+      "current_step": 0,
+      "created_at": "20260113T14:15:16Z",
+      "updated_at": "20260113T14:15:16Z",
+      "office_retention_sensitivity": 5.0,
+      "social_influence_susceptibility": 0.1,
+      "user_settings": 1
+    }
+  },
+  {
+    "model": "common.simulationparams",
+    "pk": 1,
+    "fields": {
+      "simulation": 1,
+      "type": 14,
+      "content_id": 1
+    }
+  },
+  {
+    "model": "common.court",
+    "pk": 1,
+    "fields": {
+      "label": "scenario 1",
+      "probability_for": 0.7
+    }
+  },
+  {
+    "model": "common.judge",
+    "pk": 1,
+    "fields": {
+      "influence": 0.5,
+      "label": "scenario 1 - judge #1",
+      "is_president": true,
+      "party": 1,
+      "court": 1,
+      "weights": "0.1667, 0.1667, 0.1667, 0.1667, 0.1667, 0.1667"
+    }
+  },
+  {
+    "model": "common.judge",
+    "pk": 2,
+    "fields": {
+      "influence": 0.4,
+      "label": "scenario 1 - judge #2",
+      "is_president": false,
+      "party": 1,
+      "court": 1,
+      "weights": "0.1667, 0.1667, 0.1667, 0.1667, 0.1667, 0.1667"
+    }
+  },
+  {
+    "model": "common.judge",
+    "pk": 3,
+    "fields": {
+      "influence": 0.4,
+      "label": "scenario 1 - judge #3",
+      "is_president": false,
+      "party": 1,
+      "court": 1,
+      "weights": "0.1667, 0.1667, 0.1667, 0.1667, 0.1667, 0.1667"
+    }
+  }
+]

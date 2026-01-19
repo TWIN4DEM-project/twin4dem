@@ -2,26 +2,18 @@ from celery import Task
 from unittest.mock import patch, MagicMock, call
 
 import pytest
-from django.core.management import call_command
-from django.contrib.contenttypes.models import ContentType
-from common.models import Simulation, Cabinet
+from common.models import Cabinet
 from simulator.tasks import run_government_steps
 
 
 @pytest.fixture
-def simulation(db, django_db_blocker, request):
-    simulation_id = getattr(request, "param", 1)
-    with django_db_blocker.unblock():
-        call_command("loaddata", f"executive/scenario{simulation_id}.json")
-        return Simulation.objects.get(pk=simulation_id)
+def simulation(executive_simulation):
+    return executive_simulation
 
 
 @pytest.fixture
-def cabinet(simulation):
-    cabinet_params = simulation.params.filter(
-        type=ContentType.objects.get_for_model(Cabinet)
-    ).select_related("type")
-    return cabinet_params.first().params
+def cabinet(simulation, institution_params):
+    return institution_params(simulation, Cabinet)
 
 
 @pytest.fixture(autouse=True)
@@ -150,7 +142,7 @@ def test_run_legislative_steps_for_legislative_act(
     assert run_judiciary_steps.apply_async.call_count == 0
     assert run_legislative_steps.apply_async.call_count == 1
     assert run_legislative_steps.apply_async.call_args_list == [
-        call(args=[parliament_config])
+        call(kwargs={"simulation_id": simulation.id})
     ]
     assert channel_layer.send.call_count == 1
 
@@ -206,7 +198,7 @@ def test_flow_triggers_judiciary_task_on_decree(
     assert run_legislative_steps.apply_async.call_count == 0
     assert run_judiciary_steps.apply_async.call_count == 1
     assert run_judiciary_steps.apply_async.call_args_list == [
-        call(args=[judiciary_config])
+        call(kwargs={"simulation_id": simulation.id})
     ]
     assert channel_layer.send.call_count == 1
 
