@@ -78,6 +78,7 @@ def load_simulation(db, django_db_blocker):
     Load a fixture file and return Simulation(pk=simulation_id).
     Keeps the DB-first approach consistent across branches.
     """
+
     def _load(fixture_file: str, simulation_id: int = 1) -> Simulation:
         with django_db_blocker.unblock():
             call_command("loaddata", fixture_file)
@@ -88,7 +89,9 @@ def load_simulation(db, django_db_blocker):
 
 @pytest.fixture
 def executive_simulation(load_simulation, simulation_id):
-    return load_simulation(f"executive/scenario{simulation_id}.json", simulation_id=simulation_id)
+    return load_simulation(
+        f"executive/scenario{simulation_id}.json", simulation_id=simulation_id
+    )
 
 
 @pytest.fixture
@@ -107,13 +110,10 @@ def institution_params():
     Generic helper to fetch the first SimulationParam.params for a given institution model.
     Usage: institution_params(simulation, Cabinet) -> Cabinet params instance
     """
+
     def _get(simulation, model_cls):
         ct = ContentType.objects.get_for_model(model_cls)
-        qs = (
-            simulation.params
-            .filter(type=ct)
-            .select_related("type")
-        )
+        qs = simulation.params.filter(type=ct).select_related("type")
         obj = qs.first()
         assert obj is not None, (
             f"No params found for model {model_cls.__name__} in Simulation(id={simulation.id}). "

@@ -1,5 +1,6 @@
 from typing import List, Dict
 
+from common.dto import VbarSubmodelResult, SubmodelType
 from simulator.legislative._mp import MP
 
 
@@ -19,7 +20,6 @@ class Parliament:
         self.alpha = alpha
         self.epsilon = epsilon
         self.gamma = gamma
-        self.t = 0
 
         # map from party label (P_i) to its head MP
         self.party_heads: Dict[str, MP] = self._compute_party_heads()
@@ -54,22 +54,13 @@ class Parliament:
         # last resort: own opinion
         return mp.o_i
 
-    def step(self, has_legislative_act: bool = True) -> Dict:
+    def step(self) -> VbarSubmodelResult:
         """
-        1. If there is no aggrandisement attempt OR form is 'decree', skip.
+        1. If there is no aggrandisement attempt OR form is 'decree', skip. -- decided in Celery task
         2. Compute utilities U(i,t,for) and U(i,t,against) for all MPs.
         3. MPs vote using Eq. 3.
         4. If the majority is in favour, the aggrandisement is approved, if not, rejected.
         """
-        # 1. If executive didn't send a legislative act, nothing happens
-        if not has_legislative_act:
-            self.t += 1
-            return {
-                "t": self.t,
-                "approved": None,
-                "vbar": None,
-                "votes": {mp.id: None for mp in self.mps},
-            }
 
         # 2. Compute utilities (no peer influence for MPs)
         for mp in self.mps:
@@ -105,11 +96,9 @@ class Parliament:
         for mp in self.mps:
             mp.vote_prev = mp.vote
 
-        self.t += 1
-
-        return {
-            "t": self.t,
-            "approved": approved,
-            "vbar": vbar,
-            "votes": {mp.id: mp.vote for mp in self.mps},
-        }
+        return VbarSubmodelResult(
+            type=SubmodelType.Parliament,
+            vbar=vbar,
+            votes={str(mp.id): mp.vote for mp in self.mps},
+            approved=approved,
+        )

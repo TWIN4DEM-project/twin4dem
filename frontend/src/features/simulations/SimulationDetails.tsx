@@ -36,6 +36,10 @@ export function SimulationDetails() {
   );
 
   useEffect(() => {
+    setStepNo(data?.currentStep || 0)
+  }, [data])
+
+  useEffect(() => {
     ministerRef.current = ministers
     setMinisterVotes(
       ministers.map((m) => ({
@@ -60,7 +64,7 @@ export function SimulationDetails() {
           })
         setMinisterVotes(ministerVotes);
         setPath(cabinet.path);
-        setStepNo(res.data.t);
+        setStepNo(res.data.stepNo);
       }
     })();
   }, [stream, ministers]);

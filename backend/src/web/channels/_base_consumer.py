@@ -17,9 +17,7 @@ class Twin4DemAsyncConsumer(AsyncWebsocketConsumer, metaclass=ABCMeta):
         if text_data is not None:
             task_kwargs.update(dict(data=json.loads(text_data)))
         task_args = [self.channel_name, *url_route.get("args", [])]
-        self._task.apply_async(
-            args=task_args, kwargs=task_kwargs, serializer="pydantic"
-        )
+        self._task.apply_async(args=task_args, kwargs=task_kwargs)
         await self._on_task_started()
 
     @abstractmethod

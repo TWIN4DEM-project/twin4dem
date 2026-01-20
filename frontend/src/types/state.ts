@@ -22,7 +22,8 @@ export const VbarStepResultSchema = z.object({
 export const StepResultSchema = z.union([CabinetStepResultSchema, VbarStepResultSchema])
 
 export const SimulationStateSchema = z.object({
-  t: z.number(),
+  stepNo: z.number(),
+  simulationId: z.number(),
   results: z.array(StepResultSchema)
 });
 

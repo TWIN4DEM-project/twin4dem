@@ -1,10 +1,10 @@
-from simulator.tasks import run_government_steps
+from simulator.tasks import run_simulation
 from web.channels._base_consumer import Twin4DemAsyncConsumer
 
 
 class SimulationAsyncConsumer(Twin4DemAsyncConsumer):
     def __init__(self):
-        super().__init__(run_government_steps)
+        super().__init__(run_simulation)
 
     async def step_finished(self, event):
         await self._send_json(event["payload"])

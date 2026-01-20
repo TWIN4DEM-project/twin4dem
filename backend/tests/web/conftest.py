@@ -16,7 +16,7 @@ def url_router() -> URLRouter:
 
 @pytest.fixture
 def simulation_task_mock():
-    with patch("web.channels._simulation.run_government_steps") as mock:
+    with patch("web.channels._simulation.run_simulation") as mock:
         yield mock
 
 

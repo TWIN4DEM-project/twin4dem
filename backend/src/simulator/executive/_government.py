@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import random
 
+from common.dto import ExecutiveSubmodelResult, SubmodelType
 from simulator.executive._minister import Minister
 
 
@@ -59,26 +60,21 @@ class Government:
         votes = [m.vote for m in self.ministers if m.vote is not None]
         if not votes:
             approved = False
-            path = None
         else:
             Vbar = sum(votes) / len(votes)
             approved = Vbar > 0.5
 
-            if approved:
-                # 4. choose path of aggrandisement using pact
-                path = "legislative act" if random.random() < self.pact else "decree"
-            else:
-                path = None
-
         # update v(i,t-1) for next step s reputation component
+        # FIXME: vote_prev isn't persisted across task runs
         for m in self.ministers:
             m.vote_prev = m.vote
 
-        self.t += 1
-
-        return {
-            "t": self.t,
-            "approved": approved,
-            "path": path,
-            "votes": {str(m.id): m.vote for m in self.ministers},
-        }
+        path = None
+        if approved:
+            path = "legislative act" if random.random() < self.pact else "decree"
+        return ExecutiveSubmodelResult(
+            approved=approved,
+            type=SubmodelType.Cabinet,
+            path=path,
+            votes={str(m.id): m.vote for m in self.ministers},
+        )

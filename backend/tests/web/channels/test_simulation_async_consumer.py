@@ -44,7 +44,6 @@ async def test_simulation_started(
         call(
             args=[ANY],
             kwargs={"simulation_id": str(simulation_id), "data": ANY},
-            serializer="pydantic",
         )
     ]
 
