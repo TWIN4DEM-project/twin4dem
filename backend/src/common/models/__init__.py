@@ -2,7 +2,17 @@ from ._executive import Cabinet, Minister, MinisterLink
 from ._legislative import Parliament, MemberOfParliament
 from ._judiciary import Court, Judge, JudgeLink
 from ._settings import UserSettings, PartySettings
-from ._simulation import Simulation, SimulationParams
+from ._simulation import (
+    Simulation,
+    SimulationParams,
+    SimulationLogEntry,
+    SimulationSubmodelLogEntry,
+    SubmodelLogEntryInfoBase,
+    PathSubmodelInfo,
+    VbarSubmodelInfo,
+    AggrandisementPathType,
+    SubmodelType,
+)
 
 __all__ = (
     "Cabinet",
@@ -16,5 +26,12 @@ __all__ = (
     "PartySettings",
     "Simulation",
     "SimulationParams",
+    "SimulationLogEntry",
+    "SimulationSubmodelLogEntry",
+    "SubmodelLogEntryInfoBase",
+    "PathSubmodelInfo",
+    "VbarSubmodelInfo",
+    "AggrandisementPathType",
+    "SubmodelType",
     "UserSettings",
 )

@@ -564,6 +564,20 @@ wheels = [
 ]
 
 [[package]]
+name = "django-pydantic-field"
+version = "0.5.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "django" },
+    { name = "pydantic" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/5a/aa/1f80d7013cb061c0d6453a6edec0ecf4e1949bc4c72c3310237ee879ae40/django_pydantic_field-0.5.1.tar.gz", hash = "sha256:28eacbce9dcda08c02134dbcd067b9d3d048d82550b323ea57595fd994546acb", size = 21985 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a7/27/1a985fdcb155eca9e99963a0c979933df993d8939db7a6a859353fb6acea/django_pydantic_field-0.5.1-py3-none-any.whl", hash = "sha256:0f10f80f337656a8824751e214fd98ab0eab59cedd62a216c89ab2b841aedcb1", size = 36729 },
+]
+
+[[package]]
 name = "django-sass-processor"
 version = "1.4.2"
 source = { registry = "https://pypi.org/simple" }
@@ -1190,6 +1204,7 @@ dependencies = [
     { name = "daphne" },
     { name = "django" },
     { name = "django-allauth", extra = ["socialaccount"] },
+    { name = "django-pydantic-field" },
     { name = "django-sass-processor" },
     { name = "django-vite" },
     { name = "djangorestframework" },
@@ -1222,6 +1237,7 @@ requires-dist = [
     { name = "daphne", specifier = ">=4.2.1" },
     { name = "django", specifier = ">=6.0.0" },
     { name = "django-allauth", extras = ["socialaccount"], specifier = ">=65.13.1" },
+    { name = "django-pydantic-field", specifier = ">=0.5.1" },
     { name = "django-sass-processor", specifier = ">=1.4.2" },
     { name = "django-vite", specifier = ">=3.1.0" },
     { name = "djangorestframework", specifier = ">=3.16.1" },
