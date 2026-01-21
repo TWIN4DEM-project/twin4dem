@@ -128,9 +128,4 @@ class SimulationSubmodelLogEntry(models.Model):
                 fields=["log_entry", "submodel_type"],
             )
         ]
-        indexes = [
-            GinIndex(
-                name="ix_simulation_submodel_log_additional_info",
-                fields=["additional_info"],
-            )
-        ]
+        indexes = [GinIndex(name="ix_ssl_additional_info", fields=["additional_info"])]
