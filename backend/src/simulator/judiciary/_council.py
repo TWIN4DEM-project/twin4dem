@@ -12,6 +12,7 @@ class Council:
         epsilon: float,
         gamma: float,
         network: dict[int, list[int]],
+        prev_votes: dict[str, int],
     ):
         self.judges = judges
         self.alpha = alpha
@@ -19,6 +20,7 @@ class Council:
         self.gamma = gamma
         self.t = 0
         self.network = network
+        self.prev_votes = prev_votes
 
     def _get_judge(self, jid: int) -> Judge:
         return next(j for j in self.judges if j.id == jid)
@@ -37,7 +39,7 @@ class Council:
 
         # 2) compute individual utilities (no peer influence yet)
         for j in self.judges:
-            peers_prev = [p.vote_prev for p in self.judges if p.id != j.id]
+            peers_prev = [v for k, v in self.prev_votes.items() if k != str(j.id)]
             j.compute_individual_utilities(
                 gamma=self.gamma,
                 ref_opinion=pres_opinion,  # prestige compares to president (Section 2.2.4)
@@ -62,10 +64,6 @@ class Council:
         else:
             vbar = None
             approved = False
-
-        # update vote_prev for reputation at next step
-        for j in self.judges:
-            j.vote_prev = j.vote
 
         return VbarSubmodelResult(
             approved=approved,

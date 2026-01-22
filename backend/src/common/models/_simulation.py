@@ -106,7 +106,7 @@ class VbarSubmodelInfo(SubmodelLogEntryInfoBase):
 
 
 class PathSubmodelInfo(SubmodelLogEntryInfoBase):
-    path: str
+    path: Optional[str]
 
 
 class SimulationSubmodelLogEntry(models.Model):

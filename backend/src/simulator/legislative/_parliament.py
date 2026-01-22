@@ -13,6 +13,7 @@ class Parliament:
         alpha: float,
         epsilon: float,
         gamma: float,
+        prev_votes: dict[str, int],
     ):
         self.mps = mps
         self.n_party = n_party
@@ -20,6 +21,7 @@ class Parliament:
         self.alpha = alpha
         self.epsilon = epsilon
         self.gamma = gamma
+        self.prev_votes = prev_votes
 
         # map from party label (P_i) to its head MP
         self.party_heads: Dict[str, MP] = self._compute_party_heads()
@@ -65,10 +67,8 @@ class Parliament:
         # 2. Compute utilities (no peer influence for MPs)
         for mp in self.mps:
             # reputation: peers are ALL other MPs
-            peers_prev = [p.vote_prev for p in self.mps if p.id != mp.id]
-
+            peers_prev = [v for k, v in self.prev_votes.items() if k != str(mp.id)]
             ref_opinion = self._get_party_head_opinion(mp)
-
             mp.compute_individual_utilities(
                 gamma=self.gamma,
                 ref_opinion=ref_opinion,
@@ -91,10 +91,6 @@ class Parliament:
         else:
             vbar = None
             approved = False
-
-            # update v(i,t-1) for reputation in next step
-        for mp in self.mps:
-            mp.vote_prev = mp.vote
 
         return VbarSubmodelResult(
             type=SubmodelType.Parliament,

@@ -15,6 +15,7 @@ class Government:
         epsilon: float,
         gamma: float,
         network: dict[int, list[int]],
+        previous_votes: dict[str, int],
     ):
         self.ministers = ministers
         self.pact = pact
@@ -23,6 +24,7 @@ class Government:
         self.gamma = gamma
         self.t = 0
         self.network = network
+        self.prev_votes = previous_votes
 
     def _get_minister(self, mid: int) -> Minister:
         return next(m for m in self.ministers if m.id == mid)
@@ -40,7 +42,7 @@ class Government:
 
         # 1. individual utilities (no social influence yet)
         for m in self.ministers:
-            peers_prev = [p.vote_prev for p in self.ministers if p.id != m.id]
+            peers_prev = [v for k, v in self.prev_votes.items() if k != str(m.id)]
             m.compute_individual_utilities(
                 gamma=self.gamma,
                 ref_opinion=pm_opinion,
@@ -63,11 +65,6 @@ class Government:
         else:
             Vbar = sum(votes) / len(votes)
             approved = Vbar > 0.5
-
-        # update v(i,t-1) for next step s reputation component
-        # FIXME: vote_prev isn't persisted across task runs
-        for m in self.ministers:
-            m.vote_prev = m.vote
 
         path = None
         if approved:

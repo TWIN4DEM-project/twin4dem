@@ -12,6 +12,8 @@ from common.models import (
     PartySettings,
     Court as CourtModel,
     Judge as JudgeModel,
+    SimulationSubmodelLogEntry,
+    SubmodelType,
 )
 from simulator.adapters import (
     GovernmentAdapter,
@@ -52,6 +54,20 @@ class RelatedInstitutionFinder(Generic[T]):
         return related_of_type.first().params
 
 
+class PrevVotesFinder:
+    @classmethod
+    def _get_prev_votes(
+        cls, simulation: Simulation, submodel_type: SubmodelType
+    ) -> dict[str, int]:
+        previous_submodel_log_entries = SimulationSubmodelLogEntry.objects.filter(
+            submodel_type=submodel_type, log_entry__simulation=simulation
+        ).order_by("-log_entry__step_no")
+        latest_results = previous_submodel_log_entries.first()
+        if latest_results is not None:
+            return latest_results.additional_info.votes
+        return {}
+
+
 class MinisterDbAdapter(AgentAdapter[MinisterModel, Minister]):
     def convert(self, value: MinisterModel) -> Minister:
         random_opinion = _random_gauss(value.cabinet.government_probability_for, 0.1)
@@ -72,7 +88,9 @@ class MinisterDbAdapter(AgentAdapter[MinisterModel, Minister]):
         )
 
 
-class GovernmentDbAdapter(GovernmentAdapter[int], RelatedInstitutionFinder[Cabinet]):
+class GovernmentDbAdapter(
+    GovernmentAdapter[int], RelatedInstitutionFinder[Cabinet], PrevVotesFinder
+):
     def __init__(self):
         self.__minister_adapter = MinisterDbAdapter()
 
@@ -90,6 +108,7 @@ class GovernmentDbAdapter(GovernmentAdapter[int], RelatedInstitutionFinder[Cabin
             cabinet.ministers.all().prefetch_related("cabinet", "neighbours_in")
         )
         ministers = list(map(self.__minister_adapter.convert, minister_models))
+        previous_votes = self._get_prev_votes(value, SubmodelType.EXECUTIVE)
 
         return Government(
             pact=cabinet.legislative_probability,
@@ -98,6 +117,7 @@ class GovernmentDbAdapter(GovernmentAdapter[int], RelatedInstitutionFinder[Cabin
             epsilon=value.user_settings.abstention_threshold,
             ministers=ministers,
             network=self._build_network(minister_models),
+            previous_votes=previous_votes,
         )
 
 
@@ -135,7 +155,7 @@ class MPDbAdapter(AgentAdapter[MemberOfParliament, MP]):
 
 
 class ParliamentDbAdapter(
-    ParliamentAdapter[int], RelatedInstitutionFinder[ParliamentModel]
+    ParliamentAdapter[int], RelatedInstitutionFinder[ParliamentModel], PrevVotesFinder
 ):
     def convert(self, simulation_id: int) -> Parliament:
         value = Simulation.objects.get(pk=simulation_id)
@@ -147,6 +167,7 @@ class ParliamentDbAdapter(
             parliament.majority_probability_for, parliament.opposition_probability_for
         )
         mps = list(map(mp_adapter.convert, parliament_members))
+        previous_votes = self._get_prev_votes(value, SubmodelType.LEGISLATIVE)
         return Parliament(
             mps=mps,
             n_party=len(value.user_settings.parties.all()),
@@ -154,6 +175,7 @@ class ParliamentDbAdapter(
             alpha=value.social_influence_susceptibility,
             epsilon=value.user_settings.abstention_threshold,
             gamma=value.office_retention_sensitivity,
+            prev_votes=previous_votes,
         )
 
 
@@ -176,7 +198,9 @@ class JudgeDbAdapter(AgentAdapter[JudgeModel, Judge]):
         )
 
 
-class CouncilDbAdapter(CouncilAdapter[int], RelatedInstitutionFinder[CourtModel]):
+class CouncilDbAdapter(
+    CouncilAdapter[int], RelatedInstitutionFinder[CourtModel], PrevVotesFinder
+):
     @staticmethod
     def _build_network(judges: list[JudgeModel]) -> dict[int, list[int]]:
         return {to.id: [fro.id for fro in to.neighbours_in.all()] for to in judges}
@@ -188,11 +212,12 @@ class CouncilDbAdapter(CouncilAdapter[int], RelatedInstitutionFinder[CourtModel]
         court_judges = list(
             court.judges.all().prefetch_related("court", "neighbours_in")
         )
-
+        prev_votes = self._get_prev_votes(value, SubmodelType.JUDICIARY)
         return Council(
             judges=list(map(judge_adapter.convert, court_judges)),
             alpha=value.social_influence_susceptibility,
             epsilon=value.user_settings.abstention_threshold,
             gamma=value.office_retention_sensitivity,
             network=self._build_network(court_judges),
+            prev_votes=prev_votes,
         )
