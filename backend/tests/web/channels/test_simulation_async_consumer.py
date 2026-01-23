@@ -1,12 +1,23 @@
-from unittest.mock import ANY, call
+from unittest.mock import ANY, call, patch, MagicMock
 
 import pytest
 import pytest_asyncio
+
+from simulator.persistence import SimulationPersistence
 
 
 @pytest.fixture
 def simulation_id(request):
     return int(getattr(request, "param", 1))
+
+
+@pytest.fixture
+def persistence_mock():
+    with patch("web.channels._simulation.get_simulation_persistence") as mock:
+        mock.return_value = MagicMock(
+            name="mock-persistence", spec=SimulationPersistence
+        )
+        yield mock.return_value
 
 
 @pytest_asyncio.fixture
@@ -50,7 +61,7 @@ async def test_simulation_started(
 
 @pytest.mark.asyncio
 async def test_step_finished_event(
-    sim_comm, load_json, get_channel_name, channel_layer
+    persistence_mock, sim_comm, load_json, get_channel_name, channel_layer
 ):
     payload = load_json("events/step_finished.valid.json")
     await sim_comm.send_json_to({"action": "step"})
@@ -65,3 +76,5 @@ async def test_step_finished_event(
 
     assert actual == payload
     assert status == {"status": "task completed"}
+    assert persistence_mock.persist_step.call_count == 1
+    assert persistence_mock.persist_step.call_args_list == [call(payload)]

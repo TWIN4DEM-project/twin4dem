@@ -5,7 +5,6 @@ from asgiref.sync import async_to_sync
 from celery import shared_task, chain
 from channels.layers import get_channel_layer
 from django.conf import settings
-from django.db import transaction
 
 from common.dto import SimulationStepResult, StepFinishedEvent
 from common.models import Simulation

@@ -1,4 +1,5 @@
 {% load sass_tags %}
+{% load static %}
 {% load django_vite %}
 
 <!DOCTYPE html>
@@ -6,6 +7,7 @@
 <head>
     <title>TWIN4DEM - Digital Twin</title>
     <link rel="stylesheet" href="{% sass_src 'scss/base.scss' %}">
+    <link rel="stylesheet" href="{% static 'css/body.css' %}">
     {% if user.is_authenticated %}
         {% vite_hmr_client %}
         {% vite_react_refresh nonce=request.csp_nonce %}

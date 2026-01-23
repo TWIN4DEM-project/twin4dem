@@ -1,5 +1,6 @@
 {
-  "t": 1,
+  "step_no": 1,
+  "simulationId": 1,
   "results": [
     {
       "type": "cabinet",
@@ -16,6 +17,7 @@
     {
       "type": "court",
       "approved": false,
+      "vbar": 0.3,
       "votes": {
         "0": true,
         "1": false,
