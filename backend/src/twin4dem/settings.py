@@ -69,6 +69,7 @@ TEMPLATES = [
 WSGI_APPLICATION = "twin4dem.wsgi.application"
 ASGI_APPLICATION = "twin4dem.asgi.application"
 ADAPTER_FACTORY = "simulator.db.DbAdapters"
+SIMULATION_PERSISTENCE_BACKEND = "simulator.persistence.DjangoSimulationPersistence"
 
 # API
 REST_FRAMEWORK = {

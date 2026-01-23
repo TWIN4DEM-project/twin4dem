@@ -15,3 +15,4 @@ DATABASES = {
 FIXTURE_DIRS = [TESTS_DIR / "data" / "fixtures"]
 CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
 ADAPTER_FACTORY = "simulator.db.DbAdapters"
+SIMULATION_PERSISTENCE_BACKEND = "simulator.persistence.DjangoSimulationPersistence"

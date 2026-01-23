@@ -38,11 +38,7 @@ def send_result_to_channel(step_result: SimulationStepResult, channel_name: str)
     finished_event = StepFinishedEvent(payload=step_result)
     serialized_event = finished_event.model_dump(mode="json", by_alias=True)
 
-    with transaction.atomic():  # transactional outbox
-        sim = Simulation.objects.get(pk=step_result.simulation_id)
-        sim.current_step = step_result.step_no
-        sim.save()
-        send_sync(layer, channel_name, serialized_event)
+    send_sync(layer, channel_name, serialized_event)
 
 
 @shared_task(pydantic=True)
