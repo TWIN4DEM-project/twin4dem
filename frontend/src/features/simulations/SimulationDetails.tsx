@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState, useRef } from "react";
+import {useEffect, useMemo, useState, useRef, useCallback} from "react";
 import { useParams } from "react-router";
-import { useSimulation } from "@/features/simulations/hooks.ts";
+import {fetchSettings, useSimulation} from "@/features/simulations/hooks.ts";
 import { z } from "zod";
 import dayjs from "dayjs";
 import {
@@ -9,6 +9,7 @@ import {
 } from "@/features/executive/MinisterNetwork.tsx";
 import { useWebSocketStream } from "@/hooks/websocket.ts";
 import { type SimulationState, SimulationStateSchema } from "@/types/state.ts";
+import {type UserSettings} from "@/types/settings.ts";
 
 const SimulationIdParamSchema = z.coerce.number().int().positive();
 
@@ -16,6 +17,11 @@ export function SimulationDetails() {
   const { simulationId } = useParams();
   const [path, setPath] = useState<string>("-");
   const [stepNo, setStepNo] = useState<number>(0);
+  const [settings, setSettings] = useState<UserSettings|null>(null);
+  const loadSettings = useCallback(async () => {
+      const userSettings = await fetchSettings()
+      setSettings(userSettings)
+    }, [])
   const parsed = SimulationIdParamSchema.safeParse(simulationId);
   const simulationIdNo = parsed.success ? parsed.data : undefined;
   const { data } = useSimulation(simulationIdNo);
@@ -24,9 +30,7 @@ export function SimulationDetails() {
     return cabinets ? cabinets[0].cabinet : undefined;
   }, [data]);
   const ministers = useMemo(() => {
-    if (cabinet === null || typeof cabinet === 'undefined') {
-      return []
-    }
+    if (cabinet === null || typeof cabinet === 'undefined') return [];
     return cabinet.ministers;
   }, [cabinet]);
   const ministerRef = useRef(ministers)
@@ -34,6 +38,15 @@ export function SimulationDetails() {
   const { send, stream } = useWebSocketStream<SimulationState>(
     `ws://localhost:8000/ws/simulation/${simulationId}/`,
   );
+  const parties = useMemo<string[]>(() => {
+      if (settings === null) return [];
+
+      return settings.parties.map(
+          (p) => `${p.label}(${p.position})`
+      ).sort()
+  }, [settings]);
+
+  useEffect(() => {loadSettings().catch(console.error)}, [loadSettings, settings])
 
   useEffect(() => {
     setStepNo(data?.currentStep || 0)
@@ -85,6 +98,7 @@ export function SimulationDetails() {
         </div>
         <div>
           <h4>Global Parameters</h4>
+          <p>Political Parties: {parties.join(", ")}</p>
           <table>
             <thead>
               <tr>
