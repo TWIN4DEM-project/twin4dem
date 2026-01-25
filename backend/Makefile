@@ -14,7 +14,7 @@ $(VENV): | .check-deps
 	fi
 
 $(TIMESTAMP): pyproject.toml uv.lock | $(VENV)
-	uv sync --all-packages
+	uv sync --all-groups
 	uv run python -c "from pathlib import Path; p=Path('$(TIMESTAMP)'); p.parent.mkdir(parents=True, exist_ok=True); p.touch()"
 
 bootstrap: $(TIMESTAMP)
@@ -46,3 +46,7 @@ check: bootstrap
 
 test: bootstrap
 	uv run pytest -rA -vvs --log-level INFO tests/
+
+jupyter: bootstrap
+	uv run python -m ipykernel install --user --name twin4dem
+	uv run jupyter notebook notebooks/stats-demo.ipynb

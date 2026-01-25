@@ -36,14 +36,14 @@ addopts = "--cov=src --cov-branch --cov-report xml:./coverage.xml --cov-report t
 [tool.black]
 line-length = 88
 target-version = ['py313']
-include = '\.pyi?$'
+include = '\.(pyi?|ipynb)$'
 
 [tool.ruff.lint.per-file-ignores]
 "src/twin4dem/settings_dev.py" = ["F403", "F405"]
 
 [dependency-groups]
 dev = [
-    "black>=25.12.0",
+    "black[jupyter]>=25.12.0",
     "django-browser-reload>=1.21.0",
     "django-compressor>=4.6.0",
     "django-debug-toolbar>=6.1.0",
@@ -57,3 +57,14 @@ dev = [
     "types-channels>=4.3.0.20250822",
 ]
 prod = []
+notebooks = [
+    "ipykernel>=7.1.0",
+    "ipywidgets>=8.1.8",
+    "jupyter>=1.1.1",
+    "matplotlib>=3.10.8",
+    "numpy>=2.4.1",
+    "pandas>=3.0.0",
+    "scikit-learn>=1.8.0",
+    "seaborn>=0.13.2",
+    "sqlalchemy>=2.0.46",
+]

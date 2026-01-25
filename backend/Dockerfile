@@ -10,7 +10,7 @@ WORKDIR /twin4dem/backend
 
 # uv lock dependencies
 COPY backend/uv.lock backend/pyproject.toml ./
-RUN pip install --no-cache-dir uv && uv sync --locked --no-dev --no-install-project
+RUN pip install --no-cache-dir uv && uv sync --locked --no-install-project --no-dev --no-group notebooks
 
 # ------------------------------------------------------------
 # dev stage
@@ -20,7 +20,7 @@ FROM backend_base AS backend_dev
 WORKDIR /twin4dem/backend
 ENV DJANGO_SETTINGS_MODULE="twin4dem.settings_dev"
 
-RUN uv sync --locked --all-groups --no-editable
+RUN uv sync --locked --no-editable --all-groups --no-group notebooks
 
 # copy the project
 COPY backend/src ./src
@@ -50,7 +50,7 @@ WORKDIR /twin4dem/backend
 
 # bring backend
 COPY backend/src ./src
-RUN uv sync --frozen --no-editable --no-dev
+RUN uv sync --frozen --no-editable --no-dev --no-group notebooks
 
 CMD ["uv", "run", "celery", "worker", "-A", "twin4dem", "-l", "info"]
 
