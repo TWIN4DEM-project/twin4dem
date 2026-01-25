@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Literal, Optional
 
 from pydantic import BaseModel, Field, ConfigDict
 from pydantic.alias_generators import to_camel
@@ -9,7 +9,7 @@ from common.dto._basic import SubmodelType, AggrandisementUnitPath
 class SubmodelResult(BaseModel):
     type: SubmodelType
     approved: bool
-    votes: dict[str, int] = Field(default_factory=dict)
+    votes: dict[str, Optional[int]] = Field(default_factory=dict)
 
 
 class ExecutiveSubmodelResult(SubmodelResult):
