@@ -35,7 +35,7 @@ class Council:
         is randomly chosen based on the pact parameter
         """
         pres = next(m for m in self.judges if m.is_president)
-        pres_opinion = pres.o_i
+        pres_opinion = pres.belief.o_i
 
         # 2) compute individual utilities (no peer influence yet)
         for j in self.judges:
@@ -57,7 +57,7 @@ class Council:
             j.decide_vote(self.epsilon)
 
         # 5) majority rule ignoring abstentions
-        votes = [j.vote for j in self.judges if j.vote is not None]
+        votes = [j.step_state.vote for j in self.judges if j.step_state.vote is not None]
         if votes:
             vbar = sum(votes) / len(votes)
             approved = vbar > 0.5
@@ -67,7 +67,7 @@ class Council:
 
         return VbarSubmodelResult(
             approved=approved,
-            votes={str(j.id): j.vote for j in self.judges},
+            votes={str(j.id): j.step_state.vote for j in self.judges},
             type=SubmodelType.Court,
             vbar=vbar,
         )

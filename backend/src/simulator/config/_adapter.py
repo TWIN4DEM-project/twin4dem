@@ -11,6 +11,8 @@ from simulator.config import (
 from simulator.executive import Government, Minister
 from simulator.legislative import MP, Parliament
 from simulator.judiciary import Judge, Council
+from simulator.common import AgentBelief, Weights
+
 
 from simulator.adapters import (
     GovernmentAdapter,
@@ -27,10 +29,12 @@ class MinisterConfigAdapter(AgentAdapter[MinisterConfig, Minister]):
             T_i=config.type,
             P_i=config.party,
             S_i=config.influence,
-            W=config.weights,
-            o_i=config.opinion,
-            o_sup1=config.support1,
-            o_sup2=config.support2,
+            W=Weights(config.weights),
+            belief=AgentBelief(
+                o_i=config.opinion,
+                o_sup1=config.support1,
+                o_sup2=config.support2,
+            ),
             is_pm=config.is_pm,
         )
 
@@ -110,10 +114,12 @@ class MPConfigAdapter(AgentAdapter[MPConfig, MP]):
             T_i=config.type,  # "MP"
             P_i=config.party,  # "majority" | "opposition" | "independent"
             S_i=config.influence,
-            W=config.weights,
-            o_i=config.opinion,
-            o_sup1=config.support1,
-            o_sup2=config.support2,
+            W=Weights(config.weights),
+            belief=AgentBelief(
+                o_i=config.opinion,
+                o_sup1=config.support1,
+                o_sup2=config.support2,
+            ),
             is_head=config.is_head,
         )
 
@@ -144,10 +150,12 @@ class JudgeConfigAdapter(AgentAdapter[JudgeConfig, Judge]):
             T_i=config.type,
             P_i=config.party,  # "majority" | "opposition" | "independent"
             S_i=config.influence,
-            W=config.weights,
-            o_i=config.opinion,
-            o_sup1=config.support1,
-            o_sup2=config.support2,
+            W=Weights(config.weights),
+            belief=AgentBelief(
+                o_i=config.opinion,
+                o_sup1=config.support1,
+                o_sup2=config.support2,
+            ),
             is_president=config.is_president,
         )
 

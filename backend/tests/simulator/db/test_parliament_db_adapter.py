@@ -82,7 +82,7 @@ def test_convert_parliament_has_expected_global_params(
     assert len(result.mps) == parliament.members.count()
 
 
-@pytest.mark.parametrize("weights", [[0.1, 0.2, 0.3, 0.3, 0.1, 0.1]], indirect=True)
+@pytest.mark.parametrize("weights", [[0.1, 0.2, 0.3, 0.3, 0.05, 0.05]], indirect=True)
 def test_convert_parliament_members_have_expected_weights(sut, simulation, weights):
     result = sut.convert(simulation.id)
 
@@ -113,7 +113,8 @@ def test_convert_parliament_members_personal_opinion_range(sut, simulation, parl
     parliaments = [sut.convert(simulation.id) for _ in range(100)]
 
     mp_sums = [
-        (sum(x.o_i for x in mp), mp[0].P_i) for mp in zip(*[p.mps for p in parliaments])
+        (sum(x.belief.o_i for x in mp), mp[0].P_i)
+        for mp in zip(*[p.mps for p in parliaments])
     ]
 
     assert all(
@@ -127,11 +128,11 @@ def test_convert_parliament_members_personal_opinion_range(sut, simulation, parl
 def test_convert_parliament_members_support_group_1(sut, simulation):
     parliament = sut.convert(simulation.id)
 
-    assert all(mp.o_sup1 for mp in parliament.mps if mp.P_i == "majority")
-    assert not any(mp.o_sup1 for mp in parliament.mps if mp.P_i == "opposition")
+    assert all(mp.belief.o_sup1 for mp in parliament.mps if mp.P_i == "majority")
+    assert not any(mp.belief.o_sup1 for mp in parliament.mps if mp.P_i == "opposition")
 
 
 def test_convert_parliament_members_support_group_2(sut, simulation):
     parliament = sut.convert(simulation.id)
 
-    assert not any(mp.o_sup2 for mp in parliament.mps)
+    assert not any(mp.belief.o_sup2 for mp in parliament.mps)

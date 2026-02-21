@@ -107,8 +107,8 @@ def test_convert_returns_judges_with_expected_basic_attributes(
         assert (not j.is_president and 0 <= j.S_i <= 1.0) ^ (
             j.is_president and j.S_i == 1.0
         )
-        assert j.o_sup1 == 0
-        assert j.o_sup2 == 0
+        assert j.belief.o_sup1 == 0
+        assert j.belief.o_sup2 == 0
     assert presidents == 1
 
 
@@ -139,9 +139,9 @@ def test_convert_personal_opinion_follows_probability_for(
     sut, simulation, expected_min, expected_max
 ):
     councils = [sut.convert(simulation.id) for _ in range(100)]
-    judges_for = int(sum(j.o_i for c in councils for j in c.judges))
+    judges_for = int(sum(j.belief.o_i for c in councils for j in c.judges))
 
-    assert all(j.o_i in {0, 1} for c in councils for j in c.judges)
+    assert all(j.belief.o_i in {0, 1} for c in councils for j in c.judges)
     assert expected_min <= judges_for <= expected_max
 
 

@@ -24,6 +24,7 @@ from simulator.adapters import (
 from simulator.executive import Government, Minister
 from simulator.judiciary import Council, Judge
 from simulator.legislative import Parliament, MP
+from simulator.common import AgentBelief, Weights
 
 
 def _random_gauss(
@@ -78,13 +79,15 @@ class MinisterDbAdapter(AgentAdapter[MinisterModel, Minister]):
             is_pm=value.is_prime_minister,
             P_i=value.party.position,
             S_i=value.influence,
-            W=value.weights,
-            o_i=personal_opinion,
-            # support group 1 = ones who have the power to affect the status of the minister (appoint, revoke, etc)
-            o_sup1=_random_frequency(value.cabinet.government_probability_for),
-            # support group 2 = people who are directly benefitting from ministers getting more power
-            # setting this to 1.0 until better ideas about how to compute this value emerge
-            o_sup2=1.0,
+            W=Weights(value.weights),
+            belief=AgentBelief(
+                o_i=personal_opinion,
+                # support group 1 = ones who have the power to affect the status of the minister (appoint, revoke, etc)
+                o_sup1=_random_frequency(value.cabinet.government_probability_for),
+                # support group 2 = people who are directly benefitting from ministers getting more power
+                # setting this to 1.0 until better ideas about how to compute this value emerge
+                o_sup2=1.0,
+            ),
         )
 
 
@@ -145,12 +148,14 @@ class MPDbAdapter(AgentAdapter[MemberOfParliament, MP]):
             id=mp.id,
             T_i="mp",
             P_i=mp.party.label,
-            W=mp.weights,
+            W=Weights(mp.weights),
             is_head=mp.is_head,
             S_i=0,
-            o_i=personal_opinion,
-            o_sup1=o_sup1,
-            o_sup2=0,
+            belief=AgentBelief(
+                o_i=personal_opinion,
+                o_sup1=o_sup1,
+                o_sup2=0,
+            ),
         )
 
 
@@ -191,10 +196,12 @@ class JudgeDbAdapter(AgentAdapter[JudgeModel, Judge]):
             T_i="judge",
             P_i=judge.party.position,
             S_i=judge.influence,
-            W=judge.weights,
-            o_i=personal_opinion,
-            o_sup1=0,
-            o_sup2=0,
+            W=Weights(judge.weights),
+            belief=AgentBelief(
+                o_i=personal_opinion,
+                o_sup1=0,
+                o_sup2=0,
+            ),
         )
 
 
