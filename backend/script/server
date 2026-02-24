@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # shellcheck disable=SC3041
-set -eEuxo pipefail
+set -eEux pipefail
 
 CWD="$(pwd)"
 trap "cd ${CWD}"'&& echo >&2 "Error - exited with status $? at line $LINENO"' ERR

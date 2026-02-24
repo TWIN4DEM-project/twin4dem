@@ -1,0 +1,15 @@
+@mixin card {
+  background: $surface;
+  border-radius: $radius-lg;
+  border: 1px solid $border-subtle;
+  padding: 1.6rem 1.5rem;
+  box-shadow: $shadow-soft;
+  backdrop-filter: blur(20px);
+  min-width: 325px;
+}
+
+@mixin card-title {
+  font-size: 1.75rem;
+  margin: 0 0 1rem;
+  text-align: center;
+}

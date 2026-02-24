@@ -2,7 +2,7 @@
 {% load sass_tags %}
 {% load static %}
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -28,43 +28,43 @@
                 {% if user.is_authenticated %}
                     {% url 'account_email' as email_url_ %}
                     {% if email_url_ %}
-                        <a class="nav-link" href="{{ email_url_ }}">{% trans "Change Email" %}</a>
+                        <a class="nav-link button button--outline" href="{{ email_url_ }}">{% trans "Change Email" %}</a>
                     {% endif %}
                     {% url 'account_change_password' as change_password_url_ %}
                     {% if change_password_url_ %}
-                        <a class="nav-link" href="{{ change_password_url_ }}">{% trans "Change Password" %}</a>
+                        <a class="nav-link button button--outline" href="{{ change_password_url_ }}">{% trans "Change Password" %}</a>
                     {% endif %}
                     {% url 'socialaccount_connections' as connections_url_ %}
                     {% if connections_url_ %}
-                        <a class="nav-link" href="{{ connections_url_ }}">{% trans "Account Connections" %}</a>
+                        <a class="nav-link button button--outline" href="{{ connections_url_ }}">{% trans "Account Connections" %}</a>
                     {% endif %}
                     {% url 'mfa_index' as mfa_url_ %}
                     {% if mfa_url_ %}
-                        <a class="nav-link" href="{{ mfa_url_ }}">{% trans "Two-Factor Authentication" %}</a>
+                        <a class="nav-link button button--outline" href="{{ mfa_url_ }}">{% trans "Two-Factor Authentication" %}</a>
                     {% endif %}
                     {% url 'usersessions_list' as usersessions_list_url_ %}
                     {% if usersessions_list_url_ %}
-                        <a class="nav-link" href="{{ usersessions_list_url_ }}">{% trans "Sessions" %}</a>
+                        <a class="nav-link button button--outline" href="{{ usersessions_list_url_ }}">{% trans "Sessions" %}</a>
                     {% endif %}
                     {% url 'account_logout' as logout_url_ %}
                     {% if logout_url_ %}
-                        <a class="nav-link" href="{{ logout_url_ }}">{% trans "Sign Out" %}</a>
+                        <a class="nav-link button button--outline" href="{{ logout_url_ }}">{% trans "Sign Out" %}</a>
                     {% endif %}
                 {% else %}
                     {% url 'account_login' as login_url_ %}
                     {% if login_url_ %}
-                        <a class="nav-link" href="{{ login_url_ }}">{% trans "Sign In" %}</a>
+                        <a class="nav-link button button--outline" href="{{ login_url_ }}">{% trans "Sign In" %}</a>
                     {% endif %}
                     {% url 'account_signup' as signup_url_ %}
                     {% if signup_url_ %}
-                        <a class="nav-link" href="{{ signup_url_ }}">{% trans "Sign Up" %}</a>
+                        <a class="nav-link button button--outline" href="{{ signup_url_ }}">{% trans "Sign Up" %}</a>
                     {% endif %}
                 {% endif %}
             </nav>
         </div>
     </header>
-    <main class="site-main">
-        <div class="container">
+    <main class="site-main authentication">
+        <div class="container authentication-container">
             {% if messages %}
                 <div>
                     <strong>{% trans "Messages:" %}</strong>
@@ -82,4 +82,14 @@
 {% block extra_body %}
 {% endblock extra_body %}
 </body>
+<footer class="site-footer">
+    <div class="container footer-inner">
+        <p class="footer-meta">
+            Funded by the European Union. Views and opinions expressed are those of the author(s) only.
+        </p>
+        <p class="footer-copy">
+            © 2025 – All rights reserved.
+        </p>
+    </div>
+</footer>
 </html>

@@ -1,0 +1,30 @@
+@import "@scss/variables";
+
+svg{
+  .node {
+    fill: $accent;
+    stroke: $border;
+    stroke-width: 1;
+    transition:
+            fill 0.2s ease,
+            stroke 0.2s ease;
+
+    &--approve {
+      fill: $approve;
+    }
+
+    &--reject {
+      fill: $reject;
+    }
+
+    &--abstain {
+      fill: $muted;
+    }
+
+    &-pm {
+      stroke: #FFF;
+      stroke-width: 2px;
+      stroke-dasharray: 2px 2px;
+    }
+  }
+}

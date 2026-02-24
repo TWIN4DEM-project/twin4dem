@@ -4,10 +4,10 @@
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  border-bottom-left-radius: $radius-sm;
+  border-right: 1px solid $muted;
 
   svg {
-    width: 50%;
-    height: 100%;
     display: block;
 
     marker {
@@ -18,31 +18,16 @@
     }
 
     text {
-      fill: $text;
-      font-size: 5px;
+      fill: #000;
+      stroke: $text;
+      paint-order: stroke;
+      font-weight: 800;
+      stroke-linecap: butt;
+      stroke-linejoin: miter;
+      stroke-width: 1px;
+      font-size: 8px;
       pointer-events: none;
       user-select: none;
-    }
-  }
-
-  .node {
-    fill: $accent;
-    stroke: $border;
-    stroke-width: 1;
-    transition:
-      fill 0.2s ease,
-      stroke 0.2s ease;
-
-    &--approve {
-      fill: $approve;
-    }
-
-    &--reject {
-      fill: $reject;
-    }
-
-    &--abstain {
-      fill: $muted;
     }
   }
 }

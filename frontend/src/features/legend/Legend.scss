@@ -1,0 +1,13 @@
+@import "@scss/variables";
+
+#legend {
+  svg {
+    background-color: $dashboard-card-bg;
+    border-bottom: 1px solid $muted;
+    width: 100%;
+    height: min(10vh, 7vw);
+    overflow-x: scroll;
+    stroke-width: 0;
+    stroke: none;
+  }
+}
