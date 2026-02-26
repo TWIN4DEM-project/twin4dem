@@ -22,9 +22,9 @@ export function useSimulations() {
   });
 }
 
-export function useSimulation(simulationId: number | undefined) {
-    const url = simulationId ? `/api/v1/simulation/${simulationId}/` : null;
-    return useFetch<Simulation>({ url, schema: SimulationSchema, method: "GET" });
+export function useSimulation(simulationId: number | undefined, withHistoricVotes: boolean=false) {
+  const url = simulationId ? (`/api/v1/simulation/${simulationId}/` + (withHistoricVotes && `?withHistoricVotes=${withHistoricVotes}`)) : null;
+  return useFetch<Simulation>({ url, schema: SimulationSchema, method: "GET" });
 }
 
 export async function createSimulation() {

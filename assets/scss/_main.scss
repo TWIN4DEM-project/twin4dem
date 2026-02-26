@@ -1,20 +1,21 @@
 @import "variables";
-@import "mixins";
+
 
 .site-main {
   flex: 1;
   display: flex;
   flex-direction: column;
-  justify-content: center;
 }
 
 .hero {
+  flex: 1;
   display: flex;
   align-items: center;
-  justify-content: center;
+  padding: 2rem 0 3rem;
 
   .hero-inner {
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1.1fr);
     gap: 2rem;
     align-items: center;
   }
@@ -24,8 +25,7 @@
   }
 
   .hero-kicker {
-    font-size: 1.5rem;
-    font-weight: 700;
+    font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.18em;
     color: $primary-soft;
@@ -33,16 +33,15 @@
   }
 
   h1 {
-    font-size: clamp(2.1rem, 4vw, 3.2rem);
+    font-size: clamp(2.1rem, 4vw, 2.7rem);
     line-height: 1.12;
     margin: 0 0 0.9rem;
-    font-weight: 700;
   }
 
   .hero-lead {
-    font-size: 1.5rem;
+    font-size: 1rem;
     color: $muted;
-    line-height: 1.1;
+    line-height: 1.6;
     margin-bottom: 1.4rem;
   }
 
@@ -54,18 +53,23 @@
 
   // Hero card
   .hero-card {
-    @include card;
+    background: $surface;
+    border-radius: $radius-lg;
+    border: 1px solid $border-subtle;
+    padding: 1.6rem 1.5rem;
+    box-shadow: $shadow-soft;
+    backdrop-filter: blur(20px);
 
     .hero-card-title {
-      @include card-title;
+      font-size: 1.1rem;
+      margin: 0 0 0.75rem;
     }
 
     .hero-list {
-      list-style: "✔ ";
+      list-style: none;
       margin: 0;
-      padding: 0 1.375rem;
-      font-size: 0.1.25rem;
-      line-height: 1.1;
+      padding: 0;
+      font-size: 0.95rem;
       color: $muted;
 
       li + li {

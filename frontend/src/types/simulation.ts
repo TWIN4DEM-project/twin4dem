@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { StepResultSchema } from './state';
 
 const SimulationStatusEnum = z.enum(["new", "running", "complete", "error"]);
 export const SimulationListItemSchema = z.object({
@@ -92,6 +93,7 @@ export const SimulationSchema = z.object({
   officeRetentionSensitivity: z.number(),
   socialInfluenceSusceptibility: z.number(),
   params: z.array(SimulationParamSchema),
+  results: z.array(StepResultSchema).optional(),
 });
 
 export type Minister = z.infer<typeof MinisterSchema>;

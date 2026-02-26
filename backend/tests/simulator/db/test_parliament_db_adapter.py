@@ -7,7 +7,6 @@ from common.models import (
     MemberOfParliament,
     SimulationParams,
 )
-import simulator.db._adapter as adapter_module
 from simulator.db._adapter import ParliamentDbAdapter
 
 
@@ -83,7 +82,7 @@ def test_convert_parliament_has_expected_global_params(
     assert len(result.mps) == parliament.members.count()
 
 
-@pytest.mark.parametrize("weights", [[0.1, 0.2, 0.3, 0.3, 0.05, 0.05]], indirect=True)
+@pytest.mark.parametrize("weights", [[0.1, 0.2, 0.3, 0.3, 0.1, 0.1]], indirect=True)
 def test_convert_parliament_members_have_expected_weights(sut, simulation, weights):
     result = sut.convert(simulation.id)
 
@@ -107,55 +106,32 @@ def test_convert_parliament_members_have_zero_influence(sut, simulation):
     assert all(mp.S_i == 0 for mp in result.mps)
 
 
-def test_convert_parliament_members_use_persisted_personal_opinion(
-    sut, simulation, parliament
-):
-    members = list(parliament.members.all())
-    for idx, mp in enumerate(members):
-        mp.personal_opinion = idx % 2
-        mp.save(update_fields=["personal_opinion"])
+def test_convert_parliament_members_personal_opinion_range(sut, simulation, parliament):
+    parliament.majority_probability_for = 0.7
+    parliament.opposition_probability_for = 0.3
+    parliament.save()
+    parliaments = [sut.convert(simulation.id) for _ in range(100)]
 
-    result = sut.convert(simulation.id)
-    opinions = {mp.id: mp.belief.o_i for mp in result.mps}
-    expected = {mp.id: mp.personal_opinion for mp in members}
+    mp_sums = [
+        (sum(x.o_i for x in mp), mp[0].P_i) for mp in zip(*[p.mps for p in parliaments])
+    ]
 
-    assert opinions == expected
+    assert all(
+        90 <= sum_o_i <= 100 for sum_o_i, position in mp_sums if position == "majority"
+    )
+    assert all(
+        0 <= sum_o_i <= 10 for sum_o_i, position in mp_sums if position == "opposition"
+    )
 
 
-def test_convert_parliament_members_support_group_1(sut, simulation, parliament):
-    members = list(parliament.members.all())
-    for idx, mp in enumerate(members):
-        mp.appointing_group_opinion = idx % 2
-        mp.save(update_fields=["appointing_group_opinion"])
+def test_convert_parliament_members_support_group_1(sut, simulation):
+    parliament = sut.convert(simulation.id)
 
-    result = sut.convert(simulation.id)
-    opinions = {mp.id: mp.belief.o_sup1 for mp in result.mps}
-    expected = {mp.id: mp.appointing_group_opinion for mp in members}
-
-    assert opinions == expected
+    assert all(mp.o_sup1 for mp in parliament.mps if mp.P_i == "majority")
+    assert not any(mp.o_sup1 for mp in parliament.mps if mp.P_i == "opposition")
 
 
 def test_convert_parliament_members_support_group_2(sut, simulation):
     parliament = sut.convert(simulation.id)
 
-    assert not any(mp.belief.o_sup2 for mp in parliament.mps)
-
-
-
-def test_mp_personal_opinion_stable_across_conversions(sut, simulation, monkeypatch):
-    phase = {"value": 0.9}
-
-    def fake_random_gauss(center, spread=1.0, lo=0.0, hi=1.0):
-        return phase["value"]
-
-    monkeypatch.setattr(adapter_module, "_random_gauss", fake_random_gauss)
-
-    parliament_first = sut.convert(simulation.id)
-    opinions_first = {mp.id: mp.belief.o_i for mp in parliament_first.mps}
-
-    phase["value"] = 0.1
-    parliament_second = sut.convert(simulation.id)
-    opinions_second = {mp.id: mp.belief.o_i for mp in parliament_second.mps}
-
-    assert opinions_first == opinions_second
-
+    assert not any(mp.o_sup2 for mp in parliament.mps)

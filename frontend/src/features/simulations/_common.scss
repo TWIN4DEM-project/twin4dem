@@ -1,18 +1,11 @@
-@import "@scss/variables";
-
 .simulationToolbar {
   display: flex;
   align-items: center;
   justify-content: flex-start;
   border: 1px solid $border-subtle;
   border-radius: $radius-sm;
+  box-shadow: $shadow-soft;
   height: 48px;
-  padding-left: 1rem;
-  background: $dashboard-card-bg;
-
-  button {
-    font-size: 1rem;
-  }
 
   .simulationToolbarButton {
     font-family: $font-family;

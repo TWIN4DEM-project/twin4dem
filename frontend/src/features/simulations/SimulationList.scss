@@ -6,38 +6,20 @@
   flex-direction: column;
   gap: 16px;
   min-width: 240px;
-  height: 100%;
-
-  .simulationListToolbar {
-    display: flex;
-    justify-content: space-between;
-    padding-right: 1rem;
-  }
+  min-height: 100vh;
+  margin-left: 16px;
 
   .simulationList {
-    flex: 1;
-    background: $dashboard-card-bg;
+    background: whitesmoke;
+    min-height: 100vh;
     overflow-y: auto;
     margin: 0;
     border-radius: $radius-sm;
-    padding: 1rem;
-    text-align: center;
 
     li {
-      padding: 0.25rem 0 0.75rem;
-      list-style: none;
+      padding: 0 16px 0 4px;
       text-decoration: none;
       border-bottom: dotted 1px $muted;
-
-      a,
-      a:visited {
-        color: $primary-soft;
-      }
-
-      a:hover,
-      a.active {
-        color: $primary;
-      }
     }
   }
 }

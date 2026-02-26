@@ -32,9 +32,6 @@ class Judge(InfluencerModel):
     id = models.AutoField(primary_key=True)
     label = models.CharField(max_length=50)
     is_president = models.BooleanField(null=False, default=False)
-    personal_opinion = models.FloatField(default=0)
-    appointing_group_opinion = models.FloatField(default=0)
-    supporting_group_opinion = models.FloatField(default=0)
     weights = fields.SeparatedValuesField(base_field=models.FloatField(), blank=True)
     court = models.ForeignKey(to=Court, on_delete=models.CASCADE, related_name="judges")
     party = models.ForeignKey(

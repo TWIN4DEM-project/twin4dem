@@ -38,7 +38,7 @@ class Government:
         is randomly chosen based on the pact parameter
         """
         pm = next(m for m in self.ministers if m.is_pm)
-        pm_opinion = pm.belief.o_i
+        pm_opinion = pm.o_i
 
         # 1. individual utilities (no social influence yet)
         for m in self.ministers:
@@ -59,7 +59,7 @@ class Government:
         for m in self.ministers:
             m.decide_vote(self.epsilon)
 
-        votes = [m.step_state.vote for m in self.ministers if m.step_state.vote is not None]
+        votes = [m.vote for m in self.ministers if m.vote is not None]
         if not votes:
             approved = False
         else:
@@ -73,5 +73,5 @@ class Government:
             approved=approved,
             type=SubmodelType.Cabinet,
             path=path,
-            votes={str(m.id): m.step_state.vote for m in self.ministers},
+            votes={str(m.id): m.vote for m in self.ministers},
         )

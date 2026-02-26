@@ -37,6 +37,8 @@ CMD ["sh", "./script/server"]
 FROM backend_dev AS test
 WORKDIR /twin4dem/backend
 
+ENV DJANGO_SETTINGS_MODULE="tests.settings"
+
 COPY backend/tests ./tests
 
 # pytest uses uv environment

@@ -32,11 +32,8 @@ def test_response_has_expected_structure(cabinet, simulation_input_param):
     assert "approved" in cabinet_result
     assert isinstance(cabinet_result["approved"], bool)
     assert "path" in cabinet_result
-    if cabinet_result["approved"]:
-        assert isinstance(cabinet_result["path"], str)
-        assert cabinet_result["path"] in {"decree", "legislative act"}
-    else:
-        assert cabinet_result["path"] is None
+    assert isinstance(cabinet_result["path"], str)
+    assert cabinet_result["path"] in {"decree", "legislative act"}
     assert "votes" in cabinet_result
     assert isinstance(cabinet_result["votes"], dict)
     assert len(cabinet_result["votes"]) == expected_vote_count
@@ -65,9 +62,6 @@ def test_extreme_favorability_towards_aggrandisement(
     simulation.office_retention_sensitivity = 25.0
     simulation.save()
     cabinet.save()
-    cabinet.ministers.all().update(
-        personal_opinion=1, appointing_group_opinion=1, supporting_group_opinion=1
-    )
 
     results = list(map(executive_submodel.delay(simulation_input_param).get, range(5)))
 

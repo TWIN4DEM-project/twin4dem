@@ -3,7 +3,7 @@ import { z } from "zod";
 export const CabinetStepResultSchema = z.object({
   type: z.literal("cabinet"),
   approved: z.boolean(),
-  path: z.literal(["legislative act", "decree", undefined]),
+  path: z.string(),
   votes: z.record(
     z.string(), // key
     z.union([z.literal(0), z.literal(1), z.null()]), // value

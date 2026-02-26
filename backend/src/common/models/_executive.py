@@ -33,9 +33,6 @@ class Minister(InfluencerModel):
     id = models.AutoField(primary_key=True)
     label = models.CharField(max_length=50)
     is_prime_minister = models.BooleanField(null=False, default=False)
-    personal_opinion = models.FloatField(default=0)
-    appointing_group_opinion = models.FloatField(default=0)
-    supporting_group_opinion = models.FloatField(default=0)
     party = models.ForeignKey(
         to=PartySettings, on_delete=models.RESTRICT, related_name="ministers"
     )

@@ -24,7 +24,6 @@ from simulator.adapters import (
 from simulator.executive import Government, Minister
 from simulator.judiciary import Council, Judge
 from simulator.legislative import Parliament, MP
-from simulator.common import AgentBelief, Weights
 
 
 def _random_gauss(
@@ -71,21 +70,21 @@ class PrevVotesFinder:
 
 class MinisterDbAdapter(AgentAdapter[MinisterModel, Minister]):
     def convert(self, value: MinisterModel) -> Minister:
+        random_opinion = _random_gauss(value.cabinet.government_probability_for, 0.1)
+        personal_opinion = int(round(random_opinion))
         return Minister(
             id=value.id,
             T_i="Minister",
             is_pm=value.is_prime_minister,
             P_i=value.party.position,
             S_i=value.influence,
-            W=Weights(value.weights),
-            belief=AgentBelief(
-                o_i=value.personal_opinion,
-                # support group 1 = ones who have the power to affect the status of the minister (appoint, revoke, etc)
-                o_sup1=value.appointing_group_opinion,
-                # support group 2 = people who are directly benefitting from ministers getting more power
-                # setting this to 1.0 until better ideas about how to compute this value emerge
-                o_sup2=value.supporting_group_opinion,
-            ),
+            W=value.weights,
+            o_i=personal_opinion,
+            # support group 1 = ones who have the power to affect the status of the minister (appoint, revoke, etc)
+            o_sup1=_random_frequency(value.cabinet.government_probability_for),
+            # support group 2 = people who are directly benefitting from ministers getting more power
+            # setting this to 1.0 until better ideas about how to compute this value emerge
+            o_sup2=1.0,
         )
 
 
@@ -128,18 +127,30 @@ class MPDbAdapter(AgentAdapter[MemberOfParliament, MP]):
         self._opposition_for = opposition_prob_for
 
     def convert(self, mp: MemberOfParliament) -> MP:
+        party_position = mp.party.position
+        if party_position == PartySettings.PartyPosition.MAJORITY:
+            prob_distribution_center = self._majority_for
+            o_sup1 = 1
+        elif party_position == PartySettings.PartyPosition.OPPOSITION:
+            prob_distribution_center = self._opposition_for
+            o_sup1 = 0
+        else:
+            prob_distribution_center = 0.5
+            o_sup1 = 0
+
+        personal_opinion = int(
+            round(_random_gauss(prob_distribution_center, spread=0.1))
+        )
         return MP(
             id=mp.id,
             T_i="mp",
             P_i=mp.party.label,
-            W=Weights(mp.weights),
+            W=mp.weights,
             is_head=mp.is_head,
             S_i=0,
-            belief=AgentBelief(
-                o_i=mp.personal_opinion,
-                o_sup1=mp.appointing_group_opinion,
-                o_sup2=mp.supporting_group_opinion,
-            ),
+            o_i=personal_opinion,
+            o_sup1=o_sup1,
+            o_sup2=0,
         )
 
 
@@ -173,18 +184,17 @@ class JudgeDbAdapter(AgentAdapter[JudgeModel, Judge]):
         self._p = probability_for
 
     def convert(self, judge: JudgeModel) -> Judge:
+        personal_opinion = int(round(_random_gauss(self._p, spread=0.1)))
         return Judge(
             id=judge.id,
             is_president=judge.is_president,
             T_i="judge",
             P_i=judge.party.position,
             S_i=judge.influence,
-            W=Weights(judge.weights),
-            belief=AgentBelief(
-                o_i=judge.personal_opinion,
-                o_sup1=judge.appointing_group_opinion,
-                o_sup2=judge.supporting_group_opinion,
-            ),
+            W=judge.weights,
+            o_i=personal_opinion,
+            o_sup1=0,
+            o_sup2=0,
         )
 
 

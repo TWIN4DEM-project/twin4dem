@@ -2,7 +2,6 @@ import { type RefObject, useEffect, useMemo, useRef } from "react";
 import * as d3 from "d3";
 import type { Minister } from "@/types/simulation.ts";
 import "./MinisterNetwork.scss";
-import "../common/NodeColors.scss";
 import type { MinisterLink, MinisterNode } from "@/features/executive/types.ts";
 import {
   computeCurvedLinkPath,
@@ -12,12 +11,14 @@ import {
   computeFitTransform,
   computeNodeBounds,
 } from "@/features/executive/d3_geometry.ts";
-import {max_node_radius, min_node_radius} from "@/features/common/vars.ts";
-import {type AgentVote, headingSummaryResult, tallyVotes} from "@/features/common/utils.ts";
-import {VoteTallyFormat} from "@/features/common/VoteTallyFormat.tsx";
+
+export interface MinisterVote {
+  minister: Minister;
+  vote: boolean | null;
+}
 
 interface MinisterNetworkProps {
-  ministerVotes: AgentVote<Minister>[];
+  ministerVotes: MinisterVote[];
   width?: number;
   height?: number;
   nodeDistance?: number;
@@ -25,9 +26,6 @@ interface MinisterNetworkProps {
   maxNodeRadius?: number;
   minEdgeThickness?: number;
   maxEdgeThickness?: number;
-  path: "legislative act" | "decree" | undefined;
-  step: number;
-  isActive: boolean;
 }
 
 function initSvg(svgRef: RefObject<SVGSVGElement | null>) {
@@ -88,13 +86,13 @@ function createEdges(
 
 function createNodes(
   parentNode: d3.Selection<SVGGElement, unknown, null, undefined>,
-  ministerVotes: AgentVote<Minister>[],
+  ministerVotes: MinisterVote[],
   radiusScale: d3.ScaleLinear<number, number>,
   radiusSelector: (n: MinisterNode) => number,
 ) {
   const ministerNodes: MinisterNode[] = ministerVotes.map(
-    ({ agent, vote }) => ({
-      ...agent,
+    ({ minister, vote }) => ({
+      ...minister,
       vote: vote ? "approve" : vote === false ? "reject" : "abstain",
     }),
   );
@@ -105,10 +103,7 @@ function createNodes(
     .enter()
     .append("circle")
     .attr("r", (d) => radiusScale(radiusSelector(d)))
-    .attr(
-      "class",
-      (d) => `node node--${d.vote} ${d.isPrimeMinister ? "node-pm" : ""}`,
-    );
+    .attr("class", (d) => `node node--${d.vote}`);
   const labels = parentNode
     .append("g")
     .selectAll("text")
@@ -126,18 +121,15 @@ function createNodes(
 export function MinisterNetwork({
   ministerVotes,
   width = 320,
-  height = 250,
+  height = 320,
   nodeDistance = 100,
-  minNodeRadius = min_node_radius,
-  maxNodeRadius = max_node_radius,
+  minNodeRadius = 3,
+  maxNodeRadius = 8,
   minEdgeThickness = 0.25,
   maxEdgeThickness = 1.25,
-  path,
-  step,
-  isActive
 }: MinisterNetworkProps) {
   const ministers = useMemo(
-    () => ministerVotes.map((x) => x.agent),
+    () => ministerVotes.map((x) => x.minister),
     [ministerVotes],
   );
   const svgRef = useRef<SVGSVGElement | null>(null);
@@ -213,26 +205,13 @@ export function MinisterNetwork({
     maxNodeRadius,
   ]);
 
-  const votes = tallyVotes(ministerVotes);
-
   return (
-    <div className="ministerNetworkContainer active-branch">
-      <figure>
-        <h2>Government{headingSummaryResult(votes, isActive)}</h2>
-        <svg
-            ref={svgRef}
-            viewBox={`0 0 ${width} ${height}`}
-            preserveAspectRatio="xMidYMid meet"
-        />
-        {
-          path !== undefined ?
-              <>
-                <p>At step <b>{step}</b>, the Government votes on a <b>{path}</b> involving executive aggrandisement.</p>
-                <VoteTallyFormat votes={votes}/>
-              </> : <></>
-        }
-
-      </figure>
+    <div className="ministerNetworkContainer">
+      <svg
+        ref={svgRef}
+        viewBox={`0 0 ${width} ${height}`}
+        preserveAspectRatio="xMidYMid meet"
+      />
     </div>
   );
 }

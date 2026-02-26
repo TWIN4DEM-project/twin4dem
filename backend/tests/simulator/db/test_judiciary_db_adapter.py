@@ -4,7 +4,6 @@ import random
 import pytest
 from django.contrib.contenttypes.models import ContentType
 
-import simulator.db._adapter as adapter_module
 from common.models import Court, Judge, JudgeLink, Simulation, SimulationParams
 from simulator.db._adapter import CouncilDbAdapter
 
@@ -108,8 +107,8 @@ def test_convert_returns_judges_with_expected_basic_attributes(
         assert (not j.is_president and 0 <= j.S_i <= 1.0) ^ (
             j.is_president and j.S_i == 1.0
         )
-        assert j.belief.o_sup1 == 0
-        assert j.belief.o_sup2 == 0
+        assert j.o_sup1 == 0
+        assert j.o_sup2 == 0
     assert presidents == 1
 
 
@@ -120,17 +119,30 @@ def test_convert_returns_judges_with_expected_weights(sut, simulation, weights):
     assert all(j.W == weights for j in council.judges)
 
 
-def test_convert_uses_persisted_personal_opinion(sut, simulation, court):
-    judges = list(court.judges.all())
-    for idx, judge in enumerate(judges):
-        judge.personal_opinion = idx % 2
-        judge.save(update_fields=["personal_opinion"])
+@pytest.mark.parametrize(
+    "court_size,probability_for,expected_min,expected_max",
+    [
+        (1, 0.8, 95, 100),
+        (1, 0.7, 90, 100),
+        (1, 0.6, 70, 90),
+        (1, 0.5, 30, 70),
+        (1, 0.4, 10, 30),
+        (1, 0.3, 0, 10),
+        (1, 0.2, 0, 5),
+    ],
+    indirect=(
+        "court_size",
+        "probability_for",
+    ),
+)
+def test_convert_personal_opinion_follows_probability_for(
+    sut, simulation, expected_min, expected_max
+):
+    councils = [sut.convert(simulation.id) for _ in range(100)]
+    judges_for = int(sum(j.o_i for c in councils for j in c.judges))
 
-    council = sut.convert(simulation.id)
-    opinions = {j.id: j.belief.o_i for j in council.judges}
-
-    expected = {j.id: j.personal_opinion for j in judges}
-    assert opinions == expected
+    assert all(j.o_i in {0, 1} for c in councils for j in c.judges)
+    assert expected_min <= judges_for <= expected_max
 
 
 @pytest.mark.parametrize("court_size", [1, 2, 5], indirect=True)
@@ -143,23 +155,3 @@ def test_convert_creates_expected_network(sut, simulation, court_size):
         assert all(isinstance(x, int) for x in linked_judge_ids)
         assert len(linked_judge_ids) == court_size - 1
         assert len(linked_judge_ids) == len(set(linked_judge_ids))
-
-
-def test_judge_personal_opinion_stable_across_conversions(
-    sut, simulation, monkeypatch
-):
-    phase = {"value": 0.9}
-
-    def fake_random_gauss(center, spread=1.0, lo=0.0, hi=1.0):
-        return phase["value"]
-
-    monkeypatch.setattr(adapter_module, "_random_gauss", fake_random_gauss)
-
-    council_first = sut.convert(simulation.id)
-    opinions_first = {j.id: j.belief.o_i for j in council_first.judges}
-
-    phase["value"] = 0.1
-    council_second = sut.convert(simulation.id)
-    opinions_second = {j.id: j.belief.o_i for j in council_second.judges}
-
-    assert opinions_first == opinions_second

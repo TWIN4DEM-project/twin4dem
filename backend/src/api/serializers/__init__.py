@@ -3,6 +3,7 @@ from ._simulation import (
     SimulationSerializer,
     SimulationListSerializer,
     SimulationPatchSerializer,
+    SimulationWithVotesSerializer,
 )
 
 
@@ -11,4 +12,5 @@ __all__ = [
     "SimulationSerializer",
     "SimulationListSerializer",
     "SimulationPatchSerializer",
+    "SimulationWithVotesSerializer",
 ]

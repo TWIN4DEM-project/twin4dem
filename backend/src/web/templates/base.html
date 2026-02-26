@@ -23,8 +23,7 @@
         </div>
         <nav class="header-nav">
             {% if user.is_authenticated %}
-                <a href="/" class="nav-link button button--outline">Dashboard</a>
-                <a href="/admin/common/usersettings/" class="nav-link button button--outline">Settings</a>
+                <a href="/" class="nav-link">Dashboard</a>
                 <a href="/accounts/logout/" class="button button--outline">Logout</a>
             {% else %}
                 <a href="/accounts/login/" class="button button--outline">Login</a>

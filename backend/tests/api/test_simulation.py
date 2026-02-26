@@ -1,9 +1,17 @@
 import json
 import math
+import pytest
 
 from django.db.models import Sum
 
 from common.models import UserSettings
+from common.models._simulation import SubmodelType
+from common.models import (
+    SimulationLogEntry,
+    SimulationSubmodelLogEntry,
+    PathSubmodelInfo,
+    VbarSubmodelInfo,
+)
 
 
 def test_post_success_basic_data(admin_client, admin_user):
@@ -213,3 +221,273 @@ def test_patch_anonymous_forbidden(client):
     assert response.json() == {
         "detail": "Authentication credentials were not provided."
     }
+
+
+@pytest.fixture
+def simulation_id(admin_client, request):
+    steps = request.param
+
+    # create new simulation entry
+    response = admin_client.post("/api/v1/simulation/")
+    data: dict = response.json()
+
+    # create a step for each step specified
+    for i, step in enumerate(steps):
+        # create simulation log entry
+        if step == "judiciary":
+            aggrandisement_path = "decree"
+        else:
+            aggrandisement_path = "legislative act"
+
+        # create log entry
+        log = SimulationLogEntry.objects.create(
+            simulation_id=data["id"],
+            step_no=i + 1,
+            approved=False,
+            last_decision_type=step,
+            aggrandisement_path=aggrandisement_path,
+        )
+
+        # create executive submodel entry AND judiciary or legislative one
+        SimulationSubmodelLogEntry.objects.create(
+            log_entry=log,
+            submodel_type=SubmodelType.EXECUTIVE,
+            approved=False,
+            additional_info=PathSubmodelInfo(
+                votes={f"{i+1}": 0}, path=aggrandisement_path
+            ),
+        )
+
+        SimulationSubmodelLogEntry.objects.create(
+            log_entry=log,
+            submodel_type=(
+                SubmodelType.JUDICIARY
+                if step == "judiciary"
+                else SubmodelType.LEGISLATIVE
+            ),
+            approved=True,
+            additional_info=VbarSubmodelInfo(votes={f"{i + 1}": 1}, vbar=0.3),
+        )
+
+    return data["id"]
+
+
+EXPECTED_EMPTY = []
+EXPECTED_JUD = [
+    {
+        "type": "cabinet",
+        "path": "decree",
+        "approved": False,
+        "votes": {"1": 0},
+    },
+    {"type": "court", "vbar": 0.3, "approved": True, "votes": {"1": 1}},
+]
+
+EXPECTED_LEG = [
+    {
+        "type": "cabinet",
+        "path": "legislative act",
+        "approved": False,
+        "votes": {"1": 0},
+    },
+    {
+        "type": "parliament",
+        "vbar": 0.3,
+        "approved": True,
+        "votes": {"1": 1},
+    },
+]
+
+EXPECTED_JUD_JUD = [
+    {
+        "type": "cabinet",
+        "path": "decree",
+        "approved": False,
+        "votes": {"2": 0},
+    },
+    {"type": "court", "vbar": 0.3, "approved": True, "votes": {"2": 1}},
+]
+
+EXPECTED_LEG_LEG = [
+    {
+        "type": "cabinet",
+        "path": "legislative act",
+        "approved": False,
+        "votes": {"2": 0},
+    },
+    {
+        "type": "parliament",
+        "vbar": 0.3,
+        "approved": True,
+        "votes": {"2": 1},
+    },
+]
+
+EXPECTED_JUD_LEG = [
+    {
+        "type": "cabinet",
+        "path": "legislative act",
+        "approved": False,
+        "votes": {"2": 0},
+    },
+    {"type": "court", "vbar": 0.3, "approved": True, "votes": {"1": 1}},
+    {
+        "type": "parliament",
+        "vbar": 0.3,
+        "approved": True,
+        "votes": {"2": 1},
+    },
+]
+
+EXPECTED_LEG_JUD = [
+    {
+        "type": "cabinet",
+        "path": "decree",
+        "approved": False,
+        "votes": {"2": 0},
+    },
+    {"type": "court", "vbar": 0.3, "approved": True, "votes": {"2": 1}},
+    {
+        "type": "parliament",
+        "vbar": 0.3,
+        "approved": True,
+        "votes": {"1": 1},
+    },
+]
+
+EXPECTED_JUD_JUD_LEG = [
+    {
+        "type": "cabinet",
+        "path": "legislative act",
+        "approved": False,
+        "votes": {"3": 0},
+    },
+    {"type": "court", "vbar": 0.3, "approved": True, "votes": {"2": 1}},
+    {
+        "type": "parliament",
+        "vbar": 0.3,
+        "approved": True,
+        "votes": {"3": 1},
+    },
+]
+
+EXPECTED_JUD_LEG_JUD = [
+    {
+        "type": "cabinet",
+        "path": "decree",
+        "approved": False,
+        "votes": {"3": 0},
+    },
+    {"type": "court", "vbar": 0.3, "approved": True, "votes": {"3": 1}},
+    {
+        "type": "parliament",
+        "vbar": 0.3,
+        "approved": True,
+        "votes": {"2": 1},
+    },
+]
+
+EXPECTED_LEG_LEG_JUD = [
+    {
+        "type": "cabinet",
+        "path": "decree",
+        "approved": False,
+        "votes": {"3": 0},
+    },
+    {"type": "court", "vbar": 0.3, "approved": True, "votes": {"3": 1}},
+    {
+        "type": "parliament",
+        "vbar": 0.3,
+        "approved": True,
+        "votes": {"2": 1},
+    },
+]
+
+
+TEST_CASES = [
+    pytest.param([], EXPECTED_EMPTY, id="no_steps"),
+    pytest.param(
+        ["judiciary"],
+        EXPECTED_JUD,
+        id="judiciary",
+    ),
+    pytest.param(
+        ["legislative"],
+        EXPECTED_LEG,
+        id="legislative",
+    ),
+    pytest.param(
+        ["judiciary", "judiciary"],
+        EXPECTED_JUD_JUD,
+        id="judiciary_judiciary",
+    ),
+    pytest.param(
+        ["legislative", "legislative"],
+        EXPECTED_LEG_LEG,
+        id="legislative_legislative",
+    ),
+    pytest.param(
+        ["judiciary", "legislative"],
+        EXPECTED_JUD_LEG,
+        id="judiciary_legislative",
+    ),
+    pytest.param(
+        ["legislative", "judiciary"],
+        EXPECTED_LEG_JUD,
+        id="legislative_judiciary",
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    "simulation_id, expected_results",
+    TEST_CASES,
+    indirect=["simulation_id"],
+)
+def test_get_simulation_with_history(admin_client, simulation_id, expected_results):
+    response = admin_client.get(
+        f"/api/v1/simulation/{simulation_id}/?withHistoricVotes=true"
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    # order: cabinet, court, parliament
+    results = sorted(data["results"], key=lambda result: result["type"])
+    print(results)
+    assert results == expected_results
+
+
+@pytest.mark.parametrize("flag", ["true", "True", "1", "yes", "Yes"])
+def test_get_simulation_with_history_valid_flags(admin_client, flag):
+    # create new simulation
+    response = admin_client.post("/api/v1/simulation/")
+    data: dict = response.json()
+
+    response = admin_client.get(
+        f"/api/v1/simulation/{data["id"]}/?withHistoricVotes={flag}"
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    # order: cabinet, court, parliament
+
+    assert data.get("results") == []
+
+
+@pytest.mark.parametrize("flag", ["false", "0", "", "random", "hai", "yep", None])
+def test_get_simulation_with_history_invalid_flags(admin_client, flag):
+    # create new simulation
+    response = admin_client.post("/api/v1/simulation/")
+    data: dict = response.json()
+
+    query_params = "" if flag is None else f"?withHistoricVotes={flag}"
+
+    response = admin_client.get(f"/api/v1/simulation/{data["id"]}/{query_params}")
+
+    assert response.status_code == 200
+    data = response.json()
+    # order: cabinet, court, parliament
+
+    print(data)
+
+    assert data.get("results") is None

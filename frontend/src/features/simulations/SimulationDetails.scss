@@ -1,45 +1,11 @@
-// @import "./_common";
-@import "@scss/variables";
+@use "./_common" as *;
 
-.simulationDetails {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
+.simulationDetailsToolbar {
+  justify-content: space-between;
+  column-gap: 16px;
+}
 
-  .simulationDetailsToolbar {
-    .simulationDetailsTitle {
-      margin: 0;
-      color: $text;
-      margin-right: 1rem;
-    }
-  }
-
-  .simulationHeader {
-    border-radius: $radius-sm;
-    background: $dashboard-card-bg;
-    padding: 0 1rem;
-    margin: 1rem 0;
-
-    td {
-      text-align: center;
-      padding: 0 0.5rem;
-    }
-  }
-
-  h4 {
-    margin: 0.5rem 0;
-  }
-
-  .simulationContainer {
-    flex: 1;
-
-    .executiveContainer {
-      display: flex;
-      height: 100%;
-
-      .ministerNetworkContainer {
-        flex: 1;
-      }
-    }
-  }
+.simulationDetailsTitle {
+  margin: 0;
+  color: $text;
 }

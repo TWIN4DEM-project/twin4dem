@@ -51,5 +51,5 @@ export function useFetch<T>({
     })();
   }, [url, nonce, ...deps]);
 
-  return { data, setData, loading, error, refetch };
+  return { data, loading, error, refetch };
 }
