@@ -23,7 +23,8 @@ export function useSimulations() {
 }
 
 export function useSimulation(simulationId: number | undefined, withHistoricVotes: boolean=false) {
-  const url = simulationId ? (`/api/v1/simulation/${simulationId}/` + (withHistoricVotes && `?withHistoricVotes=${withHistoricVotes}`)) : null;
+  const urlParams = withHistoricVotes ? `?withHistoricVotes=${withHistoricVotes}` : "";
+  const url = simulationId ? (`/api/v1/simulation/${simulationId}/${urlParams}`) : null;
   return useFetch<Simulation>({ url, schema: SimulationSchema, method: "GET" });
 }
 
