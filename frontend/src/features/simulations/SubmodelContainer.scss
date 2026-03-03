@@ -1,0 +1,71 @@
+@import "@scss/variables";
+
+.votingOutcome {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-around;
+  font-size: 2rem;
+  padding: 1rem;
+  background: $dashboard-card-bg;
+  border-bottom: 2px solid $muted;
+  border-top-right-radius: $radius-sm;
+  border-top-left-radius: $radius-sm;
+
+  strong {
+    color: $primary;
+  }
+}
+
+.submodelContainer {
+  display: flex;
+  background: $dashboard-card-bg;
+  border-bottom-left-radius: $radius-sm;
+  border-bottom-right-radius: $radius-sm;
+
+  .ministerNetworkContainer {
+    flex: 4;    
+  }
+
+  .active-branch {
+    border: 3px solid $primary;
+  }
+
+  .inactive-branch {
+    position: relative;
+  }
+
+  .inactive-branch::after {
+    content: '';
+    position: absolute;
+    pointer-events: none;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.37);
+  }
+
+  .rightPanel {
+    display: flex;
+    flex-direction: column;
+    flex: 3;
+
+    .legislativeContainer.inactive-branch {
+      border-top: 3px solid $muted;
+    }
+
+    .judicialContainer {
+      border-bottom-right-radius: $radius-sm;
+    }
+
+    .legislativeContainer,
+    .judicialContainer {
+      figure {
+        margin-left: 1rem;
+        margin-right: 1rem;
+      }
+
+      &.active-branch {
+        flex: 1;
+        border-left: none;
+      }
+    }
+  }
+}

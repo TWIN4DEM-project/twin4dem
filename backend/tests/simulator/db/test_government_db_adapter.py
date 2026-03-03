@@ -10,6 +10,7 @@ from common.models import (
     PathSubmodelInfo,
     Cabinet,
 )
+import simulator.db._adapter as adapter_module
 from simulator.db import GovernmentDbAdapter
 
 
@@ -87,3 +88,23 @@ def test_government_db_adapter_init_submodel_without_prev_results(
             previous_votes={},
         )
     ]
+
+
+def test_minister_personal_opinion_stable_across_conversions(
+    sut, simulation, monkeypatch
+):
+    phase = {"value": 0.9}
+
+    def fake_random_gauss(center, spread=1.0, lo=0.0, hi=1.0):
+        return phase["value"]
+
+    monkeypatch.setattr(adapter_module, "_random_gauss", fake_random_gauss)
+
+    gov_first = sut.convert(simulation.id)
+    opinions_first = {m.id: m.belief.o_i for m in gov_first.ministers}
+
+    phase["value"] = 0.1
+    gov_second = sut.convert(simulation.id)
+    opinions_second = {m.id: m.belief.o_i for m in gov_second.ministers}
+
+    assert opinions_first == opinions_second

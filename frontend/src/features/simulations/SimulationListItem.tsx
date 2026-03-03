@@ -5,12 +5,16 @@ import dayjs from "dayjs";
 
 interface SimulationListItemProps {
   item: SimulationListItem;
+  isActive: boolean;
 }
 
-export function SimulationListItem({ item }: SimulationListItemProps) {
+export function SimulationListItem({
+  item,
+  isActive,
+}: SimulationListItemProps) {
   return (
     <li>
-      <Link to={`simulations/${item.id}`}>
+      <Link className={isActive ? "active" : ""} to={`simulations/${item.id}`}>
         <b>{item.status}</b> @ step {item.currentStep} <br />[
         <i>{dayjs(item.updatedAt).format("YYYY-MM-DD HH:mm")}</i>]
       </Link>

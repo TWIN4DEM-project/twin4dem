@@ -47,14 +47,14 @@ class Parliament:
         """
         head = self.party_heads.get(mp.P_i)
         if head is not None:
-            return head.o_i
+            return head.belief.o_i
 
         # fallback: any head in parliament
         if self.party_heads:
-            return next(iter(self.party_heads.values())).o_i
+            return next(iter(self.party_heads.values())).belief.o_i
 
         # last resort: own opinion
-        return mp.o_i
+        return mp.belief.o_i
 
     def step(self) -> VbarSubmodelResult:
         """
@@ -84,7 +84,9 @@ class Parliament:
             mp.decide_vote(self.epsilon)
 
         # 4. Majority decision ignoring abstentions
-        votes = [mp.vote for mp in self.mps if mp.vote is not None]
+        votes = [
+            mp.step_state.vote for mp in self.mps if mp.step_state.vote is not None
+        ]
         if votes:
             vbar = sum(votes) / len(votes)
             approved = vbar > 0.5
@@ -95,6 +97,6 @@ class Parliament:
         return VbarSubmodelResult(
             type=SubmodelType.Parliament,
             vbar=vbar,
-            votes={str(mp.id): mp.vote for mp in self.mps},
+            votes={str(mp.id): mp.step_state.vote for mp in self.mps},
             approved=approved,
         )

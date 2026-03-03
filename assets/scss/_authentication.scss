@@ -1,0 +1,18 @@
+.authentication {
+  padding: 1rem;
+  justify-content: center;
+  align-items: center;
+
+  .authentication-container {
+    max-width: 950px;
+
+    p:has(label[for="id_remember"]) {
+      display: flex;
+      gap: 0.5rem;
+
+      input {
+        margin-top: 0;
+      }
+    }
+  }
+}

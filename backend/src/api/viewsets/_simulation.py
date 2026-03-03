@@ -1,5 +1,5 @@
 from itertools import permutations
-from random import choice, random, sample, randint, expovariate
+from random import choice, random, sample, randint, expovariate, gauss
 
 from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
@@ -76,6 +76,18 @@ class SimulationViewSet(
         s = sum(x)
         return [x_i / s for x_i in x]
 
+    @staticmethod
+    def _random_gauss(
+        center: float, spread: float = 1.0, lo: float = 0.0, hi: float = 1.0
+    ) -> float:
+        while not (lo <= (x := gauss(center, spread)) <= hi):
+            continue
+        return x
+
+    @staticmethod
+    def _random_frequency(center: float, lo: float = 0.0, hi: float = 1.0) -> float:
+        return hi if random() < center else lo
+
     @transaction.atomic
     def perform_create(self, serializer):
         try:
@@ -127,6 +139,13 @@ class SimulationViewSet(
             cabinet=cabinet,
             influence=1.0,
             weights=cls._random_weights(cls.__WEIGHTS_COUNT),
+            personal_opinion=int(
+                round(cls._random_gauss(cabinet.government_probability_for, 0.1))
+            ),
+            appointing_group_opinion=cls._random_frequency(
+                cabinet.government_probability_for
+            ),
+            supporting_group_opinion=1.0,
         )
 
         ministers = [
@@ -137,6 +156,13 @@ class SimulationViewSet(
                 cabinet=cabinet,
                 influence=random(),
                 weights=cls._random_weights(cls.__WEIGHTS_COUNT),
+                personal_opinion=int(
+                    round(cls._random_gauss(cabinet.government_probability_for, 0.1))
+                ),
+                appointing_group_opinion=cls._random_frequency(
+                    cabinet.government_probability_for
+                ),
+                supporting_group_opinion=1.0,
             )
             for i in range(1, n)
         ]
@@ -196,22 +222,41 @@ class SimulationViewSet(
         )
         mp_objects = []
         for party in user_settings.parties.all():
-            mp_objects.append(
-                MemberOfParliament(
-                    label=f"{parliament_label}-{party.label}-head",
-                    is_head=True,
+            if party.position == PartySettings.PartyPosition.MAJORITY:
+                prob_distribution_center = parliament.majority_probability_for
+                o_sup1 = 1
+            elif party.position == PartySettings.PartyPosition.OPPOSITION:
+                prob_distribution_center = parliament.opposition_probability_for
+                o_sup1 = 0
+            else:
+                prob_distribution_center = 0.5
+                o_sup1 = 0
+
+            def _build_mp(label: str, is_head: bool) -> MemberOfParliament:
+                personal_opinion = int(
+                    round(cls._random_gauss(prob_distribution_center, spread=0.1))
+                )
+                return MemberOfParliament(
+                    label=label,
+                    is_head=is_head,
                     weights=cls._random_weights(cls.__WEIGHTS_COUNT),
                     party=party,
                     parliament=parliament,
+                    personal_opinion=personal_opinion,
+                    appointing_group_opinion=o_sup1,
+                    supporting_group_opinion=0,
+                )
+
+            mp_objects.append(
+                _build_mp(
+                    label=f"{parliament_label}-{party.label}-head",
+                    is_head=True,
                 )
             )
             mp_objects.extend(
-                MemberOfParliament(
+                _build_mp(
                     label=f"{parliament_label}-{party.label}-member-{idx:03}",
                     is_head=False,
-                    weights=cls._random_weights(cls.__WEIGHTS_COUNT),
-                    party=party,
-                    parliament=parliament,
                 )
                 for idx in range(1, party.member_count)
             )
@@ -234,6 +279,11 @@ class SimulationViewSet(
                 weights=cls._random_weights(6),
                 court=court,
                 party=choice(parties),
+                personal_opinion=int(
+                    round(cls._random_gauss(court.probability_for, spread=0.1))
+                ),
+                appointing_group_opinion=0,
+                supporting_group_opinion=0,
             )
             for idx in range(user_settings.court_size)
         ]

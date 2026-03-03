@@ -54,6 +54,9 @@ class MemberOfParliament(models.Model):
     label = models.CharField(max_length=100)
     is_head = models.BooleanField(null=False, default=False)
     weights = fields.SeparatedValuesField(base_field=models.FloatField(), blank=True)
+    personal_opinion = models.FloatField(default=0)
+    appointing_group_opinion = models.FloatField(default=0)
+    supporting_group_opinion = models.FloatField(default=0)
 
     party = models.ForeignKey(
         to=PartySettings, on_delete=models.RESTRICT, related_name="mps"
