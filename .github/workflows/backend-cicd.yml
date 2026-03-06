@@ -1,0 +1,87 @@
+name: Backend CI
+
+on:
+  pull_request:
+    paths:
+      - 'backend/**'
+
+jobs:
+  lint:
+    name: Lint (make check)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+            enable-cache: true
+
+      - name: Run linter (make check)
+        # run Makefile located in backend/
+        run: |
+          mkdir -p artifacts
+          # Capture full output to artifact
+          make -C backend check
+
+  test:
+    name: Test (make test) + Report
+    runs-on: ubuntu-latest
+    needs: lint
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+            enable-cache: true
+
+      - name: Prepare test report directory
+        run: mkdir -p pytest-results
+
+      - name: Run tests (make test) and produce JUnit xml
+        env:
+          PYTEST_ADDOPTS: --junitxml=pytest-results/junit.xml
+        run: make -C backend test
+      - name: Show test report
+        uses: dorny/test-reporter@v2
+        if: ${{ !cancelled() }}
+        with:
+          name: Backend Tests
+          path: backend/pytest-results/junit.xml
+          reporter: python-xunit
+
+      - name: Code Coverage Report
+        uses: irongut/CodeCoverageSummary@v1.3.0
+        with:
+          filename: backend/**/coverage.xml
+          badge: true
+          fail_below_min: true
+          format: markdown
+          hide_branch_rate: false
+          hide_complexity: true
+          indicators: true
+          output: both
+          thresholds: '66 85'
+
+      - name: Add Coverage PR Comment
+        uses: marocchino/sticky-pull-request-comment@v2
+        if: github.event_name == 'pull_request'
+        with:
+          recreate: true
+          path: code-coverage-results.md

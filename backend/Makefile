@@ -37,12 +37,12 @@ migrations: bootstrap
 	uv run python src/manage.py makemigrations
 
 format: bootstrap
-	uv tool run black --fast .
-	uv tool run ruff check --fix .
+	uv run black --fast .
+	uv run ruff check --fix .
 
 check: bootstrap
-	uv tool run black --check .
-	uv tool run ruff check .
+	uv run black --check .
+	uv run ruff check .
 
 test: bootstrap
 	uv run pytest -rA -vvs --log-level INFO tests/

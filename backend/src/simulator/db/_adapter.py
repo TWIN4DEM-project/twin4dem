@@ -9,7 +9,6 @@ from common.models import (
     Minister as MinisterModel,
     Parliament as ParliamentModel,
     MemberOfParliament,
-    PartySettings,
     Court as CourtModel,
     Judge as JudgeModel,
     SimulationSubmodelLogEntry,
