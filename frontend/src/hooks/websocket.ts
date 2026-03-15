@@ -1,14 +1,11 @@
-import { useEffect, useRef, useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import type { Action } from "@/types/action.ts";
 
 type Options = {
   reconnectDelayMs?: number;
 };
 
-export function useWebSocketStream<T>(
-  url: string | null,
-  options: Options = {},
-) {
+export function useWebSocketStream<T>(url: string | null, options: Options = {}) {
   const { reconnectDelayMs = 1000 } = options;
 
   const socketRef = useRef<WebSocket | null>(null);
@@ -48,12 +45,7 @@ export function useWebSocketStream<T>(
     return () => {
       closedRef.current = true;
       if (socketRef.current !== null) {
-        if (
-          !(
-            socketRef.current.readyState in
-            [WebSocket.CLOSED, WebSocket.CLOSING]
-          )
-        ) {
+        if (!(socketRef.current.readyState in [WebSocket.CLOSED, WebSocket.CLOSING])) {
           socketRef.current?.close();
         }
         socketRef.current = null;
@@ -64,9 +56,9 @@ export function useWebSocketStream<T>(
       }
 
       // terminate async iterators
-      resolversRef.current.forEach((r) =>
-        r({ value: undefined as never, done: true }),
-      );
+      resolversRef.current.forEach((r) => {
+        r({ value: undefined as never, done: true });
+      });
       resolversRef.current = [];
       queueRef.current = [];
     };
@@ -80,7 +72,10 @@ export function useWebSocketStream<T>(
     async *[Symbol.asyncIterator](): AsyncIterator<T> {
       while (true) {
         if (queueRef.current.length > 0) {
-          yield queueRef.current.shift()!;
+          const value = queueRef.current.shift();
+          if (value !== null && typeof value !== "undefined") {
+            yield value;
+          }
           continue;
         }
 

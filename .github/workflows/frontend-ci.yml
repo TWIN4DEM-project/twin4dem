@@ -1,0 +1,25 @@
+name: Front-End CI
+on:
+  pull_request:
+    paths:
+      - 'frontend/**'
+
+jobs:
+  biome:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js LTS
+        uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Run Biome
+        run: npx biome ci
+        working-directory: frontend

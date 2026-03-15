@@ -1,12 +1,12 @@
-import type { MinisterNode } from "@/features/executive/types.ts";
 import * as d3 from "d3";
+import type { MinisterNode } from "@/features/executive/types.ts";
 
 export function computeNodeBounds(nodes: MinisterNode[]) {
   return {
-    minX: d3.min(nodes, (d) => d.x!)!,
-    maxX: d3.max(nodes, (d) => d.x!)!,
-    minY: d3.min(nodes, (d) => d.y!)!,
-    maxY: d3.max(nodes, (d) => d.y!)!,
+    minX: d3.min(nodes, (d) => d.x || 0) || 0,
+    maxX: d3.max(nodes, (d) => d.x || 0) || 0,
+    minY: d3.min(nodes, (d) => d.y || 0) || 0,
+    maxY: d3.max(nodes, (d) => d.y || 0) || 0,
   };
 }
 

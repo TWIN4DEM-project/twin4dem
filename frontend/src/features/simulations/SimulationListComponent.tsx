@@ -1,16 +1,16 @@
-import { createSimulation, useSimulations } from "./hooks.ts";
-import { SimulationListItem } from "./SimulationListItem";
-import { useNavigate, useParams } from "react-router";
 import { useMemo } from "react";
+import { useNavigate, useParams } from "react-router";
 import { EmptySelectionPane } from "@/components/EmptySelectionPane.tsx";
 import type { SimulationList } from "@/types/simulation.ts";
+import { createSimulation } from "./hooks.ts";
+import { SimulationListItemComponent } from "./SimulationListItemComponent.tsx";
 
 type SimulationListProps = {
   data: SimulationList | undefined;
   loading: boolean;
   refetch: () => void;
 };
-export function SimulationList({
+export function SimulationListComponent({
   data,
   loading,
   refetch,
@@ -21,7 +21,7 @@ export function SimulationList({
     if (!data)
       return <EmptySelectionPane text="No simulations, create one &#128070;" />;
     return data.map((x) => (
-      <SimulationListItem
+      <SimulationListItemComponent
         key={x.id}
         item={x}
         isActive={x.id === Number(simulationId ?? "")}
@@ -35,7 +35,7 @@ export function SimulationList({
     navigate(`/simulations/${simulation.id}`);
   }
 
-  return loading && data?.length == 0 ? (
+  return loading && data?.length === 0 ? (
     <div>Loading...</div>
   ) : (
     <div className="simulationListContainer">
@@ -43,6 +43,7 @@ export function SimulationList({
         <h3 className="simulationDetailsTitle">Simulations</h3>
         <button
           className="button button--outline"
+          type="button"
           onClick={handleAddSimulation}
         >
           +

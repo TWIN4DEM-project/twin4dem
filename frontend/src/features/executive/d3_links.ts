@@ -1,5 +1,5 @@
+import type * as d3 from "d3";
 import type { MinisterLink, MinisterNode } from "@/features/executive/types.ts";
-import * as d3 from "d3";
 
 export function computeCurvedLinkPath(
   d: MinisterLink,
@@ -13,10 +13,10 @@ export function computeCurvedLinkPath(
   const sr = radiusScale(radiusSelector(d.source));
   const tr = radiusScale(radiusSelector(d.target));
 
-  const sx = d.source.x!;
-  const sy = d.source.y!;
-  const tx = d.target.x!;
-  const ty = d.target.y!;
+  const sx = d.source.x || 0;
+  const sy = d.source.y || 0;
+  const tx = d.target.x || 0;
+  const ty = d.target.y || 0;
 
   const dx = tx - sx;
   const dy = ty - sy;

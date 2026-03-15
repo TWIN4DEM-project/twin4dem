@@ -1,4 +1,4 @@
-import * as Plot from "@observablehq/plot";
+import type * as Plot from "@observablehq/plot";
 
 export const colorscheme: Plot.ColorScheme = "Set3";
 export const min_node_radius: number = 8;

@@ -1,5 +1,5 @@
-import { useEffect, useRef } from "react";
 import * as Plot from "@observablehq/plot";
+import { useEffect, useRef } from "react";
 import "../common/NodeColors.scss";
 import "./Legend.scss";
 import {
@@ -40,20 +40,14 @@ export function Legend({
     };
 
     // Plot radius legend
-    const middle_influence_radius =
-      (min_influence_radius + max_influence_radius) / 2;
-    const radii = [
-      min_influence_radius,
-      middle_influence_radius,
-      max_influence_radius,
-    ];
+    const middle_influence_radius = (min_influence_radius + max_influence_radius) / 2;
+    const radii = [min_influence_radius, middle_influence_radius, max_influence_radius];
     const radii_labels = [0, 0.5, 1];
     const influence_legend_length = 150;
     const offsets: number[] = [];
     const radius_legend = Plot.marks([
       radii.map((radius, index) => {
-        const dx =
-          (index - radii.length) * (influence_legend_length / radii.length);
+        const dx = (index - radii.length) * (influence_legend_length / radii.length);
         offsets.push(dx);
         return [
           Plot.circle([radius], {
@@ -78,8 +72,7 @@ export function Legend({
     const color_legend_length = 180;
     const color_legend_item_length = color_legend_length / 3;
     const vote_circle_radius = 25;
-    const color_legend_offset =
-      influence_legend_length + vote_circle_radius + 50;
+    const color_legend_offset = influence_legend_length + vote_circle_radius + 50;
 
     const vote_color_legend = Plot.marks([
       Plot.circle([2], {
@@ -131,9 +124,7 @@ export function Legend({
     const party_legend = Plot.marks([
       parties.map((party, index) => {
         const dx =
-          index * (party_legend_length / parties.length) +
-          party_circle_radius +
-          10;
+          index * (party_legend_length / parties.length) + party_circle_radius + 10;
         return [
           Plot.circle([party], {
             ...circle_options,

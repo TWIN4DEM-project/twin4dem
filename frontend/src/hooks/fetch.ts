@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
 import axios, { type AxiosRequestConfig, type Method } from "axios";
-import { z } from "zod";
+import { useEffect, useState } from "react";
+import type { z } from "zod";
 
 type UseFetchOptions<T> = {
   url: string | null;
@@ -28,6 +28,7 @@ export function useFetch<T>({
     setNonce((n) => n + 1);
   }
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: setting nonce retriggers the effect => refetch
   useEffect(() => {
     if (!url) return;
 

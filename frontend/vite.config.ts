@@ -1,6 +1,6 @@
-import { resolve } from "path";
-import { defineConfig } from "vite";
+import { resolve } from "node:path";
 import react from "@vitejs/plugin-react";
+import { defineConfig } from "vite";
 
 const isDev = process.env.NODE_ENV !== "production";
 const base = "/static/";

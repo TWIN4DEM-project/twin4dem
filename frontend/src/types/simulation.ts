@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { StepResultSchema } from './state';
+import { StepResultSchema } from "./state";
 
 const SimulationStatusEnum = z.enum(["new", "running", "complete", "error"]);
 export const SimulationListItemSchema = z.object({

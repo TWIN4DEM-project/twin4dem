@@ -1,5 +1,5 @@
-import { type SimulationListItem } from "@/types/simulation.ts";
 import { Link } from "react-router";
+import type { SimulationListItem } from "@/types/simulation.ts";
 import "./SimulationList.scss";
 import dayjs from "dayjs";
 
@@ -8,7 +8,7 @@ interface SimulationListItemProps {
   isActive: boolean;
 }
 
-export function SimulationListItem({
+export function SimulationListItemComponent({
   item,
   isActive,
 }: SimulationListItemProps) {

@@ -2,17 +2,17 @@ import { BrowserRouter, Route, Routes } from "react-router";
 import "@scss/base.scss";
 import "./App.scss";
 
-import { SidePaneLayout } from "@/layouts/two-pane/SidePaneLayout.tsx";
-import { SimulationList } from "@/features/simulations/SimulationList";
-import { SimulationDetails } from "@/features/simulations/SimulationDetails";
 import { EmptySelectionPane } from "@/components/EmptySelectionPane";
-import { useSimulations } from '@/features/simulations/hooks';
+import { useSimulations } from "@/features/simulations/hooks";
+import { SimulationDetails } from "@/features/simulations/SimulationDetails";
+import { SimulationListComponent } from "@/features/simulations/SimulationListComponent.tsx";
+import { SidePaneLayout } from "@/layouts/two-pane/SidePaneLayout.tsx";
 
 export function App() {
   const { data, setData, loading, refetch } = useSimulations();
 
   function updateSimulationStep(simulationId: number, newStep: number) {
-    setData( data =>
+    setData((data) =>
       data?.map((simulation) =>
         simulation.id === simulationId
           ? { ...simulation, currentStep: newStep }
@@ -24,12 +24,22 @@ export function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route element={<SidePaneLayout side={<SimulationList data={data} loading={loading} refetch={refetch} />} />}>
+        <Route
+          element={
+            <SidePaneLayout
+              side={
+                <SimulationListComponent
+                  data={data}
+                  loading={loading}
+                  refetch={refetch}
+                />
+              }
+            />
+          }
+        >
           <Route
             index
-            element={
-              <EmptySelectionPane text="Please select a simulation &#129760;" />
-            }
+            element={<EmptySelectionPane text="Please select a simulation &#129760;" />}
           />
           <Route
             path="simulations/:simulationId"
