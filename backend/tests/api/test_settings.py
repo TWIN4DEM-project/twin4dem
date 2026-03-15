@@ -10,23 +10,7 @@ def test_list_success(admin_client):
             "id": 1,
             "label": "test_admin settings",
             "parliamentSize": 100,
-        },
-        {
-            "courtSize": 5,
-            "governmentConnectivityDegree": 3,
-            "governmentSize": 15,
-            "id": 2,
-            "label": "default",
-            "parliamentSize": 100,
-        },
-        {
-            "courtSize": 5,
-            "governmentConnectivityDegree": 3,
-            "governmentSize": 15,
-            "id": 3,
-            "label": "default",
-            "parliamentSize": 100,
-        },
+        }
     ]
 
 

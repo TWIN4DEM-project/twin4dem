@@ -11,7 +11,7 @@ from .serializers import UserSettingsSerializer
 @schema(AutoSchema)
 def list_settings(req):
     """List all settings for the current user."""
-    qs = UserSettings.objects.all()
+    qs = UserSettings.objects.filter(user=req.user)
     serializer = UserSettingsSerializer(qs, many=True, context={"view": "list"})
     return Response(serializer.data)
 
