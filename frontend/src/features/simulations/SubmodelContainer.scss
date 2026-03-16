@@ -23,7 +23,7 @@
   border-bottom-right-radius: $radius-sm;
 
   .ministerNetworkContainer {
-    flex: 4;    
+    flex: 4;
   }
 
   .active-branch {
@@ -35,7 +35,7 @@
   }
 
   .inactive-branch::after {
-    content: '';
+    content: "";
     position: absolute;
     pointer-events: none;
     inset: 0;

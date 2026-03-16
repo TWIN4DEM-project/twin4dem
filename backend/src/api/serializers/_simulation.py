@@ -82,7 +82,7 @@ SubmodelTypeLiteral = Literal[
 ]
 
 
-class SimulationWithVotesSerializer(SimulationSerializer):
+class SimulationWithVoteStateSerializer(SimulationSerializer):
     results = serializers.SerializerMethodField()
 
     class Meta(SimulationSerializer.Meta):

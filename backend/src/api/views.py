@@ -3,8 +3,8 @@ from rest_framework.exceptions import NotFound
 from rest_framework.response import Response
 from rest_framework.schemas import AutoSchema
 
-from common.models import UserSettings
-from .serializers import UserSettingsSerializer
+from common.models import UserSettings, Simulation
+from .serializers import UserSettingsSerializer, SimulationLogSerializer
 
 
 @api_view(["GET"])
@@ -26,3 +26,24 @@ def get_settings(req, settings_id):
         return Response(serializer.data)
     except UserSettings.DoesNotExist:
         raise NotFound()
+
+
+@api_view(["GET"])
+@schema(AutoSchema)
+def get_simulation_log(req, simulation_id):
+    """Retrieve the results of the last N steps of a simulation.
+
+    :param req: incoming HTTP request
+    :param simulation_id: the ID of the simulation
+    """
+    max_steps = int(req.query_params.get("max_steps", 20))
+    try:
+        qs = (
+            Simulation.objects.get(pk=simulation_id)
+            .log.filter(simulation_id=simulation_id)
+            .order_by("-step_no")[:max_steps]
+        )
+        serializer = SimulationLogSerializer(qs, many=True)
+        return Response(serializer.data)
+    except Simulation.DoesNotExist:
+        raise NotFound(detail=f"simulation {simulation_id} not found")

@@ -14,7 +14,7 @@ from common.models import (
 )
 
 
-def test_post_success_basic_data(admin_client, admin_user):
+def test_post_success_basic_data(admin_client):
     response = admin_client.post("/api/v1/simulation/")
 
     assert response.status_code == 201
@@ -444,7 +444,9 @@ TEST_CASES = [
     TEST_CASES,
     indirect=["simulation_id"],
 )
-def test_get_simulation_with_history(admin_client, simulation_id, expected_results):
+def test_get_simulation_with_historic_votes(
+    admin_client, simulation_id, expected_results
+):
     response = admin_client.get(
         f"/api/v1/simulation/{simulation_id}/?withHistoricVotes=true"
     )
@@ -458,7 +460,7 @@ def test_get_simulation_with_history(admin_client, simulation_id, expected_resul
 
 
 @pytest.mark.parametrize("flag", ["true", "True", "1", "yes", "Yes"])
-def test_get_simulation_with_history_valid_flags(admin_client, flag):
+def test_get_simulation_with_historic_votes_valid_flags(admin_client, flag):
     # create new simulation
     response = admin_client.post("/api/v1/simulation/")
     data: dict = response.json()
@@ -475,7 +477,7 @@ def test_get_simulation_with_history_valid_flags(admin_client, flag):
 
 
 @pytest.mark.parametrize("flag", ["false", "0", "", "random", "hai", "yep", None])
-def test_get_simulation_with_history_invalid_flags(admin_client, flag):
+def test_get_simulation_with_historic_votes_invalid_flags(admin_client, flag):
     # create new simulation
     response = admin_client.post("/api/v1/simulation/")
     data: dict = response.json()

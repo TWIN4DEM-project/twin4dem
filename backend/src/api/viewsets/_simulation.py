@@ -25,7 +25,7 @@ from api.serializers import (
     SimulationSerializer,
     SimulationListSerializer,
     SimulationPatchSerializer,
-    SimulationWithVotesSerializer,
+    SimulationWithVoteStateSerializer,
 )
 
 
@@ -58,7 +58,7 @@ class SimulationViewSet(
             case "retrieve" if is_truthy(
                 self.request.query_params.get("withHistoricVotes", "")
             ):
-                return SimulationWithVotesSerializer
+                return SimulationWithVoteStateSerializer
             case _:
                 return SimulationSerializer
 
