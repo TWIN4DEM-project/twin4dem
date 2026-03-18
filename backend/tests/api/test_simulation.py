@@ -4,6 +4,7 @@ import pytest
 
 from django.db.models import Sum
 
+from common.dto import AggrandisementBatch
 from common.models import UserSettings
 from common.models._simulation import SubmodelType
 from common.models import (
@@ -12,6 +13,22 @@ from common.models import (
     PathSubmodelInfo,
     VbarSubmodelInfo,
 )
+
+
+@pytest.fixture
+def uploaded_zip(aggrandisement_batch_path):
+    from io import BytesIO
+    import zipfile
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
+    zip_buffer = BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w") as zip_file:
+        zip_file.write(aggrandisement_batch_path, arcname="batch.json")
+    zip_buffer.seek(0)
+
+    return SimpleUploadedFile(
+        "simulation_data.zip", zip_buffer.getvalue(), content_type="application/zip"
+    )
 
 
 def test_post_success_basic_data(admin_client):
@@ -493,3 +510,55 @@ def test_get_simulation_with_historic_votes_invalid_flags(admin_client, flag):
     print(data)
 
     assert data.get("results") is None
+
+
+def test_post_with_zip_file_upload(admin_client, uploaded_zip, aggrandisement_batch):
+    settings = AggrandisementBatch.model_validate(aggrandisement_batch).settings
+    response = admin_client.post(
+        "/api/v1/simulation/", {"file": uploaded_zip}, format="multipart"
+    )
+
+    assert response.status_code == 201
+    data = response.json()
+    assert data["createdAt"] is not None
+    assert data["currentStep"] == 0
+    assert data["id"] is not None
+    assert data["officeRetentionSensitivity"] == 5.0
+    assert data["socialInfluenceSusceptibility"] == 0.5
+    assert "params" in data and len(data["params"]) == 3
+    cabinet = data["params"][0]["cabinet"]
+    assert len(cabinet["ministers"]) == len(settings.executive.ministers)
+    parliament = data["params"][1]["parliament"]
+    assert len(parliament["members"]) == len(settings.legislative.mps)
+    court = data["params"][2]["court"]
+    assert len(court["judges"]) == len(settings.judiciary.judges)
+
+
+def test_post_with_zip_file_sets_influence(
+    admin_client, uploaded_zip, aggrandisement_batch
+):
+    settings = AggrandisementBatch.model_validate(aggrandisement_batch).settings
+    response = admin_client.post(
+        "/api/v1/simulation/", {"file": uploaded_zip}, format="multipart"
+    )
+
+    assert response.status_code == 201
+    data = response.json()
+    assert data["createdAt"] is not None
+    assert data["currentStep"] == 0
+    assert data["id"] is not None
+    assert data["officeRetentionSensitivity"] == 5.0
+    assert data["socialInfluenceSusceptibility"] == 0.5
+    assert "params" in data and len(data["params"]) == 3
+    cabinet = data["params"][0]["cabinet"]
+    assert len(cabinet["ministers"]) == len(settings.executive.ministers)
+    for x, y in zip(cabinet["ministers"], settings.executive.ministers):
+        assert (
+            x["influence"] == y.influence
+        ), f"minister {x["label"]} did not have the expected influence {y.influence}"
+    court = data["params"][2]["court"]
+    assert len(court["judges"]) == len(settings.judiciary.judges)
+    for x, y in zip(court["judges"], settings.judiciary.judges):
+        assert (
+            x["influence"] == y.influence
+        ), f"judge {x["label"]} did not have the expected influence {y.influence}"

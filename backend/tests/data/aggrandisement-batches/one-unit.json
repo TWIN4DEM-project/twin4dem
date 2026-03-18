@@ -1,0 +1,661 @@
+{
+  "startDate": "2025-01-01T12:13:14",
+  "endDate": "2025-12-31T12:13:13",
+  "settings": {
+    "executive": {
+      "primeMinister": "minister-3",
+      "ministers": [
+        {
+          "label": "minister-1",
+          "party": "majority",
+          "influence": 0.25,
+          "personalOpinion": 1,
+          "appointingGroup": 1,
+          "supportingGroup": 0
+        },
+        {
+          "label": "minister-2",
+          "party": "majority",
+          "influence": 0.25,
+          "personalOpinion": 0,
+          "appointingGroup": 0,
+          "supportingGroup": 0
+        },
+        {
+          "label": "minister-3",
+          "party": "majority",
+          "influence": 1.0,
+          "personalOpinion": 0,
+          "appointingGroup": 1,
+          "supportingGroup": 0
+        },
+        {
+          "label": "minister-4",
+          "party": "majority",
+          "influence": 0.2,
+          "personalOpinion": 1,
+          "appointingGroup": 0,
+          "supportingGroup": 0
+        },
+        {
+          "label": "minister-5",
+          "party": "majority",
+          "influence": 0.3,
+          "personalOpinion": 0,
+          "appointingGroup": 1,
+          "supportingGroup": 0
+        },
+        {
+          "label": "minister-6",
+          "party": "majority",
+          "influence": 0.4,
+          "personalOpinion": 0,
+          "appointingGroup": 0,
+          "supportingGroup": 0
+        },
+        {
+          "label": "minister-7",
+          "party": "majority",
+          "influence": 0.7,
+          "personalOpinion": 0,
+          "appointingGroup": 1,
+          "supportingGroup": 0
+        }
+      ]
+    },
+    "legislative": {
+      "partyLeaders": [
+        "C-mp-2",
+        "A-mp-5",
+        "B-mp-8"
+      ],
+      "mps": [
+        {
+          "label": "C-mp-1",
+          "party": "majority",
+          "personalOpinion": 1,
+          "appointingGroup": 0,
+          "supportingGroup": 0
+        },
+        {
+          "label": "C-mp-2",
+          "party": "majority",
+          "personalOpinion": 1,
+          "appointingGroup": 1,
+          "supportingGroup": 1
+        },
+        {
+          "label": "C-mp-3",
+          "party": "majority",
+          "personalOpinion": 1,
+          "appointingGroup": 0,
+          "supportingGroup": 1
+        },
+        {
+          "label": "C-mp-4",
+          "party": "majority",
+          "personalOpinion": 0,
+          "appointingGroup": 1,
+          "supportingGroup": 1
+        },
+        {
+          "label": "C-mp-5",
+          "party": "majority",
+          "personalOpinion": 1,
+          "appointingGroup": 1,
+          "supportingGroup": 0
+        },
+        {
+          "label": "C-mp-6",
+          "party": "majority",
+          "personalOpinion": 1,
+          "appointingGroup": 0,
+          "supportingGroup": 1
+        },
+        {
+          "label": "C-mp-7",
+          "party": "majority",
+          "personalOpinion": 1,
+          "appointingGroup": 1,
+          "supportingGroup": 1
+        },
+        {
+          "label": "C-mp-8",
+          "party": "majority",
+          "personalOpinion": 1,
+          "appointingGroup": 1,
+          "supportingGroup": 1
+        },
+        {
+          "label": "C-mp-9",
+          "party": "majority",
+          "personalOpinion": 0,
+          "appointingGroup": 1,
+          "supportingGroup": 0
+        },
+        {
+          "label": "C-mp-10",
+          "party": "majority",
+          "personalOpinion": 1,
+          "appointingGroup": 1,
+          "supportingGroup": 0
+        },
+        {
+          "label": "C-mp-11",
+          "party": "majority",
+          "personalOpinion": 1,
+          "appointingGroup": 1,
+          "supportingGroup": 1
+        },
+        {
+          "label": "C-mp-12",
+          "party": "majority",
+          "personalOpinion": 1,
+          "appointingGroup": 0,
+          "supportingGroup": 1
+        },
+        {
+          "label": "C-mp-13",
+          "party": "majority",
+          "personalOpinion": 1,
+          "appointingGroup": 1,
+          "supportingGroup": 1
+        },
+        {
+          "label": "C-mp-14",
+          "party": "majority",
+          "personalOpinion": 1,
+          "appointingGroup": 1,
+          "supportingGroup": 1
+        },
+        {
+          "label": "C-mp-15",
+          "party": "majority",
+          "personalOpinion": 0,
+          "appointingGroup": 0,
+          "supportingGroup": 1
+        },
+        {
+          "label": "A-mp-1",
+          "party": "majority",
+          "personalOpinion": 0,
+          "appointingGroup": 0,
+          "supportingGroup": 1
+        },
+        {
+          "label": "A-mp-2",
+          "party": "majority",
+          "personalOpinion": 0,
+          "appointingGroup": 0,
+          "supportingGroup": 0
+        },
+        {
+          "label": "A-mp-3",
+          "party": "majority",
+          "personalOpinion": 0,
+          "appointingGroup": 0,
+          "supportingGroup": 1
+        },
+        {
+          "label": "A-mp-4",
+          "party": "majority",
+          "personalOpinion": 0,
+          "appointingGroup": 0,
+          "supportingGroup": 0
+        },
+        {
+          "label": "A-mp-5",
+          "party": "majority",
+          "personalOpinion": 0,
+          "appointingGroup": 0,
+          "supportingGroup": 1
+        },
+        {
+          "label": "A-mp-6",
+          "party": "majority",
+          "personalOpinion": 1,
+          "appointingGroup": 1,
+          "supportingGroup": 0
+        },
+        {
+          "label": "A-mp-7",
+          "party": "majority",
+          "personalOpinion": 0,
+          "appointingGroup": 1,
+          "supportingGroup": 0
+        },
+        {
+          "label": "A-mp-8",
+          "party": "majority",
+          "personalOpinion": 1,
+          "appointingGroup": 0,
+          "supportingGroup": 1
+        },
+        {
+          "label": "A-mp-9",
+          "party": "majority",
+          "personalOpinion": 0,
+          "appointingGroup": 0,
+          "supportingGroup": 0
+        },
+        {
+          "label": "A-mp-10",
+          "party": "majority",
+          "personalOpinion": 1,
+          "appointingGroup": 0,
+          "supportingGroup": 0
+        },
+        {
+          "label": "A-mp-11",
+          "party": "majority",
+          "personalOpinion": 0,
+          "appointingGroup": 0,
+          "supportingGroup": 1
+        },
+        {
+          "label": "B-mp-1",
+          "party": "opposition",
+          "personalOpinion": 1,
+          "appointingGroup": 1,
+          "supportingGroup": 1
+        },
+        {
+          "label": "B-mp-2",
+          "party": "opposition",
+          "personalOpinion": 1,
+          "appointingGroup": 1,
+          "supportingGroup": 0
+        },
+        {
+          "label": "B-mp-3",
+          "party": "opposition",
+          "personalOpinion": 1,
+          "appointingGroup": 1,
+          "supportingGroup": 1
+        },
+        {
+          "label": "B-mp-4",
+          "party": "opposition",
+          "personalOpinion": 1,
+          "appointingGroup": 1,
+          "supportingGroup": 1
+        },
+        {
+          "label": "B-mp-5",
+          "party": "opposition",
+          "personalOpinion": 0,
+          "appointingGroup": 1,
+          "supportingGroup": 1
+        },
+        {
+          "label": "B-mp-6",
+          "party": "opposition",
+          "personalOpinion": 1,
+          "appointingGroup": 1,
+          "supportingGroup": 1
+        },
+        {
+          "label": "B-mp-7",
+          "party": "opposition",
+          "personalOpinion": 1,
+          "appointingGroup": 1,
+          "supportingGroup": 1
+        },
+        {
+          "label": "B-mp-8",
+          "party": "opposition",
+          "personalOpinion": 0,
+          "appointingGroup": 1,
+          "supportingGroup": 1
+        },
+        {
+          "label": "B-mp-9",
+          "party": "opposition",
+          "personalOpinion": 1,
+          "appointingGroup": 1,
+          "supportingGroup": 0
+        }
+      ]
+    },
+    "judiciary": {
+      "president": "judge-5",
+      "judges": [
+        {
+          "label": "judge-1",
+          "party": "opposition",
+          "influence": 0.25,
+          "personalOpinion": 0,
+          "appointingGroup": 0,
+          "supportingGroup": 0
+        },
+        {
+          "label": "judge-2",
+          "party": "majority",
+          "influence": 0.25,
+          "personalOpinion": 0,
+          "appointingGroup": 1,
+          "supportingGroup": 0
+        },
+        {
+          "label": "judge-3",
+          "party": "opposition",
+          "influence": 0.25,
+          "personalOpinion": 0,
+          "appointingGroup": 0,
+          "supportingGroup": 0
+        },
+        {
+          "label": "judge-4",
+          "party": "majority",
+          "influence": 0.25,
+          "personalOpinion": 1,
+          "appointingGroup": 1,
+          "supportingGroup": 0
+        },
+        {
+          "label": "judge-5",
+          "party": "majority",
+          "influence": 1.0,
+          "personalOpinion": 1,
+          "appointingGroup": 0,
+          "supportingGroup": 0
+        }
+      ]
+    }
+  },
+  "aggrandisementUnits": [
+    {
+      "step": 1,
+      "beliefs": {
+        "ministers": [
+          {
+            "label": "minister-1",
+            "personalOpinion": 0,
+            "appointingGroup": 0,
+            "supportingGroup": 1
+          },
+          {
+            "label": "minister-2",
+            "personalOpinion": 1,
+            "appointingGroup": 0,
+            "supportingGroup": 1
+          },
+          {
+            "label": "minister-3",
+            "personalOpinion": 1,
+            "appointingGroup": 0,
+            "supportingGroup": 0
+          },
+          {
+            "label": "minister-4",
+            "personalOpinion": 1,
+            "appointingGroup": 0,
+            "supportingGroup": 0
+          },
+          {
+            "label": "minister-5",
+            "personalOpinion": 1,
+            "appointingGroup": 1,
+            "supportingGroup": 0
+          },
+          {
+            "label": "minister-6",
+            "personalOpinion": 0,
+            "appointingGroup": 1,
+            "supportingGroup": 0
+          },
+          {
+            "label": "minister-7",
+            "personalOpinion": 0,
+            "appointingGroup": 0,
+            "supportingGroup": 0
+          }
+        ],
+        "mps": [
+          {
+            "label": "C-mp-1",
+            "personalOpinion": 0,
+            "appointingGroup": 0,
+            "supportingGroup": 1
+          },
+          {
+            "label": "C-mp-2",
+            "personalOpinion": 0,
+            "appointingGroup": 0,
+            "supportingGroup": 0
+          },
+          {
+            "label": "C-mp-3",
+            "personalOpinion": 0,
+            "appointingGroup": 1,
+            "supportingGroup": 1
+          },
+          {
+            "label": "C-mp-4",
+            "personalOpinion": 1,
+            "appointingGroup": 1,
+            "supportingGroup": 1
+          },
+          {
+            "label": "C-mp-5",
+            "personalOpinion": 1,
+            "appointingGroup": 1,
+            "supportingGroup": 1
+          },
+          {
+            "label": "C-mp-6",
+            "personalOpinion": 0,
+            "appointingGroup": 0,
+            "supportingGroup": 1
+          },
+          {
+            "label": "C-mp-7",
+            "personalOpinion": 0,
+            "appointingGroup": 0,
+            "supportingGroup": 1
+          },
+          {
+            "label": "C-mp-8",
+            "personalOpinion": 0,
+            "appointingGroup": 0,
+            "supportingGroup": 0
+          },
+          {
+            "label": "C-mp-9",
+            "personalOpinion": 0,
+            "appointingGroup": 0,
+            "supportingGroup": 1
+          },
+          {
+            "label": "C-mp-10",
+            "personalOpinion": 1,
+            "appointingGroup": 0,
+            "supportingGroup": 1
+          },
+          {
+            "label": "C-mp-11",
+            "personalOpinion": 1,
+            "appointingGroup": 1,
+            "supportingGroup": 0
+          },
+          {
+            "label": "C-mp-12",
+            "personalOpinion": 0,
+            "appointingGroup": 1,
+            "supportingGroup": 0
+          },
+          {
+            "label": "C-mp-13",
+            "personalOpinion": 1,
+            "appointingGroup": 1,
+            "supportingGroup": 0
+          },
+          {
+            "label": "C-mp-14",
+            "personalOpinion": 1,
+            "appointingGroup": 0,
+            "supportingGroup": 1
+          },
+          {
+            "label": "C-mp-15",
+            "personalOpinion": 1,
+            "appointingGroup": 0,
+            "supportingGroup": 1
+          },
+          {
+            "label": "A-mp-1",
+            "personalOpinion": 0,
+            "appointingGroup": 0,
+            "supportingGroup": 1
+          },
+          {
+            "label": "A-mp-2",
+            "personalOpinion": 1,
+            "appointingGroup": 0,
+            "supportingGroup": 0
+          },
+          {
+            "label": "A-mp-3",
+            "personalOpinion": 0,
+            "appointingGroup": 1,
+            "supportingGroup": 1
+          },
+          {
+            "label": "A-mp-4",
+            "personalOpinion": 1,
+            "appointingGroup": 1,
+            "supportingGroup": 1
+          },
+          {
+            "label": "A-mp-5",
+            "personalOpinion": 1,
+            "appointingGroup": 1,
+            "supportingGroup": 0
+          },
+          {
+            "label": "A-mp-6",
+            "personalOpinion": 1,
+            "appointingGroup": 1,
+            "supportingGroup": 1
+          },
+          {
+            "label": "A-mp-7",
+            "personalOpinion": 0,
+            "appointingGroup": 1,
+            "supportingGroup": 0
+          },
+          {
+            "label": "A-mp-8",
+            "personalOpinion": 1,
+            "appointingGroup": 0,
+            "supportingGroup": 0
+          },
+          {
+            "label": "A-mp-9",
+            "personalOpinion": 1,
+            "appointingGroup": 1,
+            "supportingGroup": 0
+          },
+          {
+            "label": "A-mp-10",
+            "personalOpinion": 1,
+            "appointingGroup": 1,
+            "supportingGroup": 0
+          },
+          {
+            "label": "A-mp-11",
+            "personalOpinion": 0,
+            "appointingGroup": 0,
+            "supportingGroup": 1
+          },
+          {
+            "label": "B-mp-1",
+            "personalOpinion": 0,
+            "appointingGroup": 0,
+            "supportingGroup": 0
+          },
+          {
+            "label": "B-mp-2",
+            "personalOpinion": 1,
+            "appointingGroup": 0,
+            "supportingGroup": 0
+          },
+          {
+            "label": "B-mp-3",
+            "personalOpinion": 0,
+            "appointingGroup": 0,
+            "supportingGroup": 1
+          },
+          {
+            "label": "B-mp-4",
+            "personalOpinion": 1,
+            "appointingGroup": 0,
+            "supportingGroup": 0
+          },
+          {
+            "label": "B-mp-5",
+            "personalOpinion": 0,
+            "appointingGroup": 0,
+            "supportingGroup": 1
+          },
+          {
+            "label": "B-mp-6",
+            "personalOpinion": 1,
+            "appointingGroup": 0,
+            "supportingGroup": 0
+          },
+          {
+            "label": "B-mp-7",
+            "personalOpinion": 1,
+            "appointingGroup": 1,
+            "supportingGroup": 0
+          },
+          {
+            "label": "B-mp-8",
+            "personalOpinion": 1,
+            "appointingGroup": 0,
+            "supportingGroup": 1
+          },
+          {
+            "label": "B-mp-9",
+            "personalOpinion": 1,
+            "appointingGroup": 1,
+            "supportingGroup": 0
+          }
+        ],
+        "judges": [
+          {
+            "label": "judge-1",
+            "personalOpinion": 0,
+            "appointingGroup": 1,
+            "supportingGroup": 0
+          },
+          {
+            "label": "judge-2",
+            "personalOpinion": 1,
+            "appointingGroup": 0,
+            "supportingGroup": 0
+          },
+          {
+            "label": "judge-3",
+            "personalOpinion": 0,
+            "appointingGroup": 0,
+            "supportingGroup": 0
+          },
+          {
+            "label": "judge-4",
+            "personalOpinion": 1,
+            "appointingGroup": 0,
+            "supportingGroup": 0
+          },
+          {
+            "label": "judge-5",
+            "personalOpinion": 0,
+            "appointingGroup": 1,
+            "supportingGroup": 0
+          }
+        ]
+      }
+    }
+  ]
+}
