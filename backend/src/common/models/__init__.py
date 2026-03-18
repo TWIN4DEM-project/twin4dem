@@ -13,6 +13,13 @@ from ._simulation import (
     AggrandisementPathType,
     SubmodelType,
 )
+from ._aggrandisement import (
+    AggrandisementUnit,
+    AggrandisementBatch,
+    MinisterBelief,
+    MPBelief,
+    JudgeBelief,
+)
 
 __all__ = (
     "Cabinet",
@@ -34,4 +41,9 @@ __all__ = (
     "AggrandisementPathType",
     "SubmodelType",
     "UserSettings",
+    "AggrandisementUnit",
+    "AggrandisementBatch",
+    "MinisterBelief",
+    "MPBelief",
+    "JudgeBelief",
 )

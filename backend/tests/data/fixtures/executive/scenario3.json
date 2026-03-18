@@ -17,7 +17,7 @@
     "pk": 3,
     "fields": {
       "simulation": 3,
-      "type": 13,
+      "type": ["common", "cabinet"],
       "content_id": 3
     }
   },

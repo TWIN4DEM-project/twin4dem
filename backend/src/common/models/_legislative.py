@@ -2,6 +2,7 @@ from django.contrib.contenttypes.fields import GenericRelation
 from django.db import models
 
 from common import fields
+from common.models._belief import BeliefModel
 from common.models._settings import UserSettings, PartySettings
 from common.models._simulation import SimulationParams
 
@@ -49,14 +50,11 @@ class Parliament(models.Model):
         return self.user_settings.parliament_size
 
 
-class MemberOfParliament(models.Model):
+class MemberOfParliament(BeliefModel):
     id = models.AutoField(primary_key=True)
     label = models.CharField(max_length=100)
     is_head = models.BooleanField(null=False, default=False)
     weights = fields.SeparatedValuesField(base_field=models.FloatField(), blank=True)
-    personal_opinion = models.FloatField(default=0)
-    appointing_group_opinion = models.FloatField(default=0)
-    supporting_group_opinion = models.FloatField(default=0)
 
     party = models.ForeignKey(
         to=PartySettings, on_delete=models.RESTRICT, related_name="mps"

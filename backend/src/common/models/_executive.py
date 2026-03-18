@@ -3,6 +3,7 @@ from django.db import models
 
 from common import fields
 from common.models._settings import PartySettings
+from ._belief import BeliefModel
 from ._influence import InfluencerModel
 from ._simulation import SimulationParams
 
@@ -29,13 +30,10 @@ class Cabinet(models.Model):
         ]
 
 
-class Minister(InfluencerModel):
+class Minister(InfluencerModel, BeliefModel):
     id = models.AutoField(primary_key=True)
     label = models.CharField(max_length=50)
     is_prime_minister = models.BooleanField(null=False, default=False)
-    personal_opinion = models.FloatField(default=0)
-    appointing_group_opinion = models.FloatField(default=0)
-    supporting_group_opinion = models.FloatField(default=0)
     party = models.ForeignKey(
         to=PartySettings, on_delete=models.RESTRICT, related_name="ministers"
     )
