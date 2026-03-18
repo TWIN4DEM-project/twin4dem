@@ -20,9 +20,15 @@
 {% block body %}
     <header class="site-header">
         <div class="container header-inner">
-            <div class="brand">
-                <span class="brand-pill">User</span>
-                <span class="brand-pill brand-pill--accent">Account</span>
+            <div class="brand-user">
+                <div class="brand">
+                    <span class="brand-pill">User</span>
+                    <span class="brand-pill brand-pill--accent">Account</span>
+                </div>
+
+                {% if user.is_authenticated %}
+                    <span class="user-email">{{ user.email }}</span>
+                {% endif %}
             </div>
             <nav class="header-nav">
                 {% if user.is_authenticated %}

@@ -1,3 +1,6 @@
+@import "variables";
+
+
 .authentication {
   padding: 1rem;
   justify-content: center;
@@ -14,5 +17,13 @@
         margin-top: 0;
       }
     }
+  }
+
+  a:link {
+    color: $primary;
+  }
+
+  a:visited {
+    color: $primary-soft;
   }
 }
