@@ -31,6 +31,7 @@ export function CourtBeeswarm({ courtVotes, isActive, step }: CourtNetworkProps)
 
     const plot = Plot.plot({
       color: { scheme: colorscheme },
+      marginLeft: 200,
       y: { grid: true },
       r: { range: [min_node_radius, max_node_radius] },
       fx: { domain: vote_categories },
@@ -56,6 +57,9 @@ export function CourtBeeswarm({ courtVotes, isActive, step }: CourtNetworkProps)
             },
           }),
         ),
+        Plot.axisY({
+          facetAnchor: "left",
+        }),
       ],
     });
 
