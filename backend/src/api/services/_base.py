@@ -24,6 +24,10 @@ class SimulationBuilder(metaclass=ABCMeta):
     ) -> None:
         self._user_settings = settings
         self._weights_count = weights_count
+        self._simulation = None
+        self._cabinet = None
+        self._parliament = None
+        self._court = None
 
     @classmethod
     def _get_label(
@@ -32,33 +36,45 @@ class SimulationBuilder(metaclass=ABCMeta):
         return f"{user_settings.user.username}-simulation-{simulation.id:06}{suffix}"
 
     @abstractmethod
-    def _create_cabinet(self, simulation: Simulation) -> Cabinet:
+    def _create_cabinet(self) -> Cabinet:
         pass
 
     @abstractmethod
-    def _create_parliament(self, simulation: Simulation) -> Parliament:
+    def _create_parliament(self) -> Parliament:
         pass
 
     @abstractmethod
-    def _create_court(self, simulation: Simulation) -> Court:
+    def _create_court(self) -> Court:
+        pass
+
+    @abstractmethod
+    def _init_aggrandisement_batch(self) -> None:
         pass
 
     def create(self, serializer: SimulationSerializer) -> Simulation:
-        sim = serializer.save(user_settings=self._user_settings)
-        cab = self._create_cabinet(sim)
-        ct = ContentType.objects.get_for_model(Cabinet)
-        SimulationParams.objects.create(simulation=sim, type=ct, content_id=cab.id)
+        self._simulation = serializer.save(user_settings=self._user_settings)
 
-        parliament = self._create_parliament(sim)
-        ct = ContentType.objects.get_for_model(Parliament)
+        self._cabinet = self._create_cabinet()
+        ct = ContentType.objects.get_for_model(Cabinet)
         SimulationParams.objects.create(
-            simulation=sim, type=ct, content_id=parliament.id
+            simulation=self._simulation, type=ct, content_id=self._cabinet.id
         )
 
-        court = self._create_court(sim)
+        self._parliament = self._create_parliament()
+        ct = ContentType.objects.get_for_model(Parliament)
+        SimulationParams.objects.create(
+            simulation=self._simulation, type=ct, content_id=self._parliament.id
+        )
+
+        self._court = self._create_court()
         ct = ContentType.objects.get_for_model(Court)
-        SimulationParams.objects.create(simulation=sim, type=ct, content_id=court.id)
-        return sim
+        SimulationParams.objects.create(
+            simulation=self._simulation, type=ct, content_id=self._court.id
+        )
+
+        self._init_aggrandisement_batch()
+
+        return self._simulation
 
     @classmethod
     def _build_minister_network(

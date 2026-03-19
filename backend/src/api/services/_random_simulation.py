@@ -17,10 +17,12 @@ from common.models import (
 
 
 class RandomSimulationBuilder(SimulationBuilder):
-    def _create_cabinet(self, simulation) -> Cabinet:
+    def _create_cabinet(self) -> Cabinet:
         n = self._user_settings.government_size
         k = self._user_settings.government_connectivity_degree
-        cabinet_label = self._get_label(simulation, self._user_settings, "-cabinet")
+        cabinet_label = self._get_label(
+            self._simulation, self._user_settings, "-cabinet"
+        )
         cabinet = Cabinet.objects.create(
             label=cabinet_label,
             government_probability_for=self._user_settings.government_probability_for,
@@ -73,9 +75,9 @@ class RandomSimulationBuilder(SimulationBuilder):
 
         return cabinet
 
-    def _create_parliament(self, simulation) -> Parliament:
+    def _create_parliament(self) -> Parliament:
         parliament_label = self._get_label(
-            simulation, self._user_settings, "-parliament"
+            self._simulation, self._user_settings, "-parliament"
         )
         parliament = Parliament.objects.create(
             label=parliament_label,
@@ -125,8 +127,8 @@ class RandomSimulationBuilder(SimulationBuilder):
         MemberOfParliament.objects.bulk_create(mp_objects)
         return parliament
 
-    def _create_court(self, simulation) -> Court:
-        court_label = self._get_label(simulation, self._user_settings, "-court")
+    def _create_court(self) -> Court:
+        court_label = self._get_label(self._simulation, self._user_settings, "-court")
         court = Court.objects.create(
             label=court_label,
             probability_for=self._user_settings.court_probability_for,
@@ -154,3 +156,6 @@ class RandomSimulationBuilder(SimulationBuilder):
         Judge.objects.bulk_create(judges)
         JudgeLink.objects.bulk_create(links)
         return court
+
+    def _init_aggrandisement_batch(self) -> None:
+        pass

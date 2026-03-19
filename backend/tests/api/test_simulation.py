@@ -6,7 +6,7 @@ from django.db.models import Sum
 
 from common.dto import AggrandisementBatch
 from common.models import UserSettings
-from common.models._simulation import SubmodelType
+from common.models._simulation import SubmodelType, Simulation
 from common.models import (
     SimulationLogEntry,
     SimulationSubmodelLogEntry,
@@ -562,3 +562,24 @@ def test_post_with_zip_file_sets_influence(
         assert (
             x["influence"] == y.influence
         ), f"judge {x["label"]} did not have the expected influence {y.influence}"
+
+
+def test_post_with_zip_file_initializes_simulation_steps(
+    admin_client, admin_user, uploaded_zip, aggrandisement_batch
+):
+    user_settings = UserSettings.objects.get(user=admin_user)
+    batch_dto = AggrandisementBatch.model_validate(aggrandisement_batch)
+    admin_client.post("/api/v1/simulation/", {"file": uploaded_zip}, format="multipart")
+
+    simulation = Simulation.objects.filter(user_settings=user_settings).first()
+
+    assert simulation.batch.count() == 1
+    batch = simulation.batch.first()
+    assert batch.units.count() == len(batch_dto.aggrandisement_units)
+    u = batch.units.first()
+    assert u.step_no == batch_dto.aggrandisement_units[0].step
+    assert u.ministers.count() == len(
+        batch_dto.aggrandisement_units[0].beliefs.ministers
+    )
+    assert u.mps.count() == len(batch_dto.aggrandisement_units[0].beliefs.mps)
+    assert u.judges.count() == len(batch_dto.aggrandisement_units[0].beliefs.judges)

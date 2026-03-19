@@ -36,15 +36,13 @@ class MinisterBelief(BeliefModel):
     unit = models.ForeignKey(
         to=AggrandisementUnit, on_delete=models.CASCADE, related_name="ministers"
     )
-    minister = models.ForeignKey(
+    agent = models.ForeignKey(
         to=Minister, on_delete=models.CASCADE, related_name="beliefs"
     )
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(
-                name="uq_minister_unit", fields=["minister", "unit"]
-            )
+            models.UniqueConstraint(name="uq_minister_unit", fields=["agent", "unit"])
         ]
 
 
@@ -53,13 +51,13 @@ class MPBelief(BeliefModel):
     unit = models.ForeignKey(
         to=AggrandisementUnit, on_delete=models.CASCADE, related_name="mps"
     )
-    mp = models.ForeignKey(
+    agent = models.ForeignKey(
         to=MemberOfParliament, on_delete=models.CASCADE, related_name="beliefs"
     )
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(name="uq_mp_unit", fields=["mp", "unit"])
+            models.UniqueConstraint(name="uq_mp_unit", fields=["agent", "unit"])
         ]
 
 
@@ -68,11 +66,11 @@ class JudgeBelief(BeliefModel):
     unit = models.ForeignKey(
         to=AggrandisementUnit, on_delete=models.CASCADE, related_name="judges"
     )
-    judge = models.ForeignKey(
+    agent = models.ForeignKey(
         to=Judge, on_delete=models.CASCADE, related_name="beliefs"
     )
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(name="uq_judge_unit", fields=["judge", "unit"])
+            models.UniqueConstraint(name="uq_judge_unit", fields=["agent", "unit"])
         ]
