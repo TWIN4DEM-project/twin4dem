@@ -1,0 +1,20 @@
+@import "@scss/variables";
+
+.tabRow {
+  display: flex;
+  flex-direction: row;
+  justify-content: start;
+  margin-top: 16px;
+
+  button {
+    background-color: $bg;
+    color: $primary-soft;
+    border-radius: $radius-sm $radius-sm 0 0;
+    padding: 0 24px;
+
+    &.button--outline {
+      border-bottom: none;
+      color: $primary;
+    }
+  }
+}

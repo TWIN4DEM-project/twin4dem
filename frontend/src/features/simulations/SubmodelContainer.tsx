@@ -30,43 +30,41 @@ export function SubmodelContainer({
   step,
 }: SubmodelContainerProps) {
   return (
-    <div>
-      <div className="simulationStep">
-        <div className="votingOutcome">
-          <div>
-            Path: <strong>{path ?? "-"}</strong>
-          </div>
-          <div>
-            Voting Outcome:{" "}
-            <strong>
-              {aggrandizementPassed === null
-                ? "-"
-                : `Aggrandisement ${aggrandizementPassed ? "Passed" : "Failed"}`}
-            </strong>
-          </div>
+    <>
+      <div className="votingOutcome">
+        <div>
+          Path: <strong>{path ?? "-"}</strong>
         </div>
-        <Legend parties={parties} min_influence_radius={10} max_influence_radius={20} />
-        <div className="submodelContainer">
-          <MinisterNetwork
-            ministerVotes={ministerVotes}
-            isActive={path !== undefined}
-            path={path}
-            step={step}
-          />
-          <div className="rightPanel">
-            <ParliamentBeeswarm
-              memberVotes={mpVotes}
-              isActive={path === "legislative act"}
-              step={step}
-            />
-            <CourtBeeswarm
-              courtVotes={courtVotes}
-              isActive={path === "decree"}
-              step={step}
-            />
-          </div>
+        <div>
+          Voting Outcome:{" "}
+          <strong>
+            {aggrandizementPassed === null
+              ? "-"
+              : `Aggrandisement ${aggrandizementPassed ? "Passed" : "Failed"}`}
+          </strong>
         </div>
       </div>
-    </div>
+      <Legend parties={parties} min_influence_radius={10} max_influence_radius={20} />
+      <div className="submodelContainer">
+        <MinisterNetwork
+          ministerVotes={ministerVotes}
+          isActive={path !== undefined}
+          path={path}
+          step={step}
+        />
+        <div className="rightPanel">
+          <ParliamentBeeswarm
+            memberVotes={mpVotes}
+            isActive={path === "legislative act"}
+            step={step}
+          />
+          <CourtBeeswarm
+            courtVotes={courtVotes}
+            isActive={path === "decree"}
+            step={step}
+          />
+        </div>
+      </div>
+    </>
   );
 }

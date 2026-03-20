@@ -14,11 +14,10 @@
     }
   }
 
-  .simulationHeader {
-    border-radius: $radius-sm;
+  .simulationInfoCard {
+    border-radius: 0 $radius-sm $radius-sm $radius-sm;
     background: $dashboard-card-bg;
     padding: 0 1rem;
-    margin: 1rem 0;
 
     td {
       text-align: center;

@@ -5,12 +5,12 @@ import type { JudgeVote } from "@/features/court/CourtBeeswarm.tsx";
 import type { MinisterVote } from "@/features/executive/MinisterNetwork.tsx";
 import type { MemberVote } from "@/features/legislative/ParliamentBeeswarm.tsx";
 import { fetchSettings, useSimulation } from "@/features/simulations/hooks.ts";
-import { SubmodelContainer } from "@/features/simulations/SubmodelContainer.tsx";
 import { useWebSocketStream } from "@/hooks/websocket.ts";
 import type { UserSettings } from "@/types/settings.ts";
 import { type SimulationState, SimulationStateSchema } from "@/types/state.ts";
 
 import "./SimulationDetails.scss";
+import SimulationTabbedContainer from "@/features/simulations/SimulationTabbedContainer.tsx";
 
 const SimulationIdParamSchema = z.coerce.number().int().positive();
 
@@ -181,7 +181,7 @@ export function SimulationDetails({ updateSimulationStep }: SimulationDetailsPar
       });
     }
 
-    // find aggrendisement state
+    // find aggrandisement state
     newSimulationState.aggrandisementPassed = data.results.reduce(
       (prev, current) => prev && (current.approved ?? false),
       true,
@@ -258,7 +258,7 @@ export function SimulationDetails({ updateSimulationStep }: SimulationDetailsPar
         </button>
       </div>
 
-      <div className="simulationHeader">
+      <div className="simulationInfoCard">
         <div className="executiveContainer">
           <h4>Executive Sub-model - {cabinet.current?.label || "unknown"}</h4>
           <div className="executiveContainerHeader">
@@ -273,14 +273,15 @@ export function SimulationDetails({ updateSimulationStep }: SimulationDetailsPar
         </div>
       </div>
 
-      <SubmodelContainer
+      <SimulationTabbedContainer
+        simulationId={simulationIdNo}
         parties={parties}
         ministerVotes={ministerVotes}
         mpVotes={mpVotes}
         courtVotes={courtVotes}
         aggrandizementPassed={aggrandisementPassed}
         path={path}
-        step={stepNo}
+        stepNo={stepNo}
       />
     </div>
   );

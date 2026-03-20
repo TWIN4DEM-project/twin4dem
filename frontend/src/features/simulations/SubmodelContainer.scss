@@ -9,7 +9,7 @@
   background: $dashboard-card-bg;
   border-bottom: 2px solid $muted;
   border-top-right-radius: $radius-sm;
-  border-top-left-radius: $radius-sm;
+  border-top-left-radius: 0;
 
   strong {
     color: $primary;
