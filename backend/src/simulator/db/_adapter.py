@@ -2,6 +2,7 @@ import random
 from typing import Any, Generic, TypeVar
 
 from django.contrib.contenttypes.models import ContentType
+from django.db import models
 
 from common.models import (
     Simulation,
@@ -11,6 +12,9 @@ from common.models import (
     MemberOfParliament,
     Court as CourtModel,
     Judge as JudgeModel,
+    MinisterBelief,
+    MPBelief,
+    JudgeBelief,
     SimulationSubmodelLogEntry,
     SubmodelType,
 )
@@ -39,6 +43,7 @@ def _random_frequency(center: float, lo: float = 0.0, hi: float = 1.0) -> float:
 
 
 T = TypeVar("T", Cabinet, ParliamentModel, CourtModel)
+TBelief = TypeVar("TBelief", bound=models.Model)
 
 
 class RelatedInstitutionFinder(Generic[T]):
@@ -52,6 +57,24 @@ class RelatedInstitutionFinder(Generic[T]):
                 f"there are no {model_class.__name__} models in simulation {simulation.id}"
             )
         return related_of_type.first().params
+
+
+class StepBeliefsFinder:
+    @staticmethod
+    def _get_beliefs_for_step(
+        belief_model: type[TBelief],
+        simulation_id: int,
+        step_no: int | None,
+    ) -> dict[int, TBelief]:
+        if step_no is None:
+            return {}
+        return {
+            belief.agent_id: belief
+            for belief in belief_model.objects.filter(
+                unit__batch__simulation_id=simulation_id,
+                unit__step_no=step_no,
+            ).select_related("agent", "unit")
+        }
 
 
 class PrevVotesFinder:
@@ -69,7 +92,12 @@ class PrevVotesFinder:
 
 
 class MinisterDbAdapter(AgentAdapter[MinisterModel, Minister]):
+    def __init__(self, beliefs_for_step: dict[int, MinisterBelief] | None = None):
+        self._beliefs_for_step = beliefs_for_step or {}
+
     def convert(self, value: MinisterModel) -> Minister:
+        step_belief = self._beliefs_for_step.get(value.id)
+
         return Minister(
             id=value.id,
             T_i="Minister",
@@ -78,21 +106,34 @@ class MinisterDbAdapter(AgentAdapter[MinisterModel, Minister]):
             S_i=value.influence,
             W=Weights(value.weights),
             belief=AgentBelief(
-                o_i=value.personal_opinion,
+                o_i=(
+                    step_belief.personal_opinion
+                    if step_belief is not None
+                    else value.personal_opinion
+                ),
                 # support group 1 = ones who have the power to affect the status of the minister (appoint, revoke, etc)
-                o_sup1=value.appointing_group_opinion,
+                o_sup1=(
+                    step_belief.appointing_group_opinion
+                    if step_belief is not None
+                    else value.appointing_group_opinion
+                ),
                 # support group 2 = people who are directly benefitting from ministers getting more power
                 # setting this to 1.0 until better ideas about how to compute this value emerge
-                o_sup2=value.supporting_group_opinion,
+                o_sup2=(
+                    step_belief.supporting_group_opinion
+                    if step_belief is not None
+                    else value.supporting_group_opinion
+                ),
             ),
         )
 
 
 class GovernmentDbAdapter(
-    GovernmentAdapter[int], RelatedInstitutionFinder[Cabinet], PrevVotesFinder
+    GovernmentAdapter[int],
+    RelatedInstitutionFinder[Cabinet],
+    PrevVotesFinder,
+    StepBeliefsFinder,
 ):
-    def __init__(self):
-        self.__minister_adapter = MinisterDbAdapter()
 
     @staticmethod
     def _build_network(ministers: list[MinisterModel]) -> dict[int, list[int]]:
@@ -103,11 +144,16 @@ class GovernmentDbAdapter(
 
     def convert(self, simulation_id: int, **kwargs: Any) -> Government:
         value = Simulation.objects.get(pk=simulation_id)
+        step_no = kwargs.get("step_no")
+        beliefs_for_step = self._get_beliefs_for_step(
+            MinisterBelief, simulation_id, step_no
+        )
+        minister_adapter = MinisterDbAdapter(beliefs_for_step=beliefs_for_step)
         cabinet = self._find_institution(value, Cabinet)
         minister_models = list(
             cabinet.ministers.all().prefetch_related("cabinet", "neighbours_in")
         )
-        ministers = list(map(self.__minister_adapter.convert, minister_models))
+        ministers = list(map(minister_adapter.convert, minister_models))
         previous_votes = self._get_prev_votes(value, SubmodelType.EXECUTIVE)
 
         return Government(
@@ -122,11 +168,18 @@ class GovernmentDbAdapter(
 
 
 class MPDbAdapter(AgentAdapter[MemberOfParliament, MP]):
-    def __init__(self, majority_prob_for: float, opposition_prob_for: float):
+    def __init__(
+        self,
+        majority_prob_for: float,
+        opposition_prob_for: float,
+        beliefs_for_step: dict[int, MPBelief] | None = None,
+    ):
         self._majority_for = majority_prob_for
         self._opposition_for = opposition_prob_for
+        self._beliefs_for_step = beliefs_for_step or {}
 
     def convert(self, mp: MemberOfParliament) -> MP:
+        step_belief = self._beliefs_for_step.get(mp.id)
         return MP(
             id=mp.id,
             T_i="mp",
@@ -135,24 +188,44 @@ class MPDbAdapter(AgentAdapter[MemberOfParliament, MP]):
             is_head=mp.is_head,
             S_i=0,
             belief=AgentBelief(
-                o_i=mp.personal_opinion,
-                o_sup1=mp.appointing_group_opinion,
-                o_sup2=mp.supporting_group_opinion,
+                o_i=(
+                    step_belief.personal_opinion
+                    if step_belief is not None
+                    else mp.personal_opinion
+                ),
+                o_sup1=(
+                    step_belief.appointing_group_opinion
+                    if step_belief is not None
+                    else mp.appointing_group_opinion
+                ),
+                o_sup2=(
+                    step_belief.supporting_group_opinion
+                    if step_belief is not None
+                    else mp.supporting_group_opinion
+                ),
             ),
         )
 
 
 class ParliamentDbAdapter(
-    ParliamentAdapter[int], RelatedInstitutionFinder[ParliamentModel], PrevVotesFinder
+    ParliamentAdapter[int],
+    RelatedInstitutionFinder[ParliamentModel],
+    PrevVotesFinder,
+    StepBeliefsFinder,
 ):
-    def convert(self, simulation_id: int) -> Parliament:
+
+    def convert(self, simulation_id: int, **kwargs: Any) -> Parliament:
         value = Simulation.objects.get(pk=simulation_id)
+        step_no = kwargs.get("step_no")
+        beliefs_for_step = self._get_beliefs_for_step(MPBelief, simulation_id, step_no)
         parliament = self._find_institution(value, ParliamentModel)
         parliament_members = list(
             parliament.members.all().prefetch_related("parliament")
         )
         mp_adapter = MPDbAdapter(
-            parliament.majority_probability_for, parliament.opposition_probability_for
+            parliament.majority_probability_for,
+            parliament.opposition_probability_for,
+            beliefs_for_step=beliefs_for_step,
         )
         mps = list(map(mp_adapter.convert, parliament_members))
         previous_votes = self._get_prev_votes(value, SubmodelType.LEGISLATIVE)
@@ -168,10 +241,16 @@ class ParliamentDbAdapter(
 
 
 class JudgeDbAdapter(AgentAdapter[JudgeModel, Judge]):
-    def __init__(self, probability_for: float):
+    def __init__(
+        self,
+        probability_for: float,
+        beliefs_for_step: dict[int, JudgeBelief] | None = None,
+    ):
         self._p = probability_for
+        self._beliefs_for_step = beliefs_for_step or {}
 
     def convert(self, judge: JudgeModel) -> Judge:
+        step_belief = self._beliefs_for_step.get(judge.id)
         return Judge(
             id=judge.id,
             is_president=judge.is_president,
@@ -180,24 +259,45 @@ class JudgeDbAdapter(AgentAdapter[JudgeModel, Judge]):
             S_i=judge.influence,
             W=Weights(judge.weights),
             belief=AgentBelief(
-                o_i=judge.personal_opinion,
-                o_sup1=judge.appointing_group_opinion,
-                o_sup2=judge.supporting_group_opinion,
+                o_i=(
+                    step_belief.personal_opinion
+                    if step_belief is not None
+                    else judge.personal_opinion
+                ),
+                o_sup1=(
+                    step_belief.appointing_group_opinion
+                    if step_belief is not None
+                    else judge.appointing_group_opinion
+                ),
+                o_sup2=(
+                    step_belief.supporting_group_opinion
+                    if step_belief is not None
+                    else judge.supporting_group_opinion
+                ),
             ),
         )
 
 
 class CouncilDbAdapter(
-    CouncilAdapter[int], RelatedInstitutionFinder[CourtModel], PrevVotesFinder
+    CouncilAdapter[int],
+    RelatedInstitutionFinder[CourtModel],
+    PrevVotesFinder,
+    StepBeliefsFinder,
 ):
     @staticmethod
     def _build_network(judges: list[JudgeModel]) -> dict[int, list[int]]:
         return {to.id: [fro.id for fro in to.neighbours_in.all()] for to in judges}
 
-    def convert(self, simulation_id: int) -> Council:
+    def convert(self, simulation_id: int, **kwargs: Any) -> Council:
         value = Simulation.objects.get(pk=simulation_id)
+        step_no = kwargs.get("step_no")
+        beliefs_for_step = self._get_beliefs_for_step(
+            JudgeBelief, simulation_id, step_no
+        )
         court = self._find_institution(value, CourtModel)
-        judge_adapter = JudgeDbAdapter(court.probability_for)
+        judge_adapter = JudgeDbAdapter(
+            court.probability_for, beliefs_for_step=beliefs_for_step
+        )
         court_judges = list(
             court.judges.all().prefetch_related("court", "neighbours_in")
         )

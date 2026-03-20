@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, call
 
 import pytest
 
@@ -33,24 +33,30 @@ def adapter_factory_mock(adapter_mock):
     "approved,aggrandisement_path", [(True, "decree")], indirect=True
 )
 def test_decree_path_runs_council_submodel(
-    executive_submodel_output, adapter_factory_mock
+    executive_submodel_output, adapter_factory_mock, adapter_mock
 ):
     subsequent_submodel.delay(executive_submodel_output).get()
+    simulation_id = executive_submodel_output["simulationId"]
+    step_no = executive_submodel_output["stepNo"]
 
     assert adapter_factory_mock.new_council_adapter.call_count == 1
     assert adapter_factory_mock.new_parliament_adapter.call_count == 0
+    assert adapter_mock.convert.call_args_list == [call(simulation_id, step_no=step_no)]
 
 
 @pytest.mark.parametrize(
     "approved,aggrandisement_path", [(True, "legislative act")], indirect=True
 )
 def test_legislative_path_runs_parliament_submodel(
-    executive_submodel_output, adapter_factory_mock
+    executive_submodel_output, adapter_factory_mock, adapter_mock
 ):
+    simulation_id = executive_submodel_output["simulationId"]
+    step_no = executive_submodel_output["stepNo"]
     subsequent_submodel.delay(executive_submodel_output).get()
 
     assert adapter_factory_mock.new_council_adapter.call_count == 0
     assert adapter_factory_mock.new_parliament_adapter.call_count == 1
+    assert adapter_mock.convert.call_args_list == [call(simulation_id, step_no=step_no)]
 
 
 @pytest.mark.parametrize("vbar_approved", [True, False], indirect=True)

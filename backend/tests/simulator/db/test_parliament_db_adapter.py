@@ -1,11 +1,15 @@
 import pytest
 from django.contrib.contenttypes.models import ContentType
+from django.utils import timezone
 
 from common.models import (
     Simulation,
     Parliament as ParliamentModel,
     MemberOfParliament,
     SimulationParams,
+    AggrandisementBatch,
+    AggrandisementUnit,
+    MPBelief,
 )
 import simulator.db._adapter as adapter_module
 from simulator.db._adapter import ParliamentDbAdapter
@@ -157,3 +161,80 @@ def test_mp_personal_opinion_stable_across_conversions(sut, simulation, monkeypa
     opinions_second = {mp.id: mp.belief.o_i for mp in parliament_second.mps}
 
     assert opinions_first == opinions_second
+
+
+@pytest.fixture
+def step_no():
+    return 5
+
+
+@pytest.fixture
+def aggrandisement_unit(simulation, step_no):
+    batch = AggrandisementBatch.objects.create(
+        simulation=simulation,
+        start_date=timezone.now(),
+        end_date=timezone.now(),
+    )
+    return AggrandisementUnit.objects.create(batch=batch, step_no=step_no)
+
+
+@pytest.fixture
+def targeted_and_fallback_mps(parliament):
+    members = list(parliament.members.all().order_by("id"))
+    assert len(members) >= 2
+    return members[0], members[1]
+
+
+@pytest.fixture
+def configured_global_mp_beliefs(targeted_and_fallback_mps):
+    targeted, fallback = targeted_and_fallback_mps
+    targeted.personal_opinion = 0.0
+    targeted.appointing_group_opinion = 0.0
+    targeted.supporting_group_opinion = 0.0
+    targeted.save(
+        update_fields=[
+            "personal_opinion",
+            "appointing_group_opinion",
+            "supporting_group_opinion",
+        ]
+    )
+    fallback.personal_opinion = 1.0
+    fallback.appointing_group_opinion = 1.0
+    fallback.supporting_group_opinion = 1.0
+    fallback.save(
+        update_fields=[
+            "personal_opinion",
+            "appointing_group_opinion",
+            "supporting_group_opinion",
+        ]
+    )
+    return targeted, fallback
+
+
+@pytest.fixture
+def mp_step_belief(aggrandisement_unit, configured_global_mp_beliefs):
+    targeted, _ = configured_global_mp_beliefs
+    return MPBelief.objects.create(
+        unit=aggrandisement_unit,
+        agent=targeted,
+        personal_opinion=1.0,
+        appointing_group_opinion=1.0,
+        supporting_group_opinion=1.0,
+    )
+
+
+@pytest.mark.django_db
+def test_convert_uses_step_specific_mp_beliefs_with_global_fallback(
+    sut, simulation, step_no, configured_global_mp_beliefs, mp_step_belief
+):
+    targeted, fallback = configured_global_mp_beliefs
+    converted_parliament = sut.convert(simulation.id, step_no=step_no)
+    converted = {mp.id: mp for mp in converted_parliament.mps}
+
+    assert converted[targeted.id].belief.o_i == 1.0
+    assert converted[targeted.id].belief.o_sup1 == 1.0
+    assert converted[targeted.id].belief.o_sup2 == 1.0
+
+    assert converted[fallback.id].belief.o_i == fallback.personal_opinion
+    assert converted[fallback.id].belief.o_sup1 == fallback.appointing_group_opinion
+    assert converted[fallback.id].belief.o_sup2 == fallback.supporting_group_opinion

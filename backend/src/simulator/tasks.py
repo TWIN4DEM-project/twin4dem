@@ -49,7 +49,7 @@ def subsequent_submodel(step_result: SimulationStepResult):
     else:
         adapter = factory.new_parliament_adapter()
 
-    submodel = adapter.convert(step_result.simulation_id)
+    submodel = adapter.convert(step_result.simulation_id, step_no=step_result.step_no)
     result = submodel.step()
     step_result.results.append(result)
 
@@ -88,7 +88,9 @@ def decide_and_dispatch(self, step_result: SimulationStepResult, channel_name: s
 @shared_task(pydantic=True)
 def executive_submodel(step_result: SimulationStepResult):
     factory = get_adapter_factory()
-    gov = factory.new_government_adapter().convert(step_result.simulation_id)
+    gov = factory.new_government_adapter().convert(
+        step_result.simulation_id, step_no=step_result.step_no
+    )
     cabinet_result = gov.step()
     step_result.results.append(cabinet_result)
     return step_result.model_dump(mode="json", by_alias=True)
