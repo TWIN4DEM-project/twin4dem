@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import pytest
 
 from common.dto import (
@@ -12,8 +14,14 @@ from common.models import (
     SimulationSubmodelLogEntry,
     SubmodelType,
     VbarSubmodelInfo,
+    AggrandisementBatch,
+    AggrandisementUnit,
 )
 from simulator.persistence import DjangoSimulationPersistence
+
+
+START_DATE = datetime(2024, 2, 16, 1, 4, 5, 1)
+END_DATE = datetime(2026, 1, 31, 10, 14, 15, 129)
 
 
 @pytest.fixture
@@ -57,6 +65,22 @@ def step_result_factory(simulation):
         )
 
     return _make
+
+
+@pytest.fixture
+def aggrandisement_batch(simulation):
+    return AggrandisementBatch.objects.create(
+        start_date=START_DATE,
+        end_date=END_DATE,
+        simulation=simulation,
+    )
+
+
+@pytest.fixture
+def aggrandisement_unit(request, aggrandisement_batch):
+    return AggrandisementUnit.objects.create(
+        batch=aggrandisement_batch, step_no=getattr(request, "param", 1)
+    )
 
 
 @pytest.mark.django_db
@@ -162,3 +186,23 @@ def test_persist_step_requires_cabinet_result(
 
     assert SimulationLogEntry.objects.count() == 0
     assert SimulationSubmodelLogEntry.objects.count() == 0
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("step_count", [1, 2, 10])
+def test_persist_can_perform_step_returns_true_without_agg_batch(
+    persistence, simulation, step_count
+):
+    assert persistence.can_perform_step(simulation.id, step_count)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "step_count,aggrandisement_unit,expected",
+    [(2, 1, False), (1, 1, True), (1, 2, True)],
+    indirect=["aggrandisement_unit"],
+)
+def test_persist_can_perform_step_stops_on_max_au_step(
+    persistence, simulation, aggrandisement_unit, step_count, expected
+):
+    assert persistence.can_perform_step(simulation.id, step_count) == expected

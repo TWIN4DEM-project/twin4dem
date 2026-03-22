@@ -24,6 +24,7 @@ class StubConsumer(Twin4DemAsyncConsumer):
     ):
         super().__init__(task_mock, *args, **kwargs)
         self._startup_mock = on_started
+        self._startup_failed_mock = MagicMock()
         self._done = done
 
     async def receive(self, text_data=None, bytes_data=None):
@@ -32,6 +33,12 @@ class StubConsumer(Twin4DemAsyncConsumer):
             return await super().receive(text_data, bytes_data)
         finally:
             self._done.set()
+
+    async def _can_run_task(self, *args, **kwargs) -> bool:
+        return True
+
+    async def _on_task_cannot_start(self):
+        self._startup_failed_mock()
 
     async def _on_task_started(self):
         self._startup_mock()

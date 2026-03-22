@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from django.db import transaction
+from django.db.models import Max
 
 from common.dto import SimulationStepResult, SubmodelType as SubmodelTypeDto
 from common.models import (
@@ -10,6 +11,7 @@ from common.models import (
     SubmodelType,
     PathSubmodelInfo,
     VbarSubmodelInfo,
+    AggrandisementUnit,
 )
 
 from ._base import SimulationPersistence
@@ -22,6 +24,19 @@ _SUBMODEL_TYPE_MAP = {
 
 
 class DjangoSimulationPersistence(SimulationPersistence):
+    def can_perform_step(self, simulation_id: int, step_count: int) -> bool:
+        try:
+            simulation = Simulation.objects.get(pk=simulation_id)
+            simulation_units = AggrandisementUnit.objects.select_related(
+                "batch"
+            ).filter(batch__simulation_id=simulation.id)
+            if not simulation_units.exists():
+                return True
+            max_step = simulation_units.aggregate(max_step=Max("step_no"))["max_step"]
+            return simulation.current_step + step_count <= max_step
+        except Simulation.DoesNotExist:
+            return False
+
     def persist_step(self, payload: SimulationStepResult | dict) -> None:
         step_result = self._coerce_input_arg(payload)
         if not step_result.results:

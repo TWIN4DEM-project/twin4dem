@@ -1,23 +1,12 @@
-from unittest.mock import ANY, call, patch, MagicMock
+from unittest.mock import ANY, call
 
 import pytest
 import pytest_asyncio
-
-from simulator.persistence import SimulationPersistence
 
 
 @pytest.fixture
 def simulation_id(request):
     return int(getattr(request, "param", 1))
-
-
-@pytest.fixture
-def persistence_mock():
-    with patch("web.channels._simulation.get_simulation_persistence") as mock:
-        mock.return_value = MagicMock(
-            name="mock-persistence", spec=SimulationPersistence
-        )
-        yield mock.return_value
 
 
 @pytest_asyncio.fixture
@@ -30,6 +19,7 @@ async def sim_comm(new_communicator, simulation_id, simulation_task_mock):
         await c.disconnect(timeout=0.1)
 
 
+@pytest.mark.django_db
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     "simulation_id,expected_message",

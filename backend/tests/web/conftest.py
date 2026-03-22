@@ -1,11 +1,12 @@
 from typing import Callable, AsyncGenerator, Optional
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 import pytest
 import pytest_asyncio
 from channels.routing import URLRouter
 from channels.testing import WebsocketCommunicator
 
+from simulator.persistence import SimulationPersistence
 from web import routing
 
 
@@ -18,6 +19,16 @@ def url_router() -> URLRouter:
 def simulation_task_mock():
     with patch("web.channels._simulation.run_simulation") as mock:
         yield mock
+
+
+@pytest.fixture(autouse=True)
+def persistence_mock():
+    with patch("web.channels._simulation.get_simulation_persistence") as mock:
+        mock.return_value = MagicMock(
+            name="mock-persistence", spec=SimulationPersistence
+        )
+        mock.return_value.can_perform_step.return_value = True
+        yield mock.return_value
 
 
 @pytest.fixture
