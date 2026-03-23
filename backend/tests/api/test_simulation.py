@@ -160,18 +160,24 @@ def test_post_anonymous_forbidden(client):
     }
 
 
-def test_list_success(admin_client):
+def test_list_success(admin_client, uploaded_zip):
     admin_client.post("/api/v1/simulation/")
+    admin_client.post("/api/v1/simulation/", {"file": uploaded_zip}, format="multipart")
     response = admin_client.get("/api/v1/simulation/")
 
     assert response.status_code == 200
     data = response.json()
-    assert len(data) == 1
+    assert len(data) == 2
     assert data[0]["createdAt"] is not None
     assert data[0]["updatedAt"] is not None
     assert data[0]["id"] is not None
     assert data[0]["currentStep"] == 0
     assert data[0]["status"] == "new"
+    assert (
+        data[0]["label"]
+        == "user simulation 2\nsimulation_data [2025-01-01 → 2025-12-31]"
+    )
+    assert data[1]["label"] == "random simulation 1"
 
 
 def test_list_anonymous_forbidden(client):
@@ -525,6 +531,9 @@ def test_post_with_zip_file_upload(admin_client, uploaded_zip, aggrandisement_ba
     assert data["id"] is not None
     assert data["officeRetentionSensitivity"] == 5.0
     assert data["socialInfluenceSusceptibility"] == 0.5
+    assert (
+        data["label"] == "user simulation 1\nsimulation_data [2025-01-01 → 2025-12-31]"
+    )
     assert "params" in data and len(data["params"]) == 3
     cabinet = data["params"][0]["cabinet"]
     assert len(cabinet["ministers"]) == len(settings.executive.ministers)

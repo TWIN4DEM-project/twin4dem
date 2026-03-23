@@ -8,6 +8,7 @@ export const SimulationListItemSchema = z.object({
   currentStep: z.number(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
+  label: z.string(),
 });
 export const SimulationListSchema = z.array(SimulationListItemSchema);
 
@@ -93,6 +94,8 @@ export const SimulationSchema = z.object({
   officeRetentionSensitivity: z.number(),
   socialInfluenceSusceptibility: z.number(),
   params: z.array(SimulationParamSchema),
+  label: z.string(),
+  maxStepCount: z.number().optional(),
   results: z.array(StepResultSchema).optional(),
 });
 

@@ -1,6 +1,7 @@
 import json
 import zipfile
 from http import HTTPStatus
+from pathlib import Path
 
 from django.core.files.uploadedfile import UploadedFile, TemporaryUploadedFile
 from django.core.files.uploadhandler import TemporaryFileUploadHandler
@@ -112,7 +113,9 @@ class SimulationViewSet(
                 )
 
             obj = self._handle_zip_file(uploaded_file)
-            builder = AggrandisementBatchBuilder(user_settings)
+            builder = AggrandisementBatchBuilder(
+                user_settings, Path(uploaded_file.name).stem
+            )
             builder.load_aggrandisement_batch(obj).create(serializer)
         else:
             RandomSimulationBuilder(user_settings).create(serializer)

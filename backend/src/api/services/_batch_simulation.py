@@ -26,16 +26,18 @@ from common.models import (
 
 
 class AggrandisementBatchBuilder(SimulationBuilder):
-    def __init__(self, settings: UserSettings):
+    def __init__(self, settings: UserSettings, file_name: str | None = None):
         super().__init__(settings)
         self.__aggrandisement_batch: Optional[AggrandisementBatch] = None
         self.__party_map = None
+        self.__file_name = file_name
 
     def load_aggrandisement_batch(
         self, input_data: dict | Path
     ) -> "AggrandisementBatchBuilder":
         if isinstance(input_data, Path):
             with open(input_data, "r") as fp:
+                self.__file_name = self.__file_name or input_data.stem
                 self.__aggrandisement_batch = AggrandisementBatch.model_validate(
                     json.load(fp)
                 )
@@ -173,6 +175,7 @@ class AggrandisementBatchBuilder(SimulationBuilder):
     def _init_aggrandisement_batch(self) -> None:
         batch = DbAggrandisementBatch.objects.create(
             simulation=self._simulation,
+            file_name=self.__file_name,
             start_date=self.__aggrandisement_batch.start_date,
             end_date=self.__aggrandisement_batch.end_date,
         )

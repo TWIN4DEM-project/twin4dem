@@ -11,6 +11,7 @@ import { type SimulationState, SimulationStateSchema } from "@/types/state.ts";
 
 import "./SimulationDetails.scss";
 import SimulationTabbedContainer from "@/features/simulations/SimulationTabbedContainer.tsx";
+import { renderNewlines } from "@/features/simulations/utils.ts";
 
 const SimulationIdParamSchema = z.coerce.number().int().positive();
 
@@ -246,15 +247,15 @@ export function SimulationDetails({ updateSimulationStep }: SimulationDetailsPar
   return (
     <div className="simulationDetails">
       <div className="simulationToolbar simulationDetailsToolbar">
-        <h3 className="simulationDetailsTitle">Simulation {simulationId}</h3>
+        <h3 className="simulationDetailsTitle">{renderNewlines(data?.label || "")}</h3>
         <button
           type="button"
           className="button button--outline"
           onClick={() => send({ action: "step" })}
           aria-label={`Step ${stepNo + 1}`}
-          title={`Step ${stepNo + 1}`}
+          title={`Proceed to step ${stepNo + 1} of the simulation`}
         >
-          &#x23ED;{` ${stepNo + 1}`}
+          &#x23ED; Next Step ({`${stepNo + 1}`})
         </button>
       </div>
 

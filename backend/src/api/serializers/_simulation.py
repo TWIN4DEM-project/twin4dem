@@ -1,4 +1,7 @@
+import os
 from typing import Literal
+
+from django.db.models import Max
 from rest_framework import serializers
 
 from api.serializers._base import LCCModelSerializer
@@ -12,6 +15,7 @@ from common.models import (
     PathSubmodelInfo,
     VbarSubmodelInfo,
     SubmodelType,
+    AggrandisementUnit,
 )
 from ._executive import CabinetSerializer
 from ._judiciary import CourtSerializer
@@ -45,19 +49,34 @@ class SimulationParamSerializer(serializers.Serializer):
             )
 
 
-class SimulationSerializer(LCCModelSerializer):
+class SimulationListSerializer(LCCModelSerializer):
+    label = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Simulation
+        fields = [
+            "id",
+            "status",
+            "current_step",
+            "created_at",
+            "updated_at",
+            "label",
+        ]
+
+    def get_label(self, obj: Simulation):
+        if (b := obj.batch.first()) is None:
+            return f"random simulation {obj.id}"
+        else:
+            batch_text = str(b) if b.file_name else f"batch {b}"
+            return f"user simulation {obj.id}{os.linesep}{batch_text}"
+
+
+class SimulationSerializer(SimulationListSerializer):
+    max_step_count = serializers.SerializerMethodField()
     params = serializers.SerializerMethodField()
 
     class Meta:
         model = Simulation
-        read_only_fields = [
-            "id",
-            "created_at",
-            "updated_at",
-            "current_step",
-            "office_retention_sensitivity",
-            "social_influence_susceptibility",
-        ]
         fields = [
             "id",
             "created_at",
@@ -67,7 +86,17 @@ class SimulationSerializer(LCCModelSerializer):
             "office_retention_sensitivity",
             "social_influence_susceptibility",
             "params",
+            "label",
+            "max_step_count",
         ]
+
+    def get_max_step_count(self, obj: Simulation):
+        b = obj.batch.first()
+        if b is None:
+            return None
+        return AggrandisementUnit.objects.filter(batch=b).aggregate(
+            max_step_no=Max("step_no")
+        )["max_step_no"]
 
     def get_params(self, obj: Simulation):
         qs = obj.params.all()
@@ -75,6 +104,14 @@ class SimulationSerializer(LCCModelSerializer):
 
     def to_internal_value(self, data):
         return super().to_internal_value(data)
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+
+        if "maxStepCount" in representation and representation["maxStepCount"] is None:
+            representation.pop("maxStepCount")
+
+        return representation
 
 
 SubmodelTypeLiteral = Literal[
@@ -166,18 +203,6 @@ class SimulationWithVoteStateSerializer(SimulationSerializer):
             court = self._get_result(last_judiciary, SubmodelType.JUDICIARY)
 
         return [result for result in [cabinet, parliament, court] if result is not None]
-
-
-class SimulationListSerializer(LCCModelSerializer):
-    class Meta:
-        model = Simulation
-        fields = [
-            "id",
-            "status",
-            "current_step",
-            "created_at",
-            "updated_at",
-        ]
 
 
 class SimulationPatchSerializer(LCCModelSerializer):

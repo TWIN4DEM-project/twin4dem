@@ -15,8 +15,9 @@ export function SimulationListItemComponent({
   return (
     <li>
       <Link className={isActive ? "active" : ""} to={`simulations/${item.id}`}>
-        <b>{item.status}</b> @ step {item.currentStep} <br />[
-        <i>{dayjs(item.updatedAt).format("YYYY-MM-DD HH:mm")}</i>]
+        <b>{item.label}</b> (@ step {item.currentStep}) <br />
+        <i>status={item.status}</i> <br />[
+        <i>last update: {dayjs(item.updatedAt).format("YYYY-MM-DD HH:mm")}</i>]
       </Link>
     </li>
   );
