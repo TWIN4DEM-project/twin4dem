@@ -13,14 +13,18 @@ export const SimulationLogSubmodelResult = z.object({
   abstentions: z.number(),
 });
 
-export const SimulationLogStepDecisionTypeEnum = z.enum(["legislative", "judiciary"]);
+export const SimulationLogStepDecisionTypeEnum = z.enum([
+  "executive",
+  "legislative",
+  "judiciary",
+]);
 export const SimulationLogStepAuPath = z.enum(["legislative act", "decree"]);
 export const SimulationLogStepSchema = z.object({
   simulationId: z.number(),
   stepNo: z.number(),
   approved: z.boolean(),
   lastDecisionType: SimulationLogStepDecisionTypeEnum,
-  aggrandisementPath: SimulationLogStepAuPath,
+  aggrandisementPath: z.nullable(SimulationLogStepAuPath),
   submodelResults: SimulationLogSubmodelResult.array(),
 });
 export const SimulationLogSchema = SimulationLogStepSchema.array();
