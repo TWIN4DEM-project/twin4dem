@@ -54,6 +54,12 @@ class UserSettingsAdmin(admin.ModelAdmin):
     search_fields = ("label", "user__username")
     inlines = [PartySettingsInline]
 
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if request.user.is_superuser:
+            return qs
+        return qs.filter(user=request.user)
+
     def get_form(self, request, obj=None, **kwargs):
         form = super().get_form(request, obj, **kwargs)
         if obj is not None:
