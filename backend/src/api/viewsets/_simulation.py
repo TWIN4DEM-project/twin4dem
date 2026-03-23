@@ -107,7 +107,10 @@ class SimulationViewSet(
 
         if "file" in self.request.FILES:
             uploaded_file = self.request.FILES["file"]
-            if uploaded_file.content_type != "application/zip":
+            if uploaded_file.content_type not in [
+                "application/zip",
+                "application/x-zip-compressed",
+            ]:
                 raise APIException(
                     code=HTTPStatus.BAD_REQUEST, detail="Only ZIP files are supported"
                 )

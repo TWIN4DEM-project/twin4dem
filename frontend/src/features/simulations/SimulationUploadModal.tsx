@@ -69,7 +69,12 @@ export default function SimulationUploadModal({
         </div>
 
         <div>
-          <input type="file" name="file" required accept="application/zip" />
+          <input
+            type="file"
+            name="file"
+            required
+            accept="application/zip,application/x-zip-compressed"
+          />
           <p hidden={!errorState}>
             ⚠️ The file you have uploaded is not valid, please make sure it matches the
             required format.

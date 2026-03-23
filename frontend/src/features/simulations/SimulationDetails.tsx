@@ -75,6 +75,9 @@ export function SimulationDetails({ updateSimulationStep }: SimulationDetailsPar
   const { stepNo, path, ministerVotes, mpVotes, courtVotes, aggrandisementPassed } =
     simulationState;
 
+  const [maxStepCount, setMaxStepCount] = useState(0);
+  const isActive = stepNo < maxStepCount;
+
   // websocket
   const { send, stream } = useWebSocketStream<SimulationState>(
     `ws://localhost:8000/ws/simulation/${simulationId}/`,
@@ -141,6 +144,9 @@ export function SimulationDetails({ updateSimulationStep }: SimulationDetailsPar
           myData.results.push(result);
         }
       });
+
+      // set max step count, default to infinity
+      setMaxStepCount(data?.maxStepCount ?? Infinity);
 
       handleSimulationStep(myData);
     }
@@ -250,10 +256,15 @@ export function SimulationDetails({ updateSimulationStep }: SimulationDetailsPar
         <h3 className="simulationDetailsTitle">{renderNewlines(data?.label || "")}</h3>
         <button
           type="button"
-          className="button button--outline"
+          className={`button button--outline`}
           onClick={() => send({ action: "step" })}
           aria-label={`Step ${stepNo + 1}`}
-          title={`Proceed to step ${stepNo + 1} of the simulation`}
+          title={
+            isActive
+              ? `Proceed to step ${stepNo + 1} of the simulation`
+              : "Simulation steps exhausted"
+          }
+          disabled={!isActive}
         >
           &#x23ED; Next Step ({`${stepNo + 1}`})
         </button>
