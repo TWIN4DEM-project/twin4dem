@@ -43,7 +43,7 @@ export function ParliamentBeeswarm({
       fx: { domain: vote_categories },
       y: { domain: [minId, maxId] },
       color: { scheme: colorscheme },
-      height: 300,
+      height: 500,
       marks: [
         Plot.dot(
           memberVotes,

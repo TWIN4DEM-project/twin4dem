@@ -12,16 +12,16 @@ interface LegendProps {
   parties: string[];
   min_influence_radius: number;
   max_influence_radius: number;
-  width?: number;
   height?: number;
+  main_label_offset: number;
 }
 
 export function Legend({
   parties,
   min_influence_radius = min_node_radius,
   max_influence_radius = max_node_radius,
-  width = 600,
-  height = 120,
+  height = 150,
+  main_label_offset = 50,
 }: LegendProps) {
   const svgRef = useRef<HTMLDivElement | null>(null);
 
@@ -43,11 +43,11 @@ export function Legend({
     const middle_influence_radius = (min_influence_radius + max_influence_radius) / 2;
     const radii = [min_influence_radius, middle_influence_radius, max_influence_radius];
     const radii_labels = [0, 0.5, 1];
-    const influence_legend_length = 150;
+    const influence_legend_width = 150;
     const offsets: number[] = [];
     const radius_legend = Plot.marks([
       radii.map((radius, index) => {
-        const dx = (index - radii.length) * (influence_legend_length / radii.length);
+        const dx = (index - radii.length) * (influence_legend_width / radii.length);
         offsets.push(dx);
         return [
           Plot.circle([radius], {
@@ -65,35 +65,36 @@ export function Legend({
       Plot.text(["Influence"], {
         ...text_options,
         fill: "#fff",
-        dy: max_influence_radius + 10,
+        fontSize: 15,
+        dy: -main_label_offset,
         dx: (offsets[0] + offsets[offsets.length - 1]) / 2,
       }),
     ]);
-    const color_legend_length = 180;
-    const color_legend_item_length = color_legend_length / 3;
+    const vote_legend_width = 180;
+    const vote_legend_item_width = vote_legend_width / 3;
     const vote_circle_radius = 25;
-    const color_legend_offset = influence_legend_length + vote_circle_radius + 50;
+    const color_legend_offset = influence_legend_width + vote_circle_radius + 50;
 
     const vote_color_legend = Plot.marks([
       Plot.circle([2], {
         ...circle_options,
-        dx: -(color_legend_offset + color_legend_item_length * 2),
+        dx: -(color_legend_offset + vote_legend_item_width * 2),
         r: vote_circle_radius,
         className: "node node--approve",
       }),
       Plot.text(["For"], {
         ...text_options,
-        dx: -(color_legend_offset + color_legend_item_length * 2),
+        dx: -(color_legend_offset + vote_legend_item_width * 2),
       }),
       Plot.circle([1], {
         ...circle_options,
-        dx: -(color_legend_offset + color_legend_item_length),
+        dx: -(color_legend_offset + vote_legend_item_width),
         r: vote_circle_radius,
         className: "node node--reject",
       }),
       Plot.text(["Against"], {
         ...text_options,
-        dx: -(color_legend_offset + color_legend_item_length),
+        dx: -(color_legend_offset + vote_legend_item_width),
       }),
       Plot.circle([0], {
         ...circle_options,
@@ -107,15 +108,15 @@ export function Legend({
       }),
       Plot.text(["Voting choice"], {
         ...text_options,
-        dx: -(color_legend_offset + color_legend_item_length),
-        dy: vote_circle_radius + 10,
+        dx: -(color_legend_offset + vote_legend_item_width),
+        dy: -main_label_offset,
         fontSize: 15,
         fill: "#fff",
       }),
     ]);
 
-    const party_legend_item_length = 70;
-    const party_legend_length = parties.length * party_legend_item_length;
+    const party_legend_item_width = 100;
+    const party_legend_width = parties.length * party_legend_item_width;
     const party_circle_radius = 20;
     const party_color = Plot.scale({
       color: { scheme: colorscheme, domain: parties },
@@ -123,8 +124,7 @@ export function Legend({
 
     const party_legend = Plot.marks([
       parties.map((party, index) => {
-        const dx =
-          index * (party_legend_length / parties.length) + party_circle_radius + 10;
+        const dx = index * party_legend_item_width + party_circle_radius + 10;
         return [
           Plot.circle([party], {
             ...circle_options,
@@ -136,16 +136,17 @@ export function Legend({
           Plot.text([party], {
             ...text_options,
             dx,
-            dy: party_circle_radius + 5,
+            dy: party_circle_radius + 20,
             fill: "#fff",
             frameAnchor: "left",
+            lineWidth: 10,
           }),
         ];
       }),
       Plot.text(["Parties"], {
         ...text_options,
-        dx: (party_legend_length - party_circle_radius) / 2,
-        dy: party_circle_radius + 25,
+        dx: party_legend_width / 2 - party_circle_radius,
+        dy: -main_label_offset,
         fontSize: 15,
         fill: "#fff",
         frameAnchor: "left",
@@ -153,15 +154,17 @@ export function Legend({
       }),
     ]);
 
+    const plot_width =
+      influence_legend_width + vote_legend_width + party_legend_width + 50;
     const plot = Plot.plot({
-      width,
+      width: plot_width,
       height,
       marks: [radius_legend, vote_color_legend, party_legend],
     });
 
     svgRef.current?.append(plot);
     return () => plot.remove();
-  }, [parties, width, height, max_influence_radius, min_influence_radius]);
+  }, [parties, height, max_influence_radius, min_influence_radius, main_label_offset]);
 
   return <div ref={svgRef} id="legend" />;
 }

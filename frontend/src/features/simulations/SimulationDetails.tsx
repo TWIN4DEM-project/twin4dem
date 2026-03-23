@@ -60,7 +60,7 @@ export function SimulationDetails({ updateSimulationStep }: SimulationDetailsPar
   const parties = useMemo<string[]>(() => {
     if (settings === null) return [];
 
-    return settings.parties.map((p) => `${p.label}(${p.position})`).sort();
+    return settings.parties.map((p) => `${p.label} (${p.position})`).sort();
   }, [settings]);
 
   // simulation state
