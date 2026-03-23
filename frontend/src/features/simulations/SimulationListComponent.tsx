@@ -1,8 +1,9 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { EmptySelectionPane } from "@/components/EmptySelectionPane.tsx";
+import SimulationUploadModal from "@/features/simulations/SimulationUploadModal.tsx";
 import type { SimulationList } from "@/types/simulation.ts";
-import { createSimulation } from "./hooks.ts";
+import { createRandomSimulation } from "./hooks.ts";
 import { SimulationListItemComponent } from "./SimulationListItemComponent.tsx";
 
 type SimulationListProps = {
@@ -29,8 +30,10 @@ export function SimulationListComponent({
     ));
   }, [data, simulationId]);
 
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState<boolean>(false);
+
   async function handleAddSimulation() {
-    const simulation = await createSimulation();
+    const simulation = await createRandomSimulation();
     refetch();
     navigate(`/simulations/${simulation.id}`);
   }
@@ -46,8 +49,20 @@ export function SimulationListComponent({
           type="button"
           onClick={handleAddSimulation}
         >
-          +
+          + Random
         </button>
+        <button
+          className="button button--outline"
+          type="button"
+          onClick={() => setIsUploadModalOpen(true)}
+        >
+          + File upload
+        </button>
+        <SimulationUploadModal
+          isOpen={isUploadModalOpen}
+          onClose={() => setIsUploadModalOpen(false)}
+          refetch={refetch}
+        />
       </div>
       <ul className="simulationList">{simulationListItems}</ul>
     </div>

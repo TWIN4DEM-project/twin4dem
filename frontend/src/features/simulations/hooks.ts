@@ -30,7 +30,7 @@ export function useSimulation(
   return useFetch<Simulation>({ url, schema: SimulationSchema, method: "GET" });
 }
 
-export async function createSimulation() {
+export async function createRandomSimulation() {
   const response = await axios.post(
     "/api/v1/simulation/",
     { status: "new" },
@@ -38,6 +38,13 @@ export async function createSimulation() {
       withCredentials: true,
     },
   );
+  return await SimulationSchema.parseAsync(response.data);
+}
+
+export async function createSimulationFromBatch(formData: FormData) {
+  const response = await axios.post("/api/v1/simulation/", formData, {
+    withCredentials: true,
+  });
   return await SimulationSchema.parseAsync(response.data);
 }
 

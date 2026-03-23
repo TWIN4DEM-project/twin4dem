@@ -1,0 +1,39 @@
+@import "@scss/variables";
+@import "@scss/buttons";
+
+.modal {
+  background-color: $dashboard-card-bg;
+  border-radius: $radius-sm;
+  color: $text;
+  border: solid 2px $primary-soft;
+  width: 30vw;
+  padding: 24px;
+
+  &::backdrop {
+    background-color: rgba(0, 0, 0, 0.5);;
+  }
+
+  .modal-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    justify-content: space-between;
+  }
+
+
+  .button-container {
+    display: flex;
+    flex-direction: row;
+    gap: 20px;
+    justify-content: end;
+  }
+
+  input {
+    color: $text;
+
+    &::file-selector-button {
+      @extend .button;
+      @extend .button--outline;
+    }
+  }
+}
