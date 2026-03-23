@@ -9,6 +9,7 @@ type CumulativeResultStep = {
   totalPassedAttempts: number;
   passedByDecree: number;
   passedByLegislativeProposal: number;
+  failedAttempts: number;
   simulationStep: number;
 };
 
@@ -21,6 +22,7 @@ function accumulateLogResults(log: SimulationLog): CumulativeResultStep[] {
         totalPassedAttempts: 0,
         passedByDecree: 0,
         passedByLegislativeProposal: 0,
+        failedAttempts: 0,
         simulationStep: 0,
       };
     } else {
@@ -35,6 +37,8 @@ function accumulateLogResults(log: SimulationLog): CumulativeResultStep[] {
       } else if (currentLog.aggrandisementPath === "legislative act") {
         stepResults.passedByLegislativeProposal += 1;
       }
+    } else {
+      stepResults.failedAttempts += 1;
     }
 
     cumulativeResults.push(stepResults);
@@ -76,7 +80,7 @@ export function CumulativeSuccessfulAttemptPlot({ log }: CumulativePassedAuChart
         <YAxis
           niceTicks="snap125"
           label={{
-            value: "Successful attempts",
+            value: "Aggrandisement attempts",
             position: "insideLeft",
             angle: -90,
             textAnchor: "middle",
@@ -88,8 +92,9 @@ export function CumulativeSuccessfulAttemptPlot({ log }: CumulativePassedAuChart
           labelFormatter={(step) => `Step: ${step}`}
         />
         <Legend />
-        <Bar dataKey="passedByDecree" stackId="passed" fill="#D8E983" />
-        <Bar dataKey="passedByLegislativeProposal" stackId="passed" fill="#AEB877" />
+        <Bar dataKey="passedByDecree" stackId="attempts" fill="#D8E983" />
+        <Bar dataKey="passedByLegislativeProposal" stackId="attempts" fill="#AEB877" />
+        <Bar dataKey="failedAttempts" stackId="attempts" fill="#E8F5BD" />
       </BarChart>
     </figure>
   );
