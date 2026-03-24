@@ -51,7 +51,7 @@ export function CumulativeSuccessfulAttemptPlot({ log }: CumulativePassedAuChart
 
   return (
     <figure>
-      <h2>Successful attempts</h2>
+      <h2>Aggrandisement attempts</h2>
       <BarChart
         style={{
           width: "100%",
