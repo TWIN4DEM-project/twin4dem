@@ -1,4 +1,4 @@
-# 🌀 Twin4dem
+# <image src="https://avatars.githubusercontent.com/u/210869859" width="32"> Twin4dem
 
 TWIN4DEM is an innovative European research project dedicated to strengthening
 democratic resilience through cutting-edge Computational Social Science (CSS)
