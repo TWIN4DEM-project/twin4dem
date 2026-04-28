@@ -1,7 +1,8 @@
 from itertools import permutations
 from random import choice, random
 
-from api.services._random import random_weights, random_gauss, random_frequency
+from api.services._random import random_gauss, random_frequency
+from api.services._weights import equal_weights
 from api.services._base import SimulationBuilder
 from common.models import (
     Cabinet,
@@ -41,7 +42,7 @@ class RandomSimulationBuilder(SimulationBuilder):
             is_prime_minister=True,
             cabinet=cabinet,
             influence=1.0,
-            weights=random_weights(self._weights_count),
+            weights=equal_weights(self._weights_count),
             personal_opinion=int(
                 round(random_gauss(cabinet.government_probability_for, 0.1))
             ),
@@ -58,7 +59,7 @@ class RandomSimulationBuilder(SimulationBuilder):
                 is_prime_minister=False,
                 cabinet=cabinet,
                 influence=random(),
-                weights=random_weights(self._weights_count),
+                weights=equal_weights(self._weights_count),
                 personal_opinion=int(
                     round(random_gauss(cabinet.government_probability_for, 0.1))
                 ),
@@ -103,7 +104,7 @@ class RandomSimulationBuilder(SimulationBuilder):
                 return MemberOfParliament(
                     label=label,
                     is_head=is_head,
-                    weights=random_weights(self._weights_count),
+                    weights=equal_weights(self._weights_count),
                     party=party,
                     parliament=parliament,
                     personal_opinion=personal_opinion,
@@ -139,7 +140,7 @@ class RandomSimulationBuilder(SimulationBuilder):
                 label=f"{court_label}-{idx:02}" if idx != 0 else f"{court_label}-P",
                 is_president=(idx == 0),
                 influence=random() if idx != 0 else 1.0,
-                weights=random_weights(6),
+                weights=equal_weights(6),
                 court=court,
                 party=choice(parties),
                 personal_opinion=int(
