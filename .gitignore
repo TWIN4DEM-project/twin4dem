@@ -39,6 +39,7 @@ xcuserdata/
 .idea/**/dbnavigator.xml
 .idea/**/gradle.xml
 .idea/**/libraries
+.idea/sqldialects.xml
 cmake-build-*/
 .idea/**/mongoSettings.xml
 *.iws

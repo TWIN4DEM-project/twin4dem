@@ -64,7 +64,7 @@ class Council:
             vbar = sum(votes) / len(votes)
             approved = vbar > 0.5
         else:
-            vbar = None
+            vbar = 0.0
             approved = False
 
         return VbarSubmodelResult(
