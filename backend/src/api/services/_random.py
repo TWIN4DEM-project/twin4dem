@@ -1,10 +1,4 @@
-from random import expovariate, gauss, random
-
-
-def random_weights(n: int = 6) -> list[float]:
-    x = [expovariate(1.0) for _ in range(n)]
-    s = sum(x)
-    return [x_i / s for x_i in x]
+from random import gauss, random
 
 
 def random_gauss(

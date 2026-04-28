@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Optional
 
 from api.services._base import SimulationBuilder
-from api.services._random import random_weights
+from api.services._weights import equal_weights
 from common.dto import AggrandisementBatch, AggrandisementUnitAgentBeliefs
 from common.models import (
     UserSettings,
@@ -76,7 +76,7 @@ class AggrandisementBatchBuilder(SimulationBuilder):
                     if (x.label == executive_settings.prime_minister)
                     else x.influence
                 ),
-                weights=random_weights(self._weights_count),
+                weights=equal_weights(self._weights_count),
                 personal_opinion=float(x.personal_opinion),
                 appointing_group_opinion=float(x.appointing_group),
                 supporting_group_opinion=float(x.supporting_group),
@@ -112,7 +112,7 @@ class AggrandisementBatchBuilder(SimulationBuilder):
             MemberOfParliament(
                 label=x.label,
                 is_head=x.label in legislative_settings.party_leaders,
-                weights=random_weights(self._weights_count),
+                weights=equal_weights(self._weights_count),
                 party_id=self._party_map[x.party],
                 parliament=parliament,
                 personal_opinion=x.personal_opinion,
@@ -138,7 +138,7 @@ class AggrandisementBatchBuilder(SimulationBuilder):
                 influence=(
                     1.0 if x.label == judiciary_settings.president else x.influence
                 ),
-                weights=random_weights(self._weights_count),
+                weights=equal_weights(self._weights_count),
                 court=court,
                 party_id=self._party_map[x.party],
                 personal_opinion=x.personal_opinion,
@@ -173,6 +173,10 @@ class AggrandisementBatchBuilder(SimulationBuilder):
         ]
 
     def _init_aggrandisement_batch(self) -> None:
+        if len(self.__aggrandisement_batch.aggrandisement_units) < 1:
+            # if the batch file doesn't specify units, degrade to random simulation
+            return
+
         batch = DbAggrandisementBatch.objects.create(
             simulation=self._simulation,
             file_name=self.__file_name,
