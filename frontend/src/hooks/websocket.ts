@@ -16,7 +16,6 @@ export function useWebSocketStream<T>(url: string | null, options: Options = {})
 
   const connect = useCallback(() => {
     if (!url || closedRef.current) return;
-
     const ws = new WebSocket(url);
     socketRef.current = ws;
 
@@ -31,9 +30,10 @@ export function useWebSocketStream<T>(url: string | null, options: Options = {})
       }
     };
 
-    ws.onclose = () => {
-      if (closedRef.current) return;
-
+    ws.onclose = (event) => {
+      if (event.wasClean || closedRef.current) {
+        return;
+      }
       reconnectTimerRef.current = window.setTimeout(connect, reconnectDelayMs);
     };
   }, [url, reconnectDelayMs]);
@@ -45,8 +45,12 @@ export function useWebSocketStream<T>(url: string | null, options: Options = {})
     return () => {
       closedRef.current = true;
       if (socketRef.current !== null) {
-        if (!(socketRef.current.readyState in [WebSocket.CLOSED, WebSocket.CLOSING])) {
-          socketRef.current?.close();
+        if (
+          socketRef.current.readyState === WebSocket.CONNECTING ||
+          socketRef.current.readyState === WebSocket.OPEN
+        ) {
+          socketRef.current.onclose = () => {};
+          socketRef.current.close();
         }
         socketRef.current = null;
       }
