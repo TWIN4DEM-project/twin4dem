@@ -4,24 +4,33 @@
   display: flex;
   align-items: center;
   justify-content: flex-start;
+  gap: $space-sm;
   border: 1px solid $border-subtle;
   border-radius: $radius-sm;
-  height: 48px;
-  padding-left: 1rem;
+  min-height: 56px;
+  padding: $space-sm $space-md;
   background: $dashboard-card-bg;
+  flex-wrap: wrap;
+
+  h3 {
+    margin: 0;
+    font-size: $font-size-lg;
+    font-weight: 600;
+    margin-right: auto;
+  }
 
   button {
-    font-size: 1rem;
+    font-size: $font-size-sm;
   }
 
   .simulationToolbarButton {
     font-family: $font-family;
-    font-size: 20px;
+    font-size: $font-size-lg;
     font-weight: 600;
     line-height: 1;
 
-    min-width: 36px;
-    height: 36px;
+    min-width: 40px;
+    height: 40px;
 
     display: inline-flex;
     align-items: center;
@@ -40,9 +49,6 @@
       box-shadow 0.15s ease,
       filter 0.15s ease;
 
-    &:not(:first-child) {
-      margin-left: 16px;
-    }
     &:hover {
       transform: translateY(-1px);
       box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);

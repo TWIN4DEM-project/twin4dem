@@ -1,17 +1,43 @@
 @import "variables";
-
+@import "mixins";
 
 .authentication {
-  padding: 1rem;
+  display: flex;
+  padding: $space-xl $space-md;
   justify-content: center;
   align-items: center;
+  flex: 1;
 
   .authentication-container {
-    max-width: 950px;
+    @include card;
+    max-width: 480px;
+    width: 100%;
+    padding: $space-xl $space-xl $space-lg;
+
+    h1 {
+      font-size: $font-size-2xl;
+      font-weight: 700;
+      margin: 0 0 $space-sm;
+    }
+
+    > p {
+      font-size: $font-size-base;
+      color: $muted;
+      margin-bottom: $space-lg;
+    }
+
+    ul {
+      font-size: $font-size-sm;
+      color: $muted;
+      padding-left: $space-lg;
+      margin: $space-sm 0 $space-md;
+      line-height: 1.6;
+    }
 
     p:has(label[for="id_remember"]) {
       display: flex;
-      gap: 0.5rem;
+      gap: $space-sm;
+      align-items: center;
 
       input {
         margin-top: 0;
