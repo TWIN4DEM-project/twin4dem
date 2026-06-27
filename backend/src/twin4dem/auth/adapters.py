@@ -65,7 +65,9 @@ class DomainRestrictedSocialAccountAdapter(DefaultSocialAccountAdapter):
 
 
 def _extract_social_email(sociallogin) -> str:
-    user_email = getattr(getattr(sociallogin, "user", SimpleNamespace(email="")), "email", "")
+    user_email = getattr(
+        getattr(sociallogin, "user", SimpleNamespace(email="")), "email", ""
+    )
     if user_email:
         return user_email
 
