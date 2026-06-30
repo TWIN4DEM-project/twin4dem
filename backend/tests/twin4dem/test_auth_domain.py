@@ -4,7 +4,6 @@ import pytest
 from allauth.core.exceptions import ImmediateHttpResponse
 from django.contrib.messages.storage.fallback import FallbackStorage
 from django.contrib.sessions.middleware import SessionMiddleware
-from django.core.exceptions import ImproperlyConfigured
 from django.core.exceptions import ValidationError
 from django.urls import reverse
 
