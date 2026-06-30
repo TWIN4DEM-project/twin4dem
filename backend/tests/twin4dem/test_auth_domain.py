@@ -30,6 +30,7 @@ def request_with_messages(rf):
     setattr(django_request, "_messages", FallbackStorage(django_request))
     return django_request
 
+
 @pytest.fixture
 def account_adapter(request_with_messages):
     return DomainRestrictedAccountAdapter(request_with_messages)
