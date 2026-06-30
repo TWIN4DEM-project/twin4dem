@@ -65,12 +65,17 @@ def test_normalize_allowed_email_domains_accepts_plain_domains():
 
 
 def test_normalize_allowed_email_domains_rejects_invalid_entries():
-    with pytest.raises(ImproperlyConfigured):
-        normalize_allowed_email_domains(["*.example.com", "localhost"])
+    with pytest.raises(ValidationError):
+        normalize_allowed_email_domains([".example.com", "localhost"])
 
 
 def test_email_is_allowed_returns_true_when_allowlist_is_empty():
     assert email_is_allowed("user@anywhere.org", [])
+
+
+@pytest.mark.parametrize("email", ["not-an-email", "user@", "@example.com"])
+def test_email_is_allowed_rejects_invalid_email_syntax(email):
+    assert email_is_allowed(email, ["example.com"]) is False
 
 
 @pytest.mark.parametrize(
