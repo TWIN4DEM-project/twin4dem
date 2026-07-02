@@ -122,7 +122,7 @@ ACCOUNT_SIGNUP_FIELDS = ["email*", "username*", "password1*", "password2*"]
 ACCOUNT_EMAIL_VERIFICATION = "optional"
 ACCOUNT_DEFAULT_HTTP_PROTOCOL = "http"
 ACCOUNT_ALLOWED_EMAIL_DOMAINS = normalize_allowed_email_domains(
-    os.getenv("ALLOWED_EMAIL_DOMAINS", "").split(",")
+    os.getenv("TWIN4DEM_ALLOWED_EMAIL_DOMAINS", "").split(",")
 )
 ACCOUNT_ADAPTER = "twin4dem.auth.adapters.DomainRestrictedAccountAdapter"
 SOCIALACCOUNT_ADAPTER = "twin4dem.auth.adapters.DomainRestrictedSocialAccountAdapter"
