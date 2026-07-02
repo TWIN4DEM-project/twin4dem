@@ -16,6 +16,7 @@ services:
       - TWIN4DEM_BACKEND_DB_HOST=db
       - TWIN4DEM_BACKEND_REDIS_HOST=redis
       - TWIN4DEM_BACKEND_CELERY_HOST=broker
+      - ALLOWED_EMAIL_DOMAINS=
     ports:
       - "8000:8000"
     networks:
