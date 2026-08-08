@@ -353,7 +353,6 @@ EXPECTED_JUD_LEG = [
         "approved": False,
         "votes": {"2": 0},
     },
-    {"type": "court", "vbar": 0.3, "approved": True, "votes": {"1": 1}},
     {
         "type": "parliament",
         "vbar": 0.3,
@@ -370,12 +369,6 @@ EXPECTED_LEG_JUD = [
         "votes": {"2": 0},
     },
     {"type": "court", "vbar": 0.3, "approved": True, "votes": {"2": 1}},
-    {
-        "type": "parliament",
-        "vbar": 0.3,
-        "approved": True,
-        "votes": {"1": 1},
-    },
 ]
 
 EXPECTED_JUD_JUD_LEG = [

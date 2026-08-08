@@ -10,14 +10,14 @@ import {
 
 interface LegendProps {
   parties: string[];
-  min_influence_radius: number;
-  max_influence_radius: number;
+  min_influence_radius?: number;
+  max_influence_radius?: number;
   height?: number;
-  main_label_offset: number;
+  main_label_offset?: number;
 }
 
 export function Legend({
-  parties,
+  parties = [],
   min_influence_radius = min_node_radius,
   max_influence_radius = max_node_radius,
   height = 150,
