@@ -1,0 +1,17 @@
+{% load i18n %}
+{% load static %}
+<a class="social-provider-button"
+   title="{% blocktranslate with provider=attrs.name %}Continue with {{ provider }}{% endblocktranslate %}"
+   href="{{ attrs.href }}"
+   role="listitem">
+    <span class="social-provider-button__icon" aria-hidden="true">
+        {% if attrs.provider_id == "google" %}
+            <img src="{% static 'images/google.png' %}" width="20" height="20" alt="">
+        {% elif attrs.provider_id == "microsoft" %}
+            <img src="{% static 'images/microsoft.png' %}" width="20" height="20" alt="">
+        {% endif %}
+    </span>
+    <span class="social-provider-button__label">
+        {% blocktranslate with provider=attrs.name %}Continue with {{ provider }}{% endblocktranslate %}
+    </span>
+</a>
