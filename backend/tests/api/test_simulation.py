@@ -246,38 +246,31 @@ def test_patch_anonymous_forbidden(client):
     }
 
 
-@pytest.fixture
-def simulation_id(admin_client, request):
-    steps = request.param
-
-    # create new simulation entry
+def create_simulation_with_steps(admin_client, steps):
+    """Create an approved cabinet decision and its selected branch per step."""
     response = admin_client.post("/api/v1/simulation/")
     data: dict = response.json()
 
-    # create a step for each step specified
     for i, step in enumerate(steps):
-        # create simulation log entry
         if step == "judiciary":
             aggrandisement_path = "decree"
         else:
             aggrandisement_path = "legislative act"
 
-        # create log entry
         log = SimulationLogEntry.objects.create(
             simulation_id=data["id"],
             step_no=i + 1,
-            approved=False,
+            approved=True,
             last_decision_type=step,
             aggrandisement_path=aggrandisement_path,
         )
 
-        # create executive submodel entry AND judiciary or legislative one
         SimulationSubmodelLogEntry.objects.create(
             log_entry=log,
             submodel_type=SubmodelType.EXECUTIVE,
-            approved=False,
+            approved=True,
             additional_info=PathSubmodelInfo(
-                votes={f"{i+1}": 0}, path=aggrandisement_path
+                votes={f"{i+1}": 1}, path=aggrandisement_path
             ),
         )
 
@@ -300,8 +293,8 @@ EXPECTED_JUD = [
     {
         "type": "cabinet",
         "path": "decree",
-        "approved": False,
-        "votes": {"1": 0},
+        "approved": True,
+        "votes": {"1": 1},
     },
     {"type": "court", "vbar": 0.3, "approved": True, "votes": {"1": 1}},
 ]
@@ -310,8 +303,8 @@ EXPECTED_LEG = [
     {
         "type": "cabinet",
         "path": "legislative act",
-        "approved": False,
-        "votes": {"1": 0},
+        "approved": True,
+        "votes": {"1": 1},
     },
     {
         "type": "parliament",
@@ -325,8 +318,8 @@ EXPECTED_JUD_JUD = [
     {
         "type": "cabinet",
         "path": "decree",
-        "approved": False,
-        "votes": {"2": 0},
+        "approved": True,
+        "votes": {"2": 1},
     },
     {"type": "court", "vbar": 0.3, "approved": True, "votes": {"2": 1}},
 ]
@@ -335,8 +328,8 @@ EXPECTED_LEG_LEG = [
     {
         "type": "cabinet",
         "path": "legislative act",
-        "approved": False,
-        "votes": {"2": 0},
+        "approved": True,
+        "votes": {"2": 1},
     },
     {
         "type": "parliament",
@@ -350,8 +343,8 @@ EXPECTED_JUD_LEG = [
     {
         "type": "cabinet",
         "path": "legislative act",
-        "approved": False,
-        "votes": {"2": 0},
+        "approved": True,
+        "votes": {"2": 1},
     },
     {
         "type": "parliament",
@@ -365,60 +358,11 @@ EXPECTED_LEG_JUD = [
     {
         "type": "cabinet",
         "path": "decree",
-        "approved": False,
-        "votes": {"2": 0},
-    },
-    {"type": "court", "vbar": 0.3, "approved": True, "votes": {"2": 1}},
-]
-
-EXPECTED_JUD_JUD_LEG = [
-    {
-        "type": "cabinet",
-        "path": "legislative act",
-        "approved": False,
-        "votes": {"3": 0},
-    },
-    {"type": "court", "vbar": 0.3, "approved": True, "votes": {"2": 1}},
-    {
-        "type": "parliament",
-        "vbar": 0.3,
-        "approved": True,
-        "votes": {"3": 1},
-    },
-]
-
-EXPECTED_JUD_LEG_JUD = [
-    {
-        "type": "cabinet",
-        "path": "decree",
-        "approved": False,
-        "votes": {"3": 0},
-    },
-    {"type": "court", "vbar": 0.3, "approved": True, "votes": {"3": 1}},
-    {
-        "type": "parliament",
-        "vbar": 0.3,
         "approved": True,
         "votes": {"2": 1},
     },
+    {"type": "court", "vbar": 0.3, "approved": True, "votes": {"2": 1}},
 ]
-
-EXPECTED_LEG_LEG_JUD = [
-    {
-        "type": "cabinet",
-        "path": "decree",
-        "approved": False,
-        "votes": {"3": 0},
-    },
-    {"type": "court", "vbar": 0.3, "approved": True, "votes": {"3": 1}},
-    {
-        "type": "parliament",
-        "vbar": 0.3,
-        "approved": True,
-        "votes": {"2": 1},
-    },
-]
-
 
 TEST_CASES = [
     pytest.param([], EXPECTED_EMPTY, id="no_steps"),
@@ -456,13 +400,11 @@ TEST_CASES = [
 
 
 @pytest.mark.parametrize(
-    "simulation_id, expected_results",
+    "steps, expected_results",
     TEST_CASES,
-    indirect=["simulation_id"],
 )
-def test_get_simulation_with_historic_votes(
-    admin_client, simulation_id, expected_results
-):
+def test_get_simulation_with_historic_votes(admin_client, steps, expected_results):
+    simulation_id = create_simulation_with_steps(admin_client, steps)
     response = admin_client.get(
         f"/api/v1/simulation/{simulation_id}/?withHistoricVotes=true"
     )
