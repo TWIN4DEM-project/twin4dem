@@ -1,0 +1,22 @@
+{% load i18n %}
+{% load allauth %}
+{% load socialaccount %}
+{% get_providers as socialaccount_providers %}
+{% if socialaccount_providers %}
+    {% if not SOCIALACCOUNT_ONLY %}
+        {% element hr %}
+        {% endelement %}
+        {% element h2 %}
+            {% translate "Or use a third-party" %}
+        {% endelement %}
+    {% endif %}
+    <div class="social-login-options">
+        {% include "socialaccount/snippets/provider_list.html" with process="login" %}
+        <p class="social-login-options__disclaimer">
+            {% blocktranslate trimmed %}
+                Google and Microsoft may process your personal data outside this service and may not fully align with EU GDPR requirements. Proceed with these options only if you accept this risk.
+            {% endblocktranslate %}
+        </p>
+    </div>
+    {% include "socialaccount/snippets/login_extra.html" %}
+{% endif %}

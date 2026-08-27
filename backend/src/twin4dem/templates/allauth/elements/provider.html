@@ -1,0 +1,32 @@
+{% load i18n %}
+{% load static %}
+{% if attrs.provider_id == "google" %}
+    <a class="social-provider-button social-provider-button--google"
+       title="{% translate 'Sign in with Google' %}"
+       href="{{ attrs.href }}"
+       role="listitem">
+        <img src="{% static 'images/google-sign-in-light-square.svg' %}"
+             width="180"
+             height="40"
+             alt="{% translate 'Sign in with Google' %}">
+    </a>
+{% elif attrs.provider_id == "microsoft" %}
+    <a class="social-provider-button social-provider-button--microsoft"
+       title="{% translate 'Sign in with Microsoft' %}"
+       href="{{ attrs.href }}"
+       role="listitem">
+        <img src="{% static 'images/ms-symbollockup_signin_light.svg' %}"
+             width="215"
+             height="41"
+             alt="{% translate 'Sign in with Microsoft' %}">
+    </a>
+{% else %}
+    <a class="social-provider-button"
+       title="{% blocktranslate with provider=attrs.name %}Continue with {{ provider }}{% endblocktranslate %}"
+       href="{{ attrs.href }}"
+       role="listitem">
+        <span class="social-provider-button__label">
+            {% blocktranslate with provider=attrs.name %}Continue with {{ provider }}{% endblocktranslate %}
+        </span>
+    </a>
+{% endif %}
