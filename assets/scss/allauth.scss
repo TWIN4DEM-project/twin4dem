@@ -31,9 +31,9 @@ input[type="file"],
 select,
 textarea {
   width: 100%;
-  padding: 0.7rem 0.9rem;
+  padding: $space-md $space-md;
 
-  font-size: 0.95rem;
+  font-size: $font-size-base;
   font-family: inherit;
   color: $text;
 
@@ -69,23 +69,24 @@ textarea {
 
 label {
   display: block;
-  font-size: 0.85rem;
-  color: $muted;
-  margin-bottom: 0.35rem;
+  font-size: $font-size-base;
+  font-weight: 500;
+  color: $text;
+  margin-bottom: $space-xs;
   letter-spacing: 0.01em;
 }
 
 .form-field {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
-  margin-bottom: 1.1rem;
+  gap: $space-xs;
+  margin-bottom: $space-lg;
 }
 
 .form-error {
   color: $primary-soft;
-  font-size: 0.8rem;
-  margin-top: 0.3rem;
+  font-size: $font-size-sm;
+  margin-top: $space-xs;
 }
 
 $form-error-squiggle: "data:image/svg+xml;utf8,\

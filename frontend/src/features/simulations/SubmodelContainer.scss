@@ -68,4 +68,17 @@
       }
     }
   }
+
+    @media (max-width: $bp-tablet) {
+    flex-direction: column;
+
+    .ministerNetworkContainer {
+      min-height: 250px;
+    }
+
+    .rightPanel {
+      flex-direction: column;
+    }
+  }
+
 }
