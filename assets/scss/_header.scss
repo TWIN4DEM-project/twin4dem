@@ -56,5 +56,46 @@
         opacity: 1;
       }
     }
+
+    .user-menu-container {
+      position: relative;
+      display: inline-block;
+
+      .user-menu-trigger {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+
+        .user-menu-text {
+          @media (max-width: 576px) {
+            display: none;
+          }
+        }
+      }
+
+      .user-menu-items {
+        position: absolute;
+        right: 0;
+        top: 100%;
+        margin-top: 0.5rem;
+        z-index: 1000;
+        
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;; 
+        min-width: 160px;
+
+        .button {
+          width: 100%;
+          text-align: left;
+          white-space: nowrap;
+          background-color: rgba(9, 7, 30, 0.8);
+        }
+
+        &.closed {
+          display: none;
+        }
+      }
+    }
   }
 }

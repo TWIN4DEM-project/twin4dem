@@ -27,12 +27,21 @@
             {% endif %}
         </div>
 
-        <nav class="header-nav">
+       <nav class="header-nav">
             {% if user.is_authenticated %}
-                <a href="/" class="nav-link button button--outline">Dashboard</a>
-                <a href="/admin/common/usersettings/" class="nav-link button button--outline">Settings</a>
-                <a href="/accounts/3rdparty/" class="nav-link button button--outline">Account</a>
-                <a href="/accounts/logout/" class="button button--outline">Logout</a>
+                <div class="user-menu-container">
+                    <button class="user-menu-trigger button button--outline" id="user-menu-button">
+                        <span class="user-menu-icon">&#9776;</span>
+                        <span class="user-menu-text">Menu</span>
+                    </button>
+
+                    <div class="user-menu-items closed" id="user-menu-dropdown">
+                        <a href="/" class="nav-link button button--outline">Dashboard</a>
+                        <a href="/admin/common/usersettings/" class="nav-link button button--outline">Settings</a>
+                        <a href="/accounts/3rdparty/" class="nav-link button button--outline">Account</a>
+                        <a href="/accounts/logout/" class="button nav-link button--outline">Logout</a>
+                    </div>
+                </div>
             {% else %}
                 <a href="/accounts/login/" class="button button--outline">Login</a>
             {% endif %}
@@ -100,5 +109,22 @@
         </p>
     </div>
 </footer>
+
+<!-- Handles toggling of open and closed state of user menu -->
+<script>
+    document.getElementById('user-menu-button').addEventListener('click', function(e) {
+        e.stopPropagation();
+        document.getElementById('user-menu-dropdown').classList.toggle('closed');
+    });
+
+    // closes the dropdown if the user clicks anywhere else on the screen
+    window.addEventListener('click', function() {
+        const dropdown = document.getElementById('user-menu-dropdown');
+        if (dropdown.classList.contains('closed')) {
+            dropdown.classList.remove('closed');
+        }
+    });
+</script>
+
 </body>
 </html>
