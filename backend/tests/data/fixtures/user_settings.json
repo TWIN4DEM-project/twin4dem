@@ -5,11 +5,7 @@
     "fields": {
       "user": 1,
       "label": "test_admin settings",
-      "government_size": 6,
-      "government_connectivity_degree": 3,
       "government_probability_for": 0.7,
-      "parliament_size": 100,
-      "court_size": 5,
       "office_retention_sensitivity": 5.0,
       "social_influence_susceptibility": 0.5,
       "abstention_threshold": 0.1,
