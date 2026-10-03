@@ -1,7 +1,14 @@
 from ._executive import Cabinet, Minister, MinisterLink
 from ._legislative import Parliament, MemberOfParliament
 from ._judiciary import Court, Judge, JudgeLink
-from ._settings import UserSettings, PartySettings
+from ._settings import (
+    UserSettings,
+    VirtualTimeline,
+    Country,
+    InstitutionBranch,
+    InstitutionTaxonomy,
+    PartySettings,
+)
 from ._simulation import (
     Simulation,
     SimulationParams,
@@ -41,6 +48,10 @@ __all__ = (
     "AggrandisementPathType",
     "SubmodelType",
     "UserSettings",
+    "VirtualTimeline",
+    "Country",
+    "InstitutionBranch",
+    "InstitutionTaxonomy",
     "AggrandisementUnit",
     "AggrandisementBatch",
     "MinisterBelief",
