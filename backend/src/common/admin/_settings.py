@@ -1,4 +1,5 @@
 from django.contrib import admin
+from ..models._party import Party
 from ..models._settings import (
     UserSettings,
     VirtualTimeline,
@@ -36,11 +37,17 @@ class InstitutionTaxonomyInline(admin.TabularInline):
     extra = 0
 
 
+class PartyInline(admin.TabularInline):
+    model = Party
+    extra = 0
+    show_change_link = True
+
+
 @admin.register(Country)
 class CountryAdmin(admin.ModelAdmin):
     list_display = ("id", "name", "user_settings")
     search_fields = ("name",)
-    inlines = [InstitutionTaxonomyInline]
+    inlines = [InstitutionTaxonomyInline, PartyInline]
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
