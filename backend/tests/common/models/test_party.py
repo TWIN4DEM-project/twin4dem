@@ -14,41 +14,17 @@ from common.models import (
 )
 
 
-def _chamber(taxonomy, label) -> Institution:
-    return Institution.objects.create(
-        institution_taxonomy=taxonomy,
-        label=label,
-        size=100,
-        serialization_model=SerializationModel.CHAMBER,
-    )
-
-
-@pytest.fixture
-def assemblee(french_taxonomy) -> Institution:
-    return _chamber(french_taxonomy[InstitutionBranch.LEGISLATIVE], "RN2022")
-
-
 @pytest.fixture
 def senat(france) -> Institution:
     taxonomy = InstitutionTaxonomy.objects.create(
         country=france, branch=InstitutionBranch.LEGISLATIVE, type="senat"
     )
-    return _chamber(taxonomy, "Senat2023")
-
-
-@pytest.fixture
-def cabinet(french_taxonomy) -> Institution:
     return Institution.objects.create(
-        institution_taxonomy=french_taxonomy[InstitutionBranch.EXECUTIVE],
-        label="Castex",
-        size=15,
-        serialization_model=SerializationModel.CABINET,
+        institution_taxonomy=taxonomy,
+        label="Senat2023",
+        size=100,
+        serialization_model=SerializationModel.CHAMBER,
     )
-
-
-@pytest.fixture
-def renaissance(france) -> Party:
-    return Party.objects.create(country=france, label="Renaissance")
 
 
 @pytest.mark.django_db

@@ -18,6 +18,7 @@ from ._institution import (
     SerializationModel,
 )
 from ._party import Party, PartyPosition, PartyPositionType
+from ._timeframe import TimeFrame, TimeFrameSubjectType, TimelineTimeFrame
 from ._simulation import (
     Simulation,
     SimulationParams,
@@ -70,6 +71,9 @@ __all__ = (
     "Party",
     "PartyPosition",
     "PartyPositionType",
+    "TimeFrame",
+    "TimeFrameSubjectType",
+    "TimelineTimeFrame",
     "AggrandisementUnit",
     "AggrandisementBatch",
     "MinisterBelief",

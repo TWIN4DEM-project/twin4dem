@@ -1,6 +1,13 @@
 import pytest
 
-from common.models import Country, InstitutionBranch, InstitutionTaxonomy
+from common.models import (
+    Country,
+    Institution,
+    InstitutionBranch,
+    InstitutionTaxonomy,
+    Party,
+    SerializationModel,
+)
 
 
 @pytest.fixture
@@ -21,3 +28,28 @@ def french_taxonomy(france) -> dict[str, InstitutionTaxonomy]:
             (InstitutionBranch.JUDICIARY, "conseil constitutionnel"),
         )
     }
+
+
+@pytest.fixture
+def cabinet(french_taxonomy) -> Institution:
+    return Institution.objects.create(
+        institution_taxonomy=french_taxonomy[InstitutionBranch.EXECUTIVE],
+        label="Castex",
+        size=15,
+        serialization_model=SerializationModel.CABINET,
+    )
+
+
+@pytest.fixture
+def assemblee(french_taxonomy) -> Institution:
+    return Institution.objects.create(
+        institution_taxonomy=french_taxonomy[InstitutionBranch.LEGISLATIVE],
+        label="RN2022",
+        size=100,
+        serialization_model=SerializationModel.CHAMBER,
+    )
+
+
+@pytest.fixture
+def renaissance(france) -> Party:
+    return Party.objects.create(country=france, label="Renaissance")
