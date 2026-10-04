@@ -97,6 +97,18 @@ class Institution(models.Model):
                     f"the '{expected}' serialization model."
                 )
 
+            if self.pk is None:
+                # imported here: _timeframe depends on this module
+                from common.models._timeframe import frameless_sibling
+
+                sibling = frameless_sibling(self)
+                if sibling is not None:
+                    errors["institution_taxonomy"] = (
+                        f"'{sibling.label}' has no time frame, so it is active at "
+                        f"all times on all timelines: no other institution of type "
+                        f"'{self.institution_taxonomy.type}' can be added."
+                    )
+
         schema = self.payload_schema
         if schema is None:
             errors["serialization_version"] = (

@@ -67,6 +67,23 @@ class PartyPosition(models.Model):
                 {"chamber": "The chamber must belong to the party's country."}
             )
 
+        if self.pk is None:
+            # imported here: _timeframe depends on this module
+            from common.models._timeframe import frameless_sibling
+
+            sibling = frameless_sibling(self)
+            if sibling is not None:
+                raise ValidationError(
+                    {
+                        "chamber": (
+                            f"'{self.party.label}' holds the {sibling.position} "
+                            f"position in '{self.chamber.label}' without a time "
+                            f"frame, i.e. at all times on all timelines: no other "
+                            f"position can be added."
+                        )
+                    }
+                )
+
     class Meta:
         constraints = [
             models.CheckConstraint(
