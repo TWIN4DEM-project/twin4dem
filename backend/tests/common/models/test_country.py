@@ -10,11 +10,6 @@ from common.models import (
 )
 
 
-@pytest.fixture
-def france(test_settings) -> Country:
-    return Country.objects.create(user_settings=test_settings, name="France")
-
-
 @pytest.mark.django_db
 def test_country_name_is_unique_per_settings(test_settings, france):
     with pytest.raises(IntegrityError) as err_proxy:
