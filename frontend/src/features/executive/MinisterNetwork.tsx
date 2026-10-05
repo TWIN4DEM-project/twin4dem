@@ -30,7 +30,7 @@ interface MinisterNetworkProps {
   maxNodeRadius?: number;
   minEdgeThickness?: number;
   maxEdgeThickness?: number;
-  path: "legislative act" | "decree" | undefined;
+  path: "legislative act" | "decree" | null | undefined;
   step: number;
   isActive: boolean;
 }
