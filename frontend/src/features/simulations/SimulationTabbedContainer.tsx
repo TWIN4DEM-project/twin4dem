@@ -14,7 +14,7 @@ type SimulationTabbedContainerProps = {
   ministerVotes: MinisterVote[];
   mpVotes: MemberVote[];
   courtVotes: JudgeVote[];
-  path: "legislative act" | "decree" | undefined;
+  path: "legislative act" | "decree" | null | undefined;
   aggrandizementPassed: null | boolean;
   stepNo: number;
   simulationId: number | undefined;

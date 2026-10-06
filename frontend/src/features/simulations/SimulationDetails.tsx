@@ -20,7 +20,7 @@ type SimulationDetailsState = {
   ministerVotes: MinisterVote[];
   mpVotes: MemberVote[];
   courtVotes: JudgeVote[];
-  path: "legislative act" | "decree" | undefined;
+  path: "legislative act" | "decree" | null | undefined;
   aggrandisementPassed: boolean | null;
 };
 
@@ -116,35 +116,6 @@ export function SimulationDetails({ updateSimulationStep }: SimulationDetailsPar
         results: data.results || [],
       } as SimulationState;
 
-      // fill empty result types with default values
-      const resultTypes = data.results?.map((result) => result.type) || [];
-      const defaultResults = [
-        {
-          type: "cabinet",
-          approved: false,
-          path: undefined,
-          votes: {},
-        },
-        {
-          type: "parliament",
-          approved: false,
-          vbar: 0,
-          votes: {},
-        },
-        {
-          type: "court",
-          approved: false,
-          vbar: 0,
-          votes: {},
-        },
-      ] as const;
-
-      defaultResults.forEach((result) => {
-        if (!resultTypes.includes(result.type)) {
-          myData.results.push(result);
-        }
-      });
-
       // set max step count, default to infinity
       setMaxStepCount(data?.maxStepCount ?? Infinity);
 
@@ -176,6 +147,11 @@ export function SimulationDetails({ updateSimulationStep }: SimulationDetailsPar
         const vote = raw === 1 ? true : raw === 0 ? false : null; // boolean | null
         return { mp: m, vote };
       });
+    } else {
+      newSimulationState.mpVotes = membersOfParliament.current.map((m) => ({
+        mp: m,
+        vote: null,
+      }));
     }
 
     // calculate court data
@@ -186,13 +162,25 @@ export function SimulationDetails({ updateSimulationStep }: SimulationDetailsPar
         const vote = raw === 1 ? true : raw === 0 ? false : null; // boolean | null
         return { judge: j, vote };
       });
+    } else {
+      newSimulationState.courtVotes = judges.current.map((j) => ({
+        judge: j,
+        vote: null,
+      }));
     }
 
     // find aggrandisement state
-    newSimulationState.aggrandisementPassed = data.results.reduce(
-      (prev, current) => prev && (current.approved ?? false),
-      true,
-    );
+    if (!cabinet) {
+      newSimulationState.aggrandisementPassed = null;
+    } else if (!cabinet.approved) {
+      newSimulationState.aggrandisementPassed = false;
+    } else if (cabinet.path === "legislative act") {
+      newSimulationState.aggrandisementPassed = parliament?.approved ?? null;
+    } else if (cabinet.path === "decree") {
+      newSimulationState.aggrandisementPassed = court?.approved ?? null;
+    } else {
+      newSimulationState.aggrandisementPassed = null;
+    }
 
     setSimulationState((prevSimulationState) => {
       return { ...prevSimulationState, ...newSimulationState };
