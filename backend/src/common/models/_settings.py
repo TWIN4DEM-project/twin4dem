@@ -4,6 +4,8 @@ from django.db.models import Q
 
 
 class UserSettings(models.Model):
+    """A global context: the simulated 'world' of a user (one user, many contexts)."""
+
     id = models.AutoField(primary_key=True)
     user = models.ForeignKey(
         to=settings.AUTH_USER_MODEL,
@@ -150,21 +152,3 @@ class InstitutionTaxonomy(models.Model):
                 condition=Q(branch__in=InstitutionBranch.values),
             ),
         ]
-
-
-class PartySettings(models.Model):
-    class Meta:
-        ordering = ["position", "member_count"]
-
-    class PartyPosition(models.TextChoices):
-        MAJORITY = "majority"
-        OPPOSITION = "opposition"
-        INDEPENDENT = "independent"
-
-    id = models.AutoField(primary_key=True)
-    user_settings = models.ForeignKey(
-        to=UserSettings, related_name="parties", on_delete=models.CASCADE
-    )
-    label = models.CharField(max_length=50)
-    member_count = models.PositiveSmallIntegerField()
-    position = models.CharField(choices=PartyPosition.choices)

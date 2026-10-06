@@ -1,33 +1,11 @@
-from django.contrib.contenttypes.fields import GenericRelation
 from django.db import models
 
 from common import fields
-from common.models._settings import PartySettings
 from ._belief import BeliefModel
 from ._influence import InfluencerModel
-from ._simulation import SimulationParams
-
-
-class Cabinet(models.Model):
-    id = models.AutoField(primary_key=True)
-    label = models.CharField(max_length=50, unique=True)
-    government_probability_for = models.FloatField(default=0.5)
-    legislative_probability = models.FloatField()
-    simulation_param = GenericRelation(
-        to=SimulationParams,
-        content_type_field="type",
-        object_id_field="content_id",
-        related_query_name="cabinet",
-    )
-
-    class Meta:
-        constraints = [
-            models.CheckConstraint(
-                name="ck_government_probability_for_is_prob",
-                condition=models.Q(government_probability_for__gte=0)
-                & models.Q(government_probability_for__lte=1),
-            ),
-        ]
+from ._institution import SerializationModel
+from ._party import Party
+from ._simulation import SimulationInstitution, validate_membership
 
 
 class Minister(InfluencerModel, BeliefModel):
@@ -35,10 +13,10 @@ class Minister(InfluencerModel, BeliefModel):
     label = models.CharField(max_length=50)
     is_prime_minister = models.BooleanField(null=False, default=False)
     party = models.ForeignKey(
-        to=PartySettings, on_delete=models.RESTRICT, related_name="ministers"
+        to=Party, on_delete=models.RESTRICT, related_name="ministers"
     )
     cabinet = models.ForeignKey(
-        to=Cabinet, on_delete=models.CASCADE, related_name="ministers"
+        to=SimulationInstitution, on_delete=models.CASCADE, related_name="ministers"
     )
     weights = fields.SeparatedValuesField(base_field=models.FloatField(), blank=True)
     neighbours_out = models.ManyToManyField(
@@ -49,6 +27,10 @@ class Minister(InfluencerModel, BeliefModel):
         blank=True,
         editable=False,
     )
+
+    def clean(self):
+        super().clean()
+        validate_membership(self, "cabinet", SerializationModel.CABINET)
 
     class Meta(InfluencerModel.Meta):
         constraints = InfluencerModel.Meta.constraints + [

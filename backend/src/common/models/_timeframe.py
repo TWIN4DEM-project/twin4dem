@@ -74,6 +74,13 @@ class FrameSpec:
         shared = self.shared_timelines(other)
         return shared is None or bool(shared)
 
+    def contains(self, timeline_id: int, at: datetime) -> bool:
+        """Whether the frame covers the point in time `at` on the timeline."""
+        on_timeline = self.timeline_ids is None or timeline_id in self.timeline_ids
+        started = self.valid_from is None or self.valid_from <= at
+        not_ended = self.valid_to is None or at < self.valid_to
+        return on_timeline and started and not_ended
+
 
 # a subject without time frames is active at all times, on all timelines
 ALWAYS = FrameSpec(valid_from=None, valid_to=None, timeline_ids=None)
@@ -268,7 +275,7 @@ class TimelineTimeFrame(models.Model):
         ]
 
 
-# --- overlap rules ---
+# --- overlap rules --------------------------------------------------------------
 
 
 def _siblings(subject: TimeFrameSubject) -> models.QuerySet:
@@ -403,3 +410,59 @@ def validate_time_frame(
 
     if errors:
         raise ValidationError(errors)
+
+
+# --- queries --------------------------------------------------------------------
+
+
+def active_subjects(
+    subjects: Iterable[TimeFrameSubject], timeline: VirtualTimeline, at: datetime
+) -> list[TimeFrameSubject]:
+    """
+    The subjects (all of the same type) active on `timeline` at the point in time
+    `at`. A subject without time frames is always active.
+    """
+    subjects = list(subjects)
+    if not subjects:
+        return []
+    frames = defaultdict(list)
+    for frame in TimeFrame.objects.filter(
+        subject_type=subject_type_of(subjects[0]),
+        subject_id__in=[s.pk for s in subjects],
+    ).prefetch_related("timeline_links"):
+        frames[frame.subject_id].append(frame.spec)
+    return [
+        subject
+        for subject in subjects
+        if not frames[subject.pk]
+        or any(spec.contains(timeline.pk, at) for spec in frames[subject.pk])
+    ]
+
+
+def is_active(
+    subject: TimeFrameSubject, timeline: VirtualTimeline, at: datetime
+) -> bool:
+    return bool(active_subjects([subject], timeline, at))
+
+
+def active_institutions(
+    country, timeline: VirtualTimeline, at: datetime
+) -> list[Institution]:
+    """The institutions of `country` active on `timeline` at `at`."""
+    return active_subjects(
+        Institution.objects.filter(
+            institution_taxonomy__country=country
+        ).select_related("institution_taxonomy"),
+        timeline,
+        at,
+    )
+
+
+def party_position_at(
+    party, chamber: Institution, timeline: VirtualTimeline, at: datetime
+) -> PartyPosition | None:
+    """The position `party` holds in `chamber` on `timeline` at `at`, if any."""
+    positions = active_subjects(
+        PartyPosition.objects.filter(party=party, chamber=chamber), timeline, at
+    )
+    return positions[0] if positions else None

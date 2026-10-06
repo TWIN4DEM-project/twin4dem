@@ -1,15 +1,20 @@
 from typing import Union, Optional
 
-from django.contrib.contenttypes import fields as ct_fields, models as ct_models
 from django.contrib.postgres.indexes import GinIndex
+from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils import timezone
 from django_pydantic_field import SchemaField
 from pydantic import BaseModel
 
-from common.models._settings import UserSettings
+from common.models._institution import Institution
+from common.models._settings import Country, UserSettings, VirtualTimeline
+from common.models._timeframe import is_active
 
 
 class Simulation(models.Model):
+    """A simulation of a country on a virtual timeline, at a point in time."""
+
     class Status(models.TextChoices):
         NEW = "new"
         RUNNING = "running"
@@ -27,6 +32,32 @@ class Simulation(models.Model):
     user_settings = models.ForeignKey(
         to=UserSettings, on_delete=models.CASCADE, related_name="simulations"
     )
+    # where and when the simulation takes place; a country or timeline that was
+    # simulated cannot be deleted on its own
+    country = models.ForeignKey(
+        to=Country, on_delete=models.RESTRICT, related_name="simulations"
+    )
+    timeline = models.ForeignKey(
+        to=VirtualTimeline, on_delete=models.RESTRICT, related_name="simulations"
+    )
+    valid_at = models.DateTimeField(default=timezone.now)
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.user_settings_id is not None:
+            if (
+                self.country_id is not None
+                and self.country.user_settings_id != self.user_settings_id
+            ):
+                errors["country"] = "The country must belong to the user settings."
+            if (
+                self.timeline_id is not None
+                and self.timeline.user_settings_id != self.user_settings_id
+            ):
+                errors["timeline"] = "The timeline must belong to the user settings."
+        if errors:
+            raise ValidationError(errors)
 
     class Meta:
         constraints = [
@@ -42,20 +73,94 @@ class Simulation(models.Model):
         ]
 
 
-class SimulationParams(models.Model):
+class SimulationInstitution(models.Model):
+    """
+    An institution taking part in a simulation. The agents of the simulation
+    (ministers, MPs, judges) belong to it, so every simulation has its own agents
+    while the institutions themselves are shared.
+    """
+
+    id = models.AutoField(primary_key=True)
     simulation = models.ForeignKey(
-        to=Simulation, on_delete=models.CASCADE, related_name="params"
+        to=Simulation, on_delete=models.CASCADE, related_name="institutions"
     )
-    type = models.ForeignKey(to=ct_models.ContentType, on_delete=models.CASCADE)
-    content_id = models.PositiveBigIntegerField()
-    params = ct_fields.GenericForeignKey("type", "content_id")
+    institution = models.ForeignKey(
+        to=Institution, on_delete=models.RESTRICT, related_name="simulations"
+    )
+
+    def __str__(self):
+        return f"{self.institution.label} in simulation {self.simulation_id}"
+
+    def clean(self):
+        super().clean()
+        if self.simulation_id is None or self.institution_id is None:
+            return
+        simulation = self.simulation
+        institution = self.institution
+
+        if institution.institution_taxonomy.country_id != simulation.country_id:
+            raise ValidationError(
+                {"institution": "The institution must belong to the simulated country."}
+            )
+
+        same_model = SimulationInstitution.objects.filter(
+            simulation_id=self.simulation_id,
+            institution__serialization_model=institution.serialization_model,
+        ).exclude(pk=self.pk)
+        if same_model.exists():
+            raise ValidationError(
+                {
+                    "institution": (
+                        f"The simulation already has a "
+                        f"{institution.serialization_model}."
+                    )
+                }
+            )
+
+        if not is_active(institution, simulation.timeline, simulation.valid_at):
+            raise ValidationError(
+                {
+                    "institution": (
+                        f"'{institution.label}' is not active on timeline "
+                        f"'{simulation.timeline.label}' at {simulation.valid_at}."
+                    )
+                }
+            )
 
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                name="uq_params_id_per_type", fields=["simulation", "type"]
+                name="uq_simulationinstitution_simulation_institution",
+                fields=["simulation", "institution"],
             )
         ]
+
+
+def validate_membership(agent: models.Model, field_name: str, serialization_model: str):
+    """
+    Check that an agent (minister, MP or judge) sits in an institution of the
+    expected kind and that its party belongs to the institution's country.
+    """
+    if getattr(agent, f"{field_name}_id") is None:
+        return
+    institution = getattr(agent, field_name).institution
+    if institution.serialization_model != serialization_model:
+        raise ValidationError(
+            {
+                field_name: (
+                    f"A {agent._meta.verbose_name} must belong to a "
+                    f"{serialization_model}, not to a "
+                    f"{institution.serialization_model}."
+                )
+            }
+        )
+    if (
+        agent.party_id is not None
+        and agent.party.country_id != institution.institution_taxonomy.country_id
+    ):
+        raise ValidationError(
+            {"party": "The party must belong to the institution's country."}
+        )
 
 
 class AggrandisementPathType(models.TextChoices):
