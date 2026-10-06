@@ -4,6 +4,8 @@ import pytest
 
 from common.models import TimeFrame, TimeFrameSubjectType, VirtualTimeline
 
+pytestmark = pytest.mark.urls("tests.common.admin.urls")
+
 ADD_URL = "/admin/common/timeframe/add/"
 
 

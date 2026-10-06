@@ -107,10 +107,10 @@ def test_taxonomy_branch_rejected_by_validation(france):
 
 @pytest.mark.django_db
 def test_deleting_country_deletes_taxonomy(france):
-    InstitutionTaxonomy.objects.create(
+    taxonomy = InstitutionTaxonomy.objects.create(
         country=france, branch=InstitutionBranch.EXECUTIVE, type="cabinet"
     )
 
     france.delete()
 
-    assert not InstitutionTaxonomy.objects.exists()
+    assert not InstitutionTaxonomy.objects.filter(pk=taxonomy.pk).exists()

@@ -173,8 +173,9 @@ def test_database_rejects_invalid_serialization(cabinet_type, field, value, chec
 
 @pytest.mark.django_db
 def test_deleting_country_deletes_institutions(france, cabinet_type):
-    _institution(cabinet_type).save()
+    institution = _institution(cabinet_type)
+    institution.save()
 
     france.delete()
 
-    assert not Institution.objects.exists()
+    assert not Institution.objects.filter(pk=institution.pk).exists()

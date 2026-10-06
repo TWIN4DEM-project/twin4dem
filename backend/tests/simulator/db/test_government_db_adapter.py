@@ -9,18 +9,20 @@ from common.models import (
     SimulationSubmodelLogEntry,
     SubmodelType,
     PathSubmodelInfo,
-    Cabinet,
     AggrandisementBatch,
     AggrandisementUnit,
     MinisterBelief,
+    PartyPositionType,
+    SerializationModel,
+    SimulationInstitution,
 )
 import simulator.db._adapter as adapter_module
 from simulator.db import GovernmentDbAdapter
 
 
 @pytest.fixture
-def cabinet(simulation, institution_params):
-    return institution_params(simulation, Cabinet)
+def cabinet(simulation, simulation_institution):
+    return simulation_institution(simulation, SerializationModel.CABINET)
 
 
 @pytest.fixture
@@ -64,7 +66,7 @@ def test_government_db_adapter_init_submodel_with_expected_params(
     assert executive_submodel_mock.call_count == 1
     assert executive_submodel_mock.call_args_list == [
         call(
-            pact=cabinet.legislative_probability,
+            pact=simulation.user_settings.legislative_path_probability,
             alpha=simulation.social_influence_susceptibility,
             gamma=simulation.office_retention_sensitivity,
             epsilon=simulation.user_settings.abstention_threshold,
@@ -83,7 +85,7 @@ def test_government_db_adapter_init_submodel_without_prev_results(
     assert executive_submodel_mock.call_count == 1
     assert executive_submodel_mock.call_args_list == [
         call(
-            pact=cabinet.legislative_probability,
+            pact=simulation.user_settings.legislative_path_probability,
             alpha=simulation.social_influence_susceptibility,
             gamma=simulation.office_retention_sensitivity,
             epsilon=simulation.user_settings.abstention_threshold,
@@ -189,3 +191,29 @@ def test_convert_uses_step_specific_minister_beliefs_with_global_fallback(
     assert converted[fallback.id].belief.o_i == fallback.personal_opinion
     assert converted[fallback.id].belief.o_sup1 == fallback.appointing_group_opinion
     assert converted[fallback.id].belief.o_sup2 == fallback.supporting_group_opinion
+
+
+@pytest.mark.django_db
+def test_ministers_are_independent_without_chamber(sut, simulation):
+    government = sut.convert(simulation.id)
+
+    assert {m.P_i for m in government.ministers} == {PartyPositionType.INDEPENDENT}
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("simulation_id", [2], indirect=True)
+def test_ministers_take_party_position_in_simulated_chamber(sut, simulation):
+    # world.json: party 1 is in the majority and party 2 in the opposition
+    SimulationInstitution.objects.create(simulation=simulation, institution_id=2)
+
+    government = sut.convert(simulation.id)
+
+    party_ids = dict(
+        simulation.institutions.get(
+            institution__serialization_model=SerializationModel.CABINET
+        ).ministers.values_list("id", "party_id")
+    )
+    expected = {1: "majority", 2: "opposition"}
+    assert {m.id: m.P_i for m in government.ministers} == {
+        minister_id: expected[party_id] for minister_id, party_id in party_ids.items()
+    }

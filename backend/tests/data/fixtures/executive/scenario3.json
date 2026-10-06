@@ -9,25 +9,18 @@
       "current_step": 0,
       "office_retention_sensitivity": 5.0,
       "social_influence_susceptibility": 0.5,
-      "user_settings": 1
+      "user_settings": 1,
+      "country": 1,
+      "timeline": 1,
+      "valid_at": "20260113T14:15:16Z"
     }
   },
   {
-    "model": "common.simulationparams",
+    "model": "common.simulationinstitution",
     "pk": 3,
     "fields": {
       "simulation": 3,
-      "type": ["common", "cabinet"],
-      "content_id": 3
-    }
-  },
-  {
-    "model": "common.cabinet",
-    "pk": 3,
-    "fields": {
-      "label": "scenario 2",
-      "government_probability_for": 0.7,
-      "legislative_probability": 0.6
+      "institution": 1
     }
   },
   {

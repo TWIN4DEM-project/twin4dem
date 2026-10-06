@@ -1,0 +1,81 @@
+[
+  {
+    "model": "common.country",
+    "pk": 1,
+    "fields": {"user_settings": 1, "name": "Testland"}
+  },
+  {
+    "model": "common.institutiontaxonomy",
+    "pk": 1,
+    "fields": {"country": 1, "branch": "executive", "type": "government"}
+  },
+  {
+    "model": "common.institutiontaxonomy",
+    "pk": 2,
+    "fields": {"country": 1, "branch": "legislative", "type": "parliament"}
+  },
+  {
+    "model": "common.institutiontaxonomy",
+    "pk": 3,
+    "fields": {"country": 1, "branch": "judiciary", "type": "court"}
+  },
+  {
+    "model": "common.institution",
+    "pk": 1,
+    "fields": {
+      "institution_taxonomy": 1,
+      "label": "Testland government",
+      "size": 15,
+      "serialization_model": "cabinet",
+      "serialization_version": 1,
+      "payload": {"connectivity_degree": 3, "government_probability_for": null}
+    }
+  },
+  {
+    "model": "common.institution",
+    "pk": 2,
+    "fields": {
+      "institution_taxonomy": 2,
+      "label": "Testland parliament",
+      "size": 100,
+      "serialization_model": "chamber",
+      "serialization_version": 1,
+      "payload": {
+        "parliament_majority_probability_for": null,
+        "parliament_opposition_probability_for": null
+      }
+    }
+  },
+  {
+    "model": "common.institution",
+    "pk": 3,
+    "fields": {
+      "institution_taxonomy": 3,
+      "label": "Testland court",
+      "size": 5,
+      "serialization_model": "court",
+      "serialization_version": 1,
+      "payload": {"court_probability_for": null}
+    }
+  },
+  {
+    "model": "common.party",
+    "pk": 1,
+    "fields": {"country": 1, "label": "majority"}
+  },
+  {
+    "model": "common.party",
+    "pk": 2,
+    "fields": {"country": 1, "label": "opposition"}
+  },
+  {
+    "model": "common.partyposition",
+    "pk": 1,
+    "fields": {"party": 1, "chamber": 2, "position": "majority"}
+  },
+  {
+    "model": "common.partyposition",
+    "pk": 2,
+    "fields": {"party": 2, "chamber": 2, "position": "opposition"}
+  }
+]

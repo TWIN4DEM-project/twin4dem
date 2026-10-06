@@ -2,16 +2,16 @@ import itertools
 import random
 
 import pytest
-from django.contrib.contenttypes.models import ContentType
 from django.utils import timezone
 
 import simulator.db._adapter as adapter_module
 from common.models import (
-    Court,
     Judge,
     JudgeLink,
+    Party,
+    PartyPositionType,
     Simulation,
-    SimulationParams,
+    SimulationInstitution,
     AggrandisementBatch,
     AggrandisementUnit,
     JudgeBelief,
@@ -20,18 +20,16 @@ from simulator.db._adapter import CouncilDbAdapter
 
 pytestmark = pytest.mark.django_db
 TEST_SIMULATION_ID = 42
+# world.json: country 1 with its chamber (institution 2), its court (institution 3)
+# and parties 1 (majority) and 2 (opposition)
+COUNTRY_ID = 1
+CHAMBER_ID = 2
+COURT_ID = 3
 
 
 @pytest.fixture
-def court_size(test_settings, request):
-    test_settings.court_size = getattr(request, "param", 5)
-    test_settings.save()
-    return test_settings.court_size
-
-
-@pytest.fixture
-def probability_for(request):
-    return getattr(request, "param", 0.5)
+def court_size(request):
+    return getattr(request, "param", 5)
 
 
 @pytest.fixture
@@ -47,7 +45,7 @@ def weights(request):
 
 def _create_judge(idx, court, parties, weights, is_president=False):
     return Judge.objects.create(
-        label=f"{court.label}-{idx}",
+        label=f"{court.institution.label}-{idx}",
         court=court,
         party=random.choice(parties),
         weights=weights,
@@ -57,12 +55,26 @@ def _create_judge(idx, court, parties, weights, is_president=False):
 
 
 @pytest.fixture
-def court(weights, test_settings, probability_for, court_size):
-    result = Court.objects.create(
-        label="test-court",
-        probability_for=probability_for,
+def world_simulation(test_settings) -> Simulation:
+    simulation = Simulation.objects.create(
+        pk=TEST_SIMULATION_ID,
+        user_settings=test_settings,
+        country_id=COUNTRY_ID,
+        timeline=test_settings.timelines.get(),
     )
-    parties = list(test_settings.parties.all())
+    # the chamber determines the judges' party positions
+    SimulationInstitution.objects.create(
+        simulation=simulation, institution_id=CHAMBER_ID
+    )
+    return simulation
+
+
+@pytest.fixture
+def court(world_simulation, weights, court_size):
+    result = SimulationInstitution.objects.create(
+        simulation=world_simulation, institution_id=COURT_ID
+    )
+    parties = list(Party.objects.filter(country_id=COUNTRY_ID))
     judges = [
         _create_judge(idx, result, parties, weights, idx == 0)
         for idx in range(court_size)
@@ -74,20 +86,8 @@ def court(weights, test_settings, probability_for, court_size):
 
 
 @pytest.fixture
-def simulation(test_settings, court) -> Simulation:
-    content_type = ContentType.objects.get_for_model(Court)
-    simulation, ok = Simulation.objects.get_or_create(
-        pk=TEST_SIMULATION_ID,
-        user_settings=test_settings,
-    )
-    if not ok:
-        raise AssertionError("simulation fixture failed")
-    SimulationParams.objects.get_or_create(
-        content_id=court.id,
-        type_id=content_type.id,
-        simulation_id=TEST_SIMULATION_ID,
-    )
-    return simulation
+def simulation(world_simulation, court) -> Simulation:
+    return world_simulation
 
 
 @pytest.fixture
@@ -248,3 +248,20 @@ def test_convert_uses_step_specific_judge_beliefs_with_global_fallback(
     assert converted[fallback.id].belief.o_i == fallback.personal_opinion
     assert converted[fallback.id].belief.o_sup1 == fallback.appointing_group_opinion
     assert converted[fallback.id].belief.o_sup2 == fallback.supporting_group_opinion
+
+
+def test_judges_are_independent_without_chamber(sut, simulation):
+    simulation.institutions.filter(institution_id=CHAMBER_ID).delete()
+
+    council = sut.convert(simulation.id)
+
+    assert {j.P_i for j in council.judges} == {PartyPositionType.INDEPENDENT}
+
+
+def test_convert_without_court_raises(sut, simulation, court):
+    court.delete()
+
+    with pytest.raises(ValueError) as err_proxy:
+        sut.convert(simulation.id)
+
+    assert str(err_proxy.value) == f"there is no court in simulation {simulation.id}"

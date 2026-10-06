@@ -121,24 +121,24 @@ def test_position_rejected_by_database(renaissance, assemblee):
 
 @pytest.mark.django_db
 def test_deleting_party_deletes_positions(renaissance, assemblee):
-    PartyPosition.objects.create(
+    position = PartyPosition.objects.create(
         party=renaissance, chamber=assemblee, position=PartyPositionType.MAJORITY
     )
 
     renaissance.delete()
 
-    assert not PartyPosition.objects.exists()
+    assert not PartyPosition.objects.filter(pk=position.pk).exists()
 
 
 @pytest.mark.django_db
 def test_deleting_chamber_deletes_positions(renaissance, assemblee):
-    PartyPosition.objects.create(
+    position = PartyPosition.objects.create(
         party=renaissance, chamber=assemblee, position=PartyPositionType.MAJORITY
     )
 
     assemblee.delete()
 
-    assert not PartyPosition.objects.exists()
+    assert not PartyPosition.objects.filter(pk=position.pk).exists()
     assert Party.objects.filter(pk=renaissance.pk).exists()
 
 
@@ -146,4 +146,4 @@ def test_deleting_chamber_deletes_positions(renaissance, assemblee):
 def test_deleting_country_deletes_parties(france, renaissance):
     france.delete()
 
-    assert not Party.objects.exists()
+    assert not Party.objects.filter(pk=renaissance.pk).exists()

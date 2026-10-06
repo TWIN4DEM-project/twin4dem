@@ -1,3 +1,5 @@
+from datetime import datetime, UTC
+
 import pytest
 
 from common.models import (
@@ -7,6 +9,9 @@ from common.models import (
     InstitutionTaxonomy,
     Party,
     SerializationModel,
+    Simulation,
+    SimulationInstitution,
+    VirtualTimeline,
 )
 
 
@@ -53,3 +58,49 @@ def assemblee(french_taxonomy) -> Institution:
 @pytest.fixture
 def renaissance(france) -> Party:
     return Party.objects.create(country=france, label="Renaissance")
+
+
+@pytest.fixture
+def court(french_taxonomy) -> Institution:
+    return Institution.objects.create(
+        institution_taxonomy=french_taxonomy[InstitutionBranch.JUDICIARY],
+        label="CC",
+        size=9,
+        serialization_model=SerializationModel.COURT,
+    )
+
+
+@pytest.fixture
+def default_timeline(test_settings) -> VirtualTimeline:
+    return test_settings.timelines.get(label=VirtualTimeline.DEFAULT_LABEL)
+
+
+@pytest.fixture
+def french_simulation(test_settings, france, default_timeline) -> Simulation:
+    return Simulation.objects.create(
+        user_settings=test_settings,
+        country=france,
+        timeline=default_timeline,
+        valid_at=datetime(2021, 1, 1, tzinfo=UTC),
+    )
+
+
+@pytest.fixture
+def cabinet_seat(french_simulation, cabinet) -> SimulationInstitution:
+    return SimulationInstitution.objects.create(
+        simulation=french_simulation, institution=cabinet
+    )
+
+
+@pytest.fixture
+def chamber_seat(french_simulation, assemblee) -> SimulationInstitution:
+    return SimulationInstitution.objects.create(
+        simulation=french_simulation, institution=assemblee
+    )
+
+
+@pytest.fixture
+def court_seat(french_simulation, court) -> SimulationInstitution:
+    return SimulationInstitution.objects.create(
+        simulation=french_simulation, institution=court
+    )

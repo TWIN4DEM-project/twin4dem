@@ -21,7 +21,6 @@ from ._timeframe import (
     TimeFrame,
     TimeFrameSubjectType,
     TimelineTimeFrame,
-    active_institutions,
     is_active,
     party_position_at,
 )
@@ -76,7 +75,6 @@ __all__ = (
     "TimeFrame",
     "TimeFrameSubjectType",
     "TimelineTimeFrame",
-    "active_institutions",
     "is_active",
     "party_position_at",
     "AggrandisementUnit",

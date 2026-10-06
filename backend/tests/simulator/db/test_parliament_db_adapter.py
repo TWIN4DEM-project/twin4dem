@@ -1,12 +1,11 @@
 import pytest
-from django.contrib.contenttypes.models import ContentType
 from django.utils import timezone
 
 from common.models import (
     Simulation,
-    Parliament as ParliamentModel,
+    SimulationInstitution,
     MemberOfParliament,
-    SimulationParams,
+    Party,
     AggrandisementBatch,
     AggrandisementUnit,
     MPBelief,
@@ -16,26 +15,36 @@ from simulator.db._adapter import ParliamentDbAdapter
 
 
 TEST_SIMULATION_ID = 42
+# world.json: country 1 with its chamber (institution 2) and parties 1 and 2
+COUNTRY_ID = 1
+CHAMBER_ID = 2
+SEATS = {"majority": 51, "opposition": 49}
 
 
 @pytest.fixture
-def parliament(db) -> ParliamentModel:
-    result, ok = ParliamentModel.objects.get_or_create(label="test parliament")
-    if not ok:
-        raise AssertionError("parliament fixture failed")
-    return result
+def world_simulation(test_settings) -> Simulation:
+    return Simulation.objects.create(
+        pk=TEST_SIMULATION_ID,
+        user_settings=test_settings,
+        country_id=COUNTRY_ID,
+        timeline=test_settings.timelines.get(),
+    )
+
+
+@pytest.fixture
+def parliament(world_simulation) -> SimulationInstitution:
+    return SimulationInstitution.objects.create(
+        simulation=world_simulation, institution_id=CHAMBER_ID
+    )
 
 
 def _create_mp(parliament, label, weights, party):
-    result, ok = MemberOfParliament.objects.get_or_create(
-        label=f"{parliament.label}-{label}",
+    return MemberOfParliament.objects.create(
+        label=f"{parliament.institution.label}-{label}",
         weights=weights,
-        parliament=parliament,
+        chamber=parliament,
         party=party,
     )
-    if not ok:
-        raise AssertionError("member_of_parliament fixture failed")
-    return result
 
 
 @pytest.fixture
@@ -44,29 +53,17 @@ def weights(request):
 
 
 @pytest.fixture
-def members_of_parliament(test_settings, parliament, weights):
+def members_of_parliament(parliament, weights):
     return [
         _create_mp(parliament, f"{party.label}-{member_idx+1}", weights, party)
-        for party in test_settings.parties.all()
-        for member_idx in range(party.member_count)
+        for party in Party.objects.filter(country_id=COUNTRY_ID).order_by("id")
+        for member_idx in range(SEATS[party.label])
     ]
 
 
 @pytest.fixture
-def simulation(test_settings, parliament, members_of_parliament) -> Simulation:
-    content_type = ContentType.objects.get_for_model(ParliamentModel)
-    simulation, ok = Simulation.objects.get_or_create(
-        pk=TEST_SIMULATION_ID,
-        user_settings=test_settings,
-    )
-    if not ok:
-        raise AssertionError("simulation fixture failed")
-    SimulationParams.objects.get_or_create(
-        content_id=parliament.id,
-        type_id=content_type.id,
-        simulation_id=TEST_SIMULATION_ID,
-    )
-    return simulation
+def simulation(world_simulation, members_of_parliament) -> Simulation:
+    return world_simulation
 
 
 @pytest.fixture
@@ -100,7 +97,7 @@ def test_convert_parliament_members_have_expected_party_labels(
     result = sut.convert(simulation.id)
 
     expected_party_labels = set(
-        x["position"] for x in test_settings.parties.values("position").distinct()
+        Party.objects.filter(country_id=COUNTRY_ID).values_list("label", flat=True)
     )
     assert all(mp.P_i in expected_party_labels for mp in result.mps)
 

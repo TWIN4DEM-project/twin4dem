@@ -10,7 +10,6 @@ from common.models import (
     SerializationModel,
     TimeFrame,
     VirtualTimeline,
-    active_institutions,
     is_active,
     party_position_at,
 )
@@ -76,33 +75,6 @@ def test_frame_for_all_timelines_is_active_on_each(
 ):
     for timeline in (default_timeline, alternate):
         assert is_active(philippe_cabinets["Philippe II"], timeline, _dt(2018))
-
-
-@pytest.mark.django_db
-@pytest.mark.parametrize(
-    "timeline_label,at,expected",
-    [
-        ("default", _dt(2017, 6, 1), {"Philippe I", "CC"}),
-        ("alternate", _dt(2017, 6, 1), {"CC"}),
-        ("default", _dt(2017, 6, 21), {"Philippe II", "CC"}),
-        ("default", _dt(2021), {"CC"}),
-    ],
-)
-def test_active_institutions(
-    test_settings,
-    france,
-    philippe_cabinets,
-    court,
-    alternate,
-    timeline_label,
-    at,
-    expected,
-):
-    timeline = test_settings.timelines.get(label=timeline_label)
-
-    active = active_institutions(france, timeline, at)
-
-    assert {institution.label for institution in active} == expected
 
 
 @pytest.mark.django_db

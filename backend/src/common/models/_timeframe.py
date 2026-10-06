@@ -445,19 +445,6 @@ def is_active(
     return bool(active_subjects([subject], timeline, at))
 
 
-def active_institutions(
-    country, timeline: VirtualTimeline, at: datetime
-) -> list[Institution]:
-    """The institutions of `country` active on `timeline` at `at`."""
-    return active_subjects(
-        Institution.objects.filter(
-            institution_taxonomy__country=country
-        ).select_related("institution_taxonomy"),
-        timeline,
-        at,
-    )
-
-
 def party_position_at(
     party, chamber: Institution, timeline: VirtualTimeline, at: datetime
 ) -> PartyPosition | None:

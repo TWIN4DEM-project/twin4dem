@@ -9,25 +9,26 @@
       "updated_at": "20260113T14:15:16Z",
       "office_retention_sensitivity": 5.0,
       "social_influence_susceptibility": 0.5,
-      "user_settings": 1
+      "user_settings": 1,
+      "country": 1,
+      "timeline": 1,
+      "valid_at": "20260113T14:15:16Z"
     }
   },
   {
-    "model": "common.simulationparams",
+    "model": "common.simulationinstitution",
     "pk": 1,
     "fields": {
       "simulation": 1,
-      "type": 13,
-      "content_id": 1
+      "institution": 1
     }
   },
   {
-    "model": "common.cabinet",
-    "pk": 1,
+    "model": "common.simulationinstitution",
+    "pk": 101,
     "fields": {
-      "label": "scenario 1",
-      "government_probability_for": 0.7,
-      "legislative_probability": 0.5
+      "simulation": 1,
+      "institution": 2
     }
   },
   {
@@ -222,25 +223,6 @@
       "to_minister": 3
     }
   },
-
-  {
-    "model": "common.simulationparams",
-    "pk": 1,
-    "fields": {
-      "simulation": 1,
-      "type": ["common", "parliament"],
-      "content_id": 1
-    }
-  },
-  {
-    "model": "common.parliament",
-    "pk": 1,
-    "fields": {
-      "label": "scenario 1",
-      "majority_probability_for": 0.5,
-      "opposition_probability_for": 0.5
-    }
-  },
   {
     "model": "common.memberofparliament",
     "pk": 1,
@@ -249,7 +231,7 @@
       "is_head": true,
       "weights": "0.1667, 0.1667, 0.1667, 0.1667, 0.1667, 0.1667",
       "party": 1,
-      "parliament": 1
+      "chamber": 101
     }
   },
   {
@@ -260,7 +242,7 @@
       "is_head": false,
       "weights": "0.1667, 0.1667, 0.1667, 0.1667, 0.1667, 0.1667",
       "party": 1,
-      "parliament": 1
+      "chamber": 101
     }
   },
   {
@@ -271,7 +253,7 @@
       "is_head": true,
       "weights": "0.1667, 0.1667, 0.1667, 0.1667, 0.1667, 0.1667",
       "party": 2,
-      "parliament": 1
+      "chamber": 101
     }
   },
   {
@@ -282,7 +264,7 @@
       "is_head": false,
       "weights": "0.1667, 0.1667, 0.1667, 0.1667, 0.1667, 0.1667",
       "party": 2,
-      "parliament": 1
+      "chamber": 101
     }
   }
 ]

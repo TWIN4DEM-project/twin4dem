@@ -4,10 +4,9 @@ from pathlib import Path
 from typing import Callable
 
 import pytest
-from django.contrib.contenttypes.models import ContentType
 from django.core.management import call_command
-from common.models import Simulation
-from common.models import UserSettings
+from common.models import Simulation, SimulationInstitution
+from common.models import UserSettings, VirtualTimeline
 
 
 @pytest.fixture(autouse=True)
@@ -55,6 +54,8 @@ def django_db_setup(django_db_setup, django_db_blocker, data_dir):
     with django_db_blocker.unblock():
         call_command("loaddata", "user_data.json")
         call_command("loaddata", "user_settings.json")
+        call_command("loaddata", "world.json")
+        assert VirtualTimeline.objects.get(pk=1).user_settings_id == 1
 
 
 @pytest.fixture
@@ -105,20 +106,20 @@ def legislative_simulation(load_simulation, simulation_id):
 
 
 @pytest.fixture
-def institution_params():
+def simulation_institution():
     """
-    Generic helper to fetch the first SimulationParam.params for a given institution model.
-    Usage: institution_params(simulation, Cabinet) -> Cabinet params instance
+    Generic helper to fetch the institution of a kind taking part in a simulation.
+    Usage: simulation_institution(simulation, "cabinet") -> SimulationInstitution
     """
 
-    def _get(simulation, model_cls):
-        ct = ContentType.objects.get_for_model(model_cls)
-        qs = simulation.params.filter(type=ct).select_related("type")
-        obj = qs.first()
+    def _get(simulation, serialization_model: str) -> SimulationInstitution:
+        obj = simulation.institutions.filter(
+            institution__serialization_model=serialization_model
+        ).first()
         assert obj is not None, (
-            f"No params found for model {model_cls.__name__} in Simulation(id={simulation.id}). "
+            f"No {serialization_model} found in Simulation(id={simulation.id}). "
             f"Did you load the right fixture?"
         )
-        return obj.params
+        return obj
 
     return _get
