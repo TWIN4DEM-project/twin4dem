@@ -2,8 +2,8 @@ from django.db import models
 
 from common import fields
 from common.models._belief import BeliefModel
-from common.models._institution import SerializationModel
 from common.models._party import Party
+from common.models._settings import InstitutionBranch
 from common.models._simulation import SimulationInstitution, validate_membership
 
 
@@ -20,7 +20,9 @@ class MemberOfParliament(BeliefModel):
 
     def clean(self):
         super().clean()
-        validate_membership(self, "chamber", SerializationModel.CHAMBER)
+        validate_membership(
+            self, "chamber", InstitutionBranch.LEGISLATIVE, "member of parliament"
+        )
 
     class Meta:
         constraints = [

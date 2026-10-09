@@ -83,7 +83,7 @@ class DjangoSimulationPersistence(SimulationPersistence):
 
     @staticmethod
     def _build_submodel_info(result):
-        match result.institution_name:
+        match result.type:
             case SubmodelTypeDto.Cabinet:
                 return PathSubmodelInfo(votes=result.votes, path=result.path)
             case SubmodelTypeDto.Parliament | SubmodelTypeDto.Court:

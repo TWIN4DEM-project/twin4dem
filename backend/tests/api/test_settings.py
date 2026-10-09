@@ -4,12 +4,12 @@ def test_list_success(admin_client):
     assert response.status_code == 200
     assert response.json() == [
         {
-            "courtSize": 5,
-            "governmentConnectivityDegree": 3,
-            "governmentSize": 6,
+            "courtProbabilityFor": 0.5,
+            "governmentProbabilityFor": 0.7,
             "id": 1,
             "label": "test_admin settings",
-            "parliamentSize": 100,
+            "parliamentMajorityProbabilityFor": 0.5,
+            "parliamentOppositionProbabilityFor": 0.5,
         }
     ]
 
@@ -29,11 +29,8 @@ def test_get_by_id_success(admin_client):
     assert response.status_code == 200
     assert response.json() == {
         "abstentionThreshold": 0.1,
-        "courtSize": 5,
         "courtProbabilityFor": 0.5,
         "dataUpdateFrequency": 10,
-        "governmentConnectivityDegree": 3,
-        "governmentSize": 6,
         "governmentProbabilityFor": 0.7,
         "parliamentMajorityProbabilityFor": 0.5,
         "parliamentOppositionProbabilityFor": 0.5,
@@ -41,16 +38,6 @@ def test_get_by_id_success(admin_client):
         "label": "test_admin settings",
         "legislativePathProbability": 0.7,
         "officeRetentionSensitivity": 5.0,
-        "parliamentSize": 100,
-        "parties": [
-            {"id": 1, "label": "majority", "memberCount": 51, "position": "majority"},
-            {
-                "id": 2,
-                "label": "opposition",
-                "memberCount": 49,
-                "position": "opposition",
-            },
-        ],
         "socialInfluenceSusceptibility": 0.5,
         "userId": 1,
     }

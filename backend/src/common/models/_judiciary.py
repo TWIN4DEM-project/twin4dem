@@ -3,8 +3,8 @@ from django.db import models
 from common import fields
 from common.models._belief import BeliefModel
 from common.models._influence import InfluencerModel
-from common.models._institution import SerializationModel
 from common.models._party import Party
+from common.models._settings import InstitutionBranch
 from common.models._simulation import SimulationInstitution, validate_membership
 
 
@@ -30,7 +30,7 @@ class Judge(InfluencerModel, BeliefModel):
 
     def clean(self):
         super().clean()
-        validate_membership(self, "court", SerializationModel.COURT)
+        validate_membership(self, "court", InstitutionBranch.JUDICIARY, "judge")
 
     class Meta(InfluencerModel.Meta):
         constraints = InfluencerModel.Meta.constraints + [

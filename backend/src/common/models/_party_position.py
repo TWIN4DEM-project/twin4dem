@@ -1,15 +1,17 @@
 from datetime import datetime
 
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q
 
 from common.models._institution import Institution
 from common.models._party import Party
-from common.models._settings import VirtualTimeline
+from common.models._settings import InstitutionBranch, VirtualTimeline
 from common.models._timeframe import (
     TimeFrameMixin,
     TimeFrameSubjectType,
     active_subjects,
+    frameless_sibling,
 )
 
 
@@ -48,6 +50,27 @@ class PartyPosition(TimeFrameMixin):
 
     def time_frame_user_settings_id(self) -> int:
         return self.party.country.user_settings_id
+
+    def clean(self) -> None:
+        super().clean()
+        if self.chamber_id is None:
+            return
+        errors = {}
+        if self.chamber.kind.branch != InstitutionBranch.LEGISLATIVE:
+            errors["chamber"] = "Party positions can only be held in a chamber."
+        elif self.party.country_id != self.chamber.kind.country_id:
+            errors["chamber"] = "The chamber must belong to the party's country."
+        elif self.pk is None:
+            sibling = frameless_sibling(self)
+            if sibling is not None:
+                errors["chamber"] = (
+                    f"'{sibling.party.label}' holds the {sibling.position} "
+                    f"position in '{sibling.chamber.label}' without a time frame, "
+                    "i.e. at all times on all timelines: no other position can "
+                    "be added."
+                )
+        if errors:
+            raise ValidationError(errors)
 
     class Meta:
         constraints = [

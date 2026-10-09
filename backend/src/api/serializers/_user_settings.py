@@ -3,11 +3,9 @@ from rest_framework.fields import IntegerField
 from common.models import UserSettings
 
 from ._base import LCCModelSerializer
-from ._party_settings import PartySettingsSerializer
 
 
 class UserSettingsSerializer(LCCModelSerializer):
-    parties = PartySettingsSerializer(many=True, read_only=True)
     user_id = IntegerField(read_only=True)
 
     class Meta:
@@ -30,10 +28,10 @@ class UserSettingsSerializer(LCCModelSerializer):
                     in {
                         "id",
                         "label",
-                        "government_size",
-                        "government_connectivity_degree",
-                        "parliament_size",
-                        "court_size",
+                        "government_probability_for",
+                        "parliament_majority_probability_for",
+                        "parliament_opposition_probability_for",
+                        "court_probability_for",
                     }
                 }
             case _:

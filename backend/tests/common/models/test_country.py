@@ -37,28 +37,32 @@ def test_country_declares_taxonomy(france):
     InstitutionKind.objects.bulk_create(
         [
             InstitutionKind(
-                country=france, branch=InstitutionBranch.EXECUTIVE, type="cabinet"
+                country=france,
+                branch=InstitutionBranch.EXECUTIVE,
+                institution_name="cabinet",
             ),
             InstitutionKind(
                 country=france,
                 branch=InstitutionBranch.LEGISLATIVE,
-                type="assemblee nationale",
+                institution_name="assemblee nationale",
             ),
             InstitutionKind(
-                country=france, branch=InstitutionBranch.LEGISLATIVE, type="senat"
+                country=france,
+                branch=InstitutionBranch.LEGISLATIVE,
+                institution_name="senat",
             ),
             InstitutionKind(
                 country=france,
                 branch=InstitutionBranch.JUDICIARY,
-                type="conseil constitutionnel",
+                institution_name="conseil constitutionnel",
             ),
         ]
     )
 
-    legislative = france.taxonomy.filter(branch=InstitutionBranch.LEGISLATIVE)
+    legislative = france.institution_kinds.filter(branch=InstitutionBranch.LEGISLATIVE)
 
-    assert france.taxonomy.count() == 4
-    assert set(legislative.values_list("type", flat=True)) == {
+    assert france.institution_kinds.count() == 4
+    assert set(legislative.values_list("institution_name", flat=True)) == {
         "assemblee nationale",
         "senat",
     }
@@ -67,18 +71,22 @@ def test_country_declares_taxonomy(france):
 @pytest.mark.django_db
 def test_taxonomy_type_is_unique_per_country(france):
     InstitutionKind.objects.create(
-        country=france, branch=InstitutionBranch.EXECUTIVE, type="cabinet"
+        country=france,
+        branch=InstitutionBranch.EXECUTIVE,
+        institution_name="cabinet",
     )
 
     with pytest.raises(IntegrityError) as err_proxy:
         with transaction.atomic():
             InstitutionKind.objects.create(
-                country=france, branch=InstitutionBranch.JUDICIARY, type="cabinet"
+                country=france,
+                branch=InstitutionBranch.JUDICIARY,
+                institution_name="cabinet",
             )
 
     assert str(err_proxy.value) == (
         "UNIQUE constraint failed: "
-        "common_institutiontaxonomy.country_id, common_institutiontaxonomy.type"
+        "common_institutionkind.institution_name, common_institutionkind.country_id"
     )
 
 
@@ -87,7 +95,7 @@ def test_taxonomy_branch_rejected_by_database(france):
     with pytest.raises(IntegrityError) as err_proxy:
         with transaction.atomic():
             InstitutionKind.objects.create(
-                country=france, branch="monarchy", type="crown"
+                country=france, branch="monarchy", institution_name="crown"
             )
 
     assert str(err_proxy.value) == (
@@ -97,7 +105,9 @@ def test_taxonomy_branch_rejected_by_database(france):
 
 @pytest.mark.django_db
 def test_taxonomy_branch_rejected_by_validation(france):
-    taxonomy = InstitutionKind(country=france, branch="monarchy", type="crown")
+    taxonomy = InstitutionKind(
+        country=france, branch="monarchy", institution_name="crown"
+    )
 
     with pytest.raises(ValidationError) as err_proxy:
         taxonomy.full_clean()
@@ -108,7 +118,7 @@ def test_taxonomy_branch_rejected_by_validation(france):
 @pytest.mark.django_db
 def test_deleting_country_deletes_taxonomy(france):
     taxonomy = InstitutionKind.objects.create(
-        country=france, branch=InstitutionBranch.EXECUTIVE, type="cabinet"
+        country=france, branch=InstitutionBranch.EXECUTIVE, institution_name="cabinet"
     )
 
     france.delete()

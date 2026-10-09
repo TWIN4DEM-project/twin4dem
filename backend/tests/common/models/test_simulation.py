@@ -8,7 +8,6 @@ from common.models import (
     Country,
     Institution,
     InstitutionBranch,
-    SerializationModel,
     Simulation,
     SimulationInstitution,
     TimeFrame,
@@ -92,11 +91,15 @@ def test_simulation_has_one_institution_per_branch(
     french_simulation, cabinet_seat, chamber_seat, court_seat
 ):
     institutions = {
-        seat.institution.serialization_model: seat.institution.label
+        seat.institution.kind.branch: seat.institution.label
         for seat in french_simulation.institutions.all()
     }
 
-    assert institutions == {"cabinet": "Castex", "chamber": "RN2022", "court": "CC"}
+    assert institutions == {
+        InstitutionBranch.EXECUTIVE: "Castex",
+        InstitutionBranch.LEGISLATIVE: "RN2022",
+        InstitutionBranch.JUDICIARY: "CC",
+    }
 
 
 @pytest.mark.django_db
@@ -111,10 +114,9 @@ def test_second_institution_of_same_kind_rejected(
     french_simulation, cabinet_seat, french_taxonomy
 ):
     other_cabinet = Institution.objects.create(
-        institution_taxonomy=french_taxonomy[InstitutionBranch.EXECUTIVE],
+        kind=french_taxonomy[InstitutionBranch.EXECUTIVE],
         label="Philippe II",
         size=15,
-        serialization_model=SerializationModel.CABINET,
     )
     seat = SimulationInstitution(
         simulation=french_simulation, institution=other_cabinet
@@ -132,12 +134,11 @@ def test_second_institution_of_same_kind_rejected(
 def test_institution_must_belong_to_simulated_country(test_settings, french_simulation):
     belgium = Country.objects.create(user_settings=test_settings, name="Belgium")
     belgian_cabinet = Institution.objects.create(
-        institution_taxonomy=belgium.taxonomy.create(
-            branch=InstitutionBranch.EXECUTIVE, type="government"
+        kind=belgium.institution_kinds.create(
+            branch=InstitutionBranch.EXECUTIVE, institution_name="government"
         ),
         label="De Croo",
         size=15,
-        serialization_model=SerializationModel.CABINET,
     )
     seat = SimulationInstitution(
         simulation=french_simulation, institution=belgian_cabinet

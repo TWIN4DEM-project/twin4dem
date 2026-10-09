@@ -4,7 +4,8 @@ from common import fields
 from ._belief import BeliefModel
 from ._influence import InfluencerModel
 from ._party import Party
-from ._simulation import SimulationInstitution
+from ._settings import InstitutionBranch
+from ._simulation import SimulationInstitution, validate_membership
 
 
 class Minister(InfluencerModel, BeliefModel):
@@ -26,6 +27,10 @@ class Minister(InfluencerModel, BeliefModel):
         blank=True,
         editable=False,
     )
+
+    def clean(self):
+        super().clean()
+        validate_membership(self, "cabinet", InstitutionBranch.EXECUTIVE, "minister")
 
     class Meta(InfluencerModel.Meta):
         constraints = InfluencerModel.Meta.constraints + [

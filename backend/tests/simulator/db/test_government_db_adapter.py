@@ -4,13 +4,13 @@ from unittest.mock import patch, call, ANY
 import pytest
 
 from common.models import (
+    InstitutionBranch,
     SimulationLogEntry,
     SimulationSubmodelLogEntry,
     SubmodelType,
     PathSubmodelInfo,
     MinisterBelief,
     PartyPositionType,
-    SerializationModel,
     SimulationInstitution,
 )
 import simulator.db._adapter as adapter_module
@@ -171,7 +171,7 @@ def test_ministers_take_party_position_in_simulated_chamber(sut, simulation):
 
     party_ids = dict(
         simulation.institutions.get(
-            institution__serialization_model=SerializationModel.CABINET
+            institution__kind__branch=InstitutionBranch.EXECUTIVE
         ).ministers.values_list("id", "party_id")
     )
     expected = {1: "majority", 2: "opposition"}

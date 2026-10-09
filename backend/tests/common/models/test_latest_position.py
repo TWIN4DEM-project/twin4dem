@@ -3,7 +3,6 @@ from datetime import UTC, datetime
 import pytest
 
 from common.models import (
-    ChamberPayload,
     Institution,
     InstitutionBranch,
     InstitutionKind,
@@ -24,9 +23,7 @@ def chamber(france) -> Institution:
         branch=InstitutionBranch.LEGISLATIVE,
         institution_name="assemblee nationale",
     )
-    return Institution.objects.create(
-        kind=kind, label="AN2022", size=100, payload=ChamberPayload()
-    )
+    return Institution.objects.create(kind=kind, label="AN2022", size=100)
 
 
 def _position(party, chamber, position, valid_from=None, valid_to=None):

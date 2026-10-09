@@ -8,8 +8,20 @@ from django_pydantic_field import SchemaField
 from pydantic import BaseModel
 
 from common.models._institution import Institution
-from common.models._settings import Country, UserSettings, VirtualTimeline
+from common.models._settings import (
+    Country,
+    InstitutionBranch,
+    UserSettings,
+    VirtualTimeline,
+)
 from common.models._timeframe import is_active
+
+
+_SEAT_WORD_BY_BRANCH = {
+    InstitutionBranch.EXECUTIVE: "cabinet",
+    InstitutionBranch.LEGISLATIVE: "chamber",
+    InstitutionBranch.JUDICIARY: "court",
+}
 
 
 class Simulation(models.Model):
@@ -108,7 +120,9 @@ class SimulationInstitution(models.Model):
         if same_model.exists():
             raise ValidationError(
                 {
-                    "institution": f"The simulation already has a {institution.kind.institution_name}"
+                    "institution": (
+                        f"The simulation already has a {institution.kind.institution_name}."
+                    )
                 }
             )
 
@@ -131,18 +145,27 @@ class SimulationInstitution(models.Model):
         ]
 
 
-def validate_membership(agent: models.Model, field_name: str, serialization_model: str):
+def validate_membership(
+    agent: models.Model, field_name: str, branch: str, agent_name: str
+):
     """
     Check that an agent (minister, MP or judge) sits in an institution of the
-    expected kind and that its party belongs to the institution's country.
+    expected branch and that its party belongs to the institution's country.
     """
     if getattr(agent, f"{field_name}_id") is None:
         return
-    institution = getattr(agent, field_name).institution
-    if (
-        agent.party_id is not None
-        and agent.party.country_id != institution.kind.country_id
-    ):
+    kind = getattr(agent, field_name).institution.kind
+    expected, actual = _SEAT_WORD_BY_BRANCH[branch], _SEAT_WORD_BY_BRANCH[kind.branch]
+    if kind.branch != branch:
+        raise ValidationError(
+            {
+                field_name: (
+                    f"A {agent_name} must belong to a {expected}, "
+                    f"not to a {actual}."
+                )
+            }
+        )
+    if agent.party_id is not None and agent.party.country_id != kind.country_id:
         raise ValidationError(
             {"party": "The party must belong to the institution's country."}
         )

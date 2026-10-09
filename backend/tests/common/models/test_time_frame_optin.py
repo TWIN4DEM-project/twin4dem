@@ -9,7 +9,9 @@ from common.models import _timeframe
 def _clear_subject_model_cache():
     """Keep the registry cache from leaking across tests."""
     yield
-    _timeframe._subject_models.cache_clear()
+    cache = _timeframe._subject_models
+    if hasattr(cache, "cache_clear"):
+        cache.cache_clear()
 
 
 def test_subject_type_of_rejects_a_non_subject():
@@ -36,8 +38,8 @@ def test_check_fails_when_a_subject_type_has_no_model(monkeypatch):
     errors = _timeframe.check_time_frame_subjects()
 
     assert sorted(e.msg for e in errors) == [
-        "No model opts in as the time frame subject type 'institution'.",
-        "No model opts in as the time frame subject type 'party_position'.",
+        "A model must opt in as the time frame subject type 'institution'.",
+        "A model must opt in as the time frame subject type 'party_position'.",
     ]
 
 

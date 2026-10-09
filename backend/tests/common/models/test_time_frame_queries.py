@@ -7,7 +7,6 @@ from common.models import (
     InstitutionBranch,
     PartyPosition,
     PartyPositionType,
-    SerializationModel,
     TimeFrame,
     is_active,
     party_position_at,
@@ -26,10 +25,9 @@ def philippe_cabinets(french_taxonomy, default_timeline) -> dict[str, Institutio
         ("Philippe II", _dt(2017, 6, 21), _dt(2020, 7, 3), []),
     ):
         cabinets[label] = Institution.objects.create(
-            institution_taxonomy=french_taxonomy[InstitutionBranch.EXECUTIVE],
+            kind=french_taxonomy[InstitutionBranch.EXECUTIVE],
             label=label,
             size=15,
-            serialization_model=SerializationModel.CABINET,
         )
         TimeFrame.objects.occupy(cabinets[label], valid_from, valid_to, timelines)
     return cabinets

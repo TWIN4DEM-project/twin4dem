@@ -191,7 +191,7 @@ class TimeFrameQuerySet(models.QuerySet):
             valid_from=valid_from,
             valid_to=valid_to,
         )
-        frame.pending_timeline_ids = [t.pk for t in timelines]
+        frame.pending_timeline_ids = [t.pk for t in timelines] or None
         with transaction.atomic():
             frame.full_clean()
             frame.save()

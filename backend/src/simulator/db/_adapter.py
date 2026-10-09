@@ -57,9 +57,10 @@ class RelatedInstitutionFinder:
     def _find_institution(
         cls, simulation: Simulation, serialization_model: str
     ) -> SimulationInstitution | None:
+        branch = SerializationModel(serialization_model).branch
         return (
             simulation.institutions.filter(
-                institution__serialization_model=serialization_model
+                institution__kind__branch=branch,
             )
             .select_related("institution")
             .first()

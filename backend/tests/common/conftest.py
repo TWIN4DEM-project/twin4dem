@@ -8,7 +8,6 @@ from common.models import (
     InstitutionBranch,
     InstitutionKind,
     Party,
-    SerializationModel,
     Simulation,
     SimulationInstitution,
     VirtualTimeline,
@@ -25,7 +24,7 @@ def french_taxonomy(france) -> dict[str, InstitutionKind]:
     """The taxonomy from the 'User Settings — Next' example in the docs."""
     return {
         branch: InstitutionKind.objects.create(
-            country=france, branch=branch, type=type_
+            country=france, branch=branch, institution_name=type_
         )
         for branch, type_ in (
             (InstitutionBranch.EXECUTIVE, "cabinet"),
@@ -38,20 +37,18 @@ def french_taxonomy(france) -> dict[str, InstitutionKind]:
 @pytest.fixture
 def cabinet(french_taxonomy) -> Institution:
     return Institution.objects.create(
-        institution_taxonomy=french_taxonomy[InstitutionBranch.EXECUTIVE],
+        kind=french_taxonomy[InstitutionBranch.EXECUTIVE],
         label="Castex",
         size=15,
-        serialization_model=SerializationModel.CABINET,
     )
 
 
 @pytest.fixture
 def assemblee(french_taxonomy) -> Institution:
     return Institution.objects.create(
-        institution_taxonomy=french_taxonomy[InstitutionBranch.LEGISLATIVE],
+        kind=french_taxonomy[InstitutionBranch.LEGISLATIVE],
         label="RN2022",
         size=100,
-        serialization_model=SerializationModel.CHAMBER,
     )
 
 
@@ -63,23 +60,21 @@ def renaissance(france) -> Party:
 @pytest.fixture
 def senat(france) -> Institution:
     taxonomy = InstitutionKind.objects.create(
-        country=france, branch=InstitutionBranch.LEGISLATIVE, type="senat"
+        country=france, branch=InstitutionBranch.LEGISLATIVE, institution_name="senat"
     )
     return Institution.objects.create(
-        institution_taxonomy=taxonomy,
+        kind=taxonomy,
         label="Senat2023",
         size=348,
-        serialization_model=SerializationModel.CHAMBER,
     )
 
 
 @pytest.fixture
 def court(french_taxonomy) -> Institution:
     return Institution.objects.create(
-        institution_taxonomy=french_taxonomy[InstitutionBranch.JUDICIARY],
+        kind=french_taxonomy[InstitutionBranch.JUDICIARY],
         label="CC",
         size=9,
-        serialization_model=SerializationModel.COURT,
     )
 
 

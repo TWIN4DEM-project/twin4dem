@@ -6,7 +6,12 @@ from typing import Callable
 import pytest
 from django.core.management import call_command
 from common.models import Simulation, SimulationInstitution
-from common.models import SubmodelType, UserSettings, VirtualTimeline
+from common.models import (
+    SerializationModel,
+    SubmodelType,
+    UserSettings,
+    VirtualTimeline,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -139,9 +144,8 @@ def simulation_institution():
     """
 
     def _get(simulation, serialization_model: str) -> SimulationInstitution:
-        obj = simulation.institutions.filter(
-            institution__serialization_model=serialization_model
-        ).first()
+        branch = SerializationModel(serialization_model).branch
+        obj = simulation.institutions.filter(institution__kind__branch=branch).first()
         assert obj is not None, (
             f"No {serialization_model} found in Simulation(id={simulation.id}). "
             f"Did you load the right fixture?"

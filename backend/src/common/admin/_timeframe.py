@@ -64,7 +64,7 @@ class TimeFrameAdmin(admin.ModelAdmin):
         if request.user.is_superuser:
             return qs
         institution_ids = Institution.objects.filter(
-            institution_taxonomy__country__user_settings__user=request.user
+            kind__country__user_settings__user=request.user
         ).values("id")
         party_position_ids = PartyPosition.objects.filter(
             party__country__user_settings__user=request.user

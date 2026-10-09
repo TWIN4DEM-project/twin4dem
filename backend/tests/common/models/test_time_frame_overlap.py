@@ -8,7 +8,6 @@ from common.models import (
     InstitutionBranch,
     PartyPosition,
     PartyPositionType,
-    SerializationModel,
     TimeFrame,
     TimelineTimeFrame,
     UserSettings,
@@ -77,14 +76,7 @@ def test_shared_timelines(a, b, expected_shared):
 
 def _create(taxonomy, label, valid_from=None, valid_to=None, timelines=None):
     """Create an institution and, unless both bounds are None, its time frame."""
-    model = {
-        InstitutionBranch.EXECUTIVE: SerializationModel.CABINET,
-        InstitutionBranch.LEGISLATIVE: SerializationModel.CHAMBER,
-        InstitutionBranch.JUDICIARY: SerializationModel.COURT,
-    }[taxonomy.branch]
-    institution = Institution(
-        institution_taxonomy=taxonomy, label=label, size=10, serialization_model=model
-    )
+    institution = Institution(kind=taxonomy, label=label, size=10)
     institution.full_clean()
     institution.save()
     if valid_from is not None or valid_to is not None:
@@ -167,17 +159,16 @@ def test_extend_philippe_ii_on_default_timeline_rejected(france_2017):
 @pytest.mark.django_db
 def test_second_conseil_constitutionnel_rejected(france_2017, french_taxonomy):
     second_court = Institution(
-        institution_taxonomy=french_taxonomy[InstitutionBranch.JUDICIARY],
+        kind=french_taxonomy[InstitutionBranch.JUDICIARY],
         label="CC2",
         size=9,
-        serialization_model=SerializationModel.COURT,
     )
 
     with pytest.raises(ValidationError) as err_proxy:
         second_court.full_clean()
 
     assert err_proxy.value.message_dict == {
-        "institution_taxonomy": [
+        "kind": [
             "'CC' has no time frame, so it is active at all times on all "
             "timelines: no other institution of type 'conseil constitutionnel' "
             "can be added."
@@ -189,10 +180,9 @@ def test_second_conseil_constitutionnel_rejected(france_2017, french_taxonomy):
 def test_frame_rejected_next_to_frameless_sibling(france_2017, french_taxonomy):
     # bypass Institution.clean(), e.g. through bulk_create
     second_court = Institution.objects.create(
-        institution_taxonomy=french_taxonomy[InstitutionBranch.JUDICIARY],
+        kind=french_taxonomy[InstitutionBranch.JUDICIARY],
         label="CC2",
         size=9,
-        serialization_model=SerializationModel.COURT,
     )
 
     with pytest.raises(ValidationError) as err_proxy:
