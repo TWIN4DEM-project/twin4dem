@@ -1,6 +1,5 @@
 import json
 import zipfile
-from http import HTTPStatus
 from pathlib import Path
 
 from django.core.files.uploadedfile import UploadedFile, TemporaryUploadedFile
@@ -111,9 +110,7 @@ class SimulationViewSet(
                 "application/zip",
                 "application/x-zip-compressed",
             ]:
-                raise APIException(
-                    code=HTTPStatus.BAD_REQUEST, detail="Only ZIP files are supported"
-                )
+                raise UploadException(detail="Only ZIP files are supported")
 
             obj = self._handle_zip_file(uploaded_file)
             # DEPRECATED: batch simulation from a zip upload is pending a

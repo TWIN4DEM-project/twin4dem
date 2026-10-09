@@ -74,3 +74,87 @@ class TestSeparatedValuesFieldTypeHandling:
 
         with pytest.raises(ValidationError):
             field.to_python(123)
+
+
+class TestSeparatorValidation:
+    def test_multi_char_separator_rejected(self):
+        with pytest.raises(ValueError, match="single character"):
+            SeparatedValuesField(base_field=models.IntegerField(), separator="ab")
+
+    def test_non_str_separator_rejected(self):
+        with pytest.raises(ValueError, match="single character"):
+            SeparatedValuesField(base_field=models.IntegerField(), separator=5)
+
+
+class TestSeparatorCheck:
+    def test_valid_separator_reports_no_errors(self):
+        field = SeparatedValuesField(base_field=models.IntegerField())
+
+        assert field._check_separator() == []
+
+    def test_invalid_separator_reports_error(self):
+        field = SeparatedValuesField(base_field=models.IntegerField())
+        field._SeparatedValuesField__separator = 42
+
+        errors = field._check_separator()
+
+        assert errors and errors[0].id == "fields.E900"
+
+
+class TestDeserialize:
+    def test_empty_string_deserializes_to_empty_list(self):
+        field = SeparatedValuesField(base_field=models.IntegerField())
+
+        assert field._deserialize("") == []
+
+    def test_custom_separator_splits_values(self):
+        field = SeparatedValuesField(base_field=models.IntegerField(), separator="|")
+
+        assert field.to_python("1|2") == [1, 2]
+
+
+class TestPrepAndToString:
+    def test_prep_value_of_none_is_empty_string(self):
+        field = SvFieldTestModel._meta.get_field("values")
+
+        assert field._get_prep_value(None) == ""
+
+    def test_value_to_string_serializes_model_instance(self):
+        field = SvFieldTestModel._meta.get_field("values")
+
+        assert field.value_to_string(SvFieldTestModel(values=[1, 2])) == "1,2"
+
+    def test_value_to_string_of_none_is_empty(self):
+        field = SvFieldTestModel._meta.get_field("values")
+
+        assert field.value_to_string(SvFieldTestModel(values=None)) == ""
+
+
+class TestDeconstruct:
+    def test_non_char_base_field_is_kept(self):
+        base_field = models.IntegerField()
+        field = SeparatedValuesField(base_field=base_field, separator="|")
+
+        _, _, _, kwargs = field.deconstruct()
+
+        assert kwargs["base_field"] is base_field
+        assert kwargs["separator"] == "|"
+
+    def test_char_base_field_is_left_out(self):
+        field = SeparatedValuesField(base_field=models.CharField(max_length=5))
+
+        _, _, _, kwargs = field.deconstruct()
+
+        assert "base_field" not in kwargs
+
+
+class TestFormfield:
+    def test_help_text_defaults_to_none(self):
+        field = SvFieldTestModel._meta.get_field("values")
+
+        assert field.formfield().help_text is None
+
+    def test_help_text_is_overridable(self):
+        field = SvFieldTestModel._meta.get_field("values")
+
+        assert field.formfield(help_text="hint").help_text == "hint"

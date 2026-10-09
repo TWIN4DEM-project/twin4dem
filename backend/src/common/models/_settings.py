@@ -25,6 +25,11 @@ class UserSettings(models.Model):
     data_update_frequency = models.PositiveSmallIntegerField(null=False, default=10)
     legislative_path_probability = models.FloatField(null=False, default=0.5)
 
+    @property
+    def default_country(self) -> "Country | None":
+        """The first country of this context, used as the default."""
+        return self.countries.first()
+
     def __str__(self):
         return f"{self.label}(id={self.id})"
 

@@ -116,3 +116,14 @@ def test_deleting_simulation_deletes_ministers(
     french_simulation.delete()
 
     assert not Minister.objects.exists()
+
+
+def test_minister_without_a_cabinet_skips_membership_validation(renaissance):
+    Minister(
+        label="free agent",
+        party=renaissance,
+        weights=[0.1] * 6,
+        personal_opinion=0,
+        appointing_group_opinion=0,
+        supporting_group_opinion=0,
+    ).clean()

@@ -1,4 +1,5 @@
 from datetime import datetime
+from types import SimpleNamespace
 
 import pytest
 
@@ -206,3 +207,16 @@ def test_persist_can_perform_step_stops_on_max_au_step(
     persistence, simulation, aggrandisement_unit, step_count, expected
 ):
     assert persistence.can_perform_step(simulation.id, step_count) == expected
+
+
+@pytest.mark.parametrize("payload", [42, ["not-a-model"]], ids=["int", "list"])
+def test_coerce_input_arg_rejects_unsupported_payload_types(payload):
+    with pytest.raises(ValueError, match="Unsupported step payload type"):
+        DjangoSimulationPersistence._coerce_input_arg(payload)
+
+
+def test_build_submodel_info_rejects_unknown_result_types():
+    with pytest.raises(ValueError, match="no path or vbar to persist"):
+        DjangoSimulationPersistence._build_submodel_info(
+            SimpleNamespace(type="bogus", votes={}, vbar=0.5)
+        )

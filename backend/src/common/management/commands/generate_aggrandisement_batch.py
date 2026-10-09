@@ -4,18 +4,19 @@ import json
 from datetime import datetime
 from random import choice, random
 
-from django.core.management.base import BaseCommand
 from django.contrib.auth import authenticate
+from django.core.management.base import BaseCommand
 
-from common.models import UserSettings, _party_position
+from common.models import (
+    Country,
+    Institution,
+    InstitutionBranch,
+    PartyPositionType,
+    UserSettings,
+)
+from common.party_seats import party_seats
 
-AGENT_FILE_FIELDNAMES = [
-    "label",
-    "party",
-    "personal_opinion",
-    "appointing_group",
-    "supporting_group",
-]
+INDEPENDENT_BELIEF_CENTER = 0.5
 
 
 class Command(BaseCommand):
@@ -110,59 +111,89 @@ class Command(BaseCommand):
             "supportingGroup": Command.random_freq(center),
         }
 
-    def _create_ministers(self, settings, majority_parties):
+    @staticmethod
+    def _institution(country: Country, branch: str) -> Institution | None:
+        """The first institution of `branch` belonging to `country`."""
+        return Institution.objects.filter(
+            kind__country=country, kind__branch=branch
+        ).first()
+
+    @staticmethod
+    def _center(payload_value: float | None, fallback: float) -> float:
+        """User settings default for probabilities the institution payload leaves unset."""
+        return payload_value if payload_value is not None else fallback
+
+    def _create_ministers(self, settings, cabinet, majority_parties):
+        payload = cabinet.get_payload()
+        center = self._center(
+            payload.probability_for, settings.government_probability_for
+        )
         return [
             {
                 "label": f"minister-{idx}",
                 "party": choice(majority_parties),
                 "influence": random(),
-                **self._generate_agent_beliefs(settings.probability_for),
+                **self._generate_agent_beliefs(center),
             }
-            for idx in range(1, settings.government_size + 1)
+            for idx in range(1, cabinet.size + 1)
         ]
 
-    def _create_members_of_parliament(self, settings, party_map, majority_parties):
+    def _create_members_of_parliament(self, settings, chamber, seats):
+        payload = chamber.get_payload()
+        centers = {
+            PartyPositionType.MAJORITY: self._center(
+                payload.majority_probability_for,
+                settings.parliament_majority_probability_for,
+            ),
+            PartyPositionType.OPPOSITION: self._center(
+                payload.opposition_probability_for,
+                settings.parliament_opposition_probability_for,
+            ),
+            PartyPositionType.INDEPENDENT: INDEPENDENT_BELIEF_CENTER,
+        }
         return [
             {
-                "label": f"{party}-mp-{idx}",
-                "party": party,
-                **self._generate_agent_beliefs(
-                    settings.majority_probability_for
-                    if party in majority_parties
-                    else settings.opposition_probability_for
-                ),
+                "label": f"{party.label}-mp-{idx}",
+                "party": party.label,
+                **self._generate_agent_beliefs(centers[position]),
             }
-            for party, member_count in party_map.items()
+            for party, position, member_count in seats
             for idx in range(1, member_count + 1)
         ]
 
-    def _create_judges(self, settings, party_map):
-        parties = list(party_map)
+    def _create_judges(self, settings, court, parties):
+        payload = court.get_payload()
+        center = self._center(payload.probability_for, settings.court_probability_for)
         return [
             {
                 "label": f"judge-{idx}",
                 "party": choice(parties),
                 "influence": random(),
-                **self._generate_agent_beliefs(settings.probability_for),
+                **self._generate_agent_beliefs(center),
             }
-            for idx in range(1, settings.court_size + 1)
+            for idx in range(1, court.size + 1)
         ]
 
-    def _create_aggrandisement_batch_settings(
-        self,
-        majority_parties: list[str],
-        party_map: dict[str, int],
-        settings: UserSettings,
-    ):
-        ministers = self._create_ministers(settings, majority_parties)
+    def _create_aggrandisement_batch_settings(self, settings, cabinet, chamber, court):
+        seats = party_seats(chamber.kind.country, chamber.size)
+        majority_parties = [
+            party.label
+            for party, position, _ in seats
+            if position == PartyPositionType.MAJORITY
+        ]
+        minister_parties = [party.label for party, _, _ in seats]
+
+        ministers = self._create_ministers(settings, cabinet, majority_parties)
         prime_minister = choice(ministers)
         prime_minister["influence"] = 1.0
 
-        mps = self._create_members_of_parliament(settings, party_map, majority_parties)
+        mps = self._create_members_of_parliament(settings, chamber, seats)
+        present_parties = dict.fromkeys(mp["party"] for mp in mps)
         party_leaders = [
-            choice([mp["label"] for mp in mps if mp["party"] == p]) for p in party_map
+            choice([mp["label"] for mp in mps if mp["party"] == label])
+            for label in present_parties
         ]
-        judges = self._create_judges(settings, party_map)
+        judges = self._create_judges(settings, court, minister_parties)
         court_president = choice(judges)
         court_president["influence"] = 1.0
         return {
@@ -218,20 +249,42 @@ class Command(BaseCommand):
         user = self._check_user(options)
         if user is None:
             return
+
+        settings = UserSettings.objects.filter(user_id=user.id).first()
+        if settings is None:
+            self.stderr.write(
+                self.style.ERROR(f"User '{user.username}' has no user settings")
+            )
+            return
+        country = settings.default_country
+        if country is None:
+            self.stderr.write(
+                self.style.ERROR(f"User settings '{settings.label}' have no countries")
+            )
+            return
+        institutions = {
+            branch: self._institution(country, branch) for branch in InstitutionBranch
+        }
+        missing = [
+            branch.value
+            for branch, institution in institutions.items()
+            if institution is None
+        ]
+        if missing:
+            self.stderr.write(
+                self.style.ERROR(
+                    f"Country '{country.name}' has no '{', '.join(missing)}' institutions"
+                )
+            )
+            return
+
         n = options["aggrandisement_unit_count"]
         center = options["belief_center"]
-        settings = UserSettings.objects.get(user_id=user.id)
-        party_map = {
-            party.label: party.member_count for party in settings.parties.all()
-        }
-        majority_parties = [
-            party.label
-            for party in settings.parties.filter(
-                position=_party_position.PartyPosition.MAJORITY
-            )
-        ]
         batch_settings = self._create_aggrandisement_batch_settings(
-            majority_parties, party_map, settings
+            settings,
+            institutions[InstitutionBranch.EXECUTIVE],
+            institutions[InstitutionBranch.LEGISLATIVE],
+            institutions[InstitutionBranch.JUDICIARY],
         )
         aggrandisement_units = [
             self._create_aggrandisement_unit(step, batch_settings, center)

@@ -1,7 +1,9 @@
 import json
 import pytest
 
+
 from simulator.serialization.pydantic_serializer import (
+    PydanticSerializer,
     pydantic_dumps,
     pydantic_loads,
     pydantic_decoder,
@@ -119,3 +121,8 @@ def test_pydantic_decoder_known_model(minister_config):
 def test_model_registry_keys_match_class_names():
     for name, cls in MODEL_REGISTRY.items():
         assert name == cls.__name__
+
+
+def test_encoder_defers_to_the_json_base_for_foreign_objects():
+    with pytest.raises(TypeError):
+        json.dumps(object(), cls=PydanticSerializer)

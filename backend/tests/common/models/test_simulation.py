@@ -175,3 +175,13 @@ def test_institution_must_be_active_at_simulated_time(french_simulation, cabinet
 def test_simulated_institution_cannot_be_deleted(cabinet, cabinet_seat):
     with pytest.raises(RestrictedError):
         cabinet.delete()
+
+
+def test_simulation_with_a_matching_context_passes_clean(french_simulation):
+    french_simulation.clean()
+
+
+def test_seat_str_mentions_the_institution(french_simulation, cabinet):
+    seat = SimulationInstitution(simulation=french_simulation, institution=cabinet)
+
+    assert str(seat) == "Castex in simulation 1"

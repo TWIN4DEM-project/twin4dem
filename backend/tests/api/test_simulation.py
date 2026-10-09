@@ -1,6 +1,12 @@
 import json
 import math
+import zipfile
+from datetime import datetime
+from io import BytesIO
+
 import pytest
+
+from api.viewsets._simulation import SimulationViewSet
 
 
 from common.dto import AggrandisementBatch
@@ -11,6 +17,14 @@ from common.models import (
     SimulationSubmodelLogEntry,
     PathSubmodelInfo,
     VbarSubmodelInfo,
+)
+from django.core.files.uploadedfile import SimpleUploadedFile, TemporaryUploadedFile
+from unittest.mock import patch
+
+from common.models import (
+    AggrandisementBatch as AggrandisementBatchModel,
+    AggrandisementUnit,
+    Party,
 )
 
 
@@ -523,3 +537,138 @@ def test_post_with_zip_file_initializes_simulation_steps(
     )
     assert u.mps.count() == len(batch_dto.aggrandisement_units[0].beliefs.mps)
     assert u.judges.count() == len(batch_dto.aggrandisement_units[0].beliefs.judges)
+
+
+def _temporary_upload(content: bytes, name: str = "batch.zip") -> TemporaryUploadedFile:
+    upload = TemporaryUploadedFile(name, "application/zip", len(content), "utf-8")
+    upload.file.write(content)
+    upload.file.seek(0)
+    return upload
+
+
+def _zip_bytes_of(members: dict[str, str] | None = None) -> bytes:
+    buffer = BytesIO()
+    with zipfile.ZipFile(buffer, "w") as zip_file:
+        for member_name, member_content in (members or {"other.json": "{}"}).items():
+            zip_file.writestr(member_name, member_content)
+    return buffer.getvalue()
+
+
+class TestZipUploadGuard:
+    def test_zip_without_batch_json_is_rejected(self, admin_client):
+        upload = SimpleUploadedFile(
+            "batch.zip",
+            _zip_bytes_of({"other.json": "{}"}),
+            content_type="application/zip",
+        )
+        response = admin_client.post(
+            "/api/v1/simulation/", {"file": upload}, format="multipart"
+        )
+
+        assert response.status_code == 400
+        assert "Missing 'batch.json' in uploaded zip file" in response.json()["detail"]
+
+    def test_corrupt_zip_is_rejected(self, admin_client):
+        upload = SimpleUploadedFile(
+            "batch.zip", b"definitely not a zip", content_type="application/zip"
+        )
+        response = admin_client.post(
+            "/api/v1/simulation/", {"file": upload}, format="multipart"
+        )
+
+        assert response.status_code == 400
+        assert response.json()["detail"] == "uploaded zip file was invalid"
+
+    def test_non_zip_content_type_is_rejected(self, admin_client):
+        upload = SimpleUploadedFile("batch.txt", b"{}", content_type="text/plain")
+        response = admin_client.post(
+            "/api/v1/simulation/", {"file": upload}, format="multipart"
+        )
+
+        assert response.status_code == 400
+        assert response.json()["detail"] == "Only ZIP files are supported"
+
+    def test_upload_without_user_settings_is_forbidden(self, admin_client, admin_user):
+        admin_user.user_settings.all().delete()
+        response = admin_client.post("/api/v1/simulation/")
+
+        assert response.status_code == 403
+        assert response.json()["detail"] == "User settings not found"
+
+    def test_in_memory_upload_is_rejected(self):
+        upload = SimpleUploadedFile("batch.zip", _zip_bytes_of())
+
+        response = SimulationViewSet._handle_zip_file(upload)
+
+        assert response.status_code == 400
+        assert (
+            response.data["error"]
+            == "File must be processed via TemporaryFileUploadHandler"
+        )
+
+    def test_temporary_zip_upload_is_parsed(self):
+        batch_data = {"startDate": "2025-01-01", "endDate": "2025-02-01"}
+
+        response = SimulationViewSet._handle_zip_file(
+            _temporary_upload(_zip_bytes_of({"batch.json": json.dumps(batch_data)}))
+        )
+
+        assert response == batch_data
+
+
+def test_post_with_a_party_without_positions_treats_it_as_independent(
+    admin_client, admin_user
+):
+    country = UserSettings.objects.get(user=admin_user).countries.first()
+    Party.objects.create(country=country, label="swing")
+
+    with patch(
+        "api.services._random_simulation.choice", side_effect=lambda seq: seq[-1]
+    ):
+        response = admin_client.post("/api/v1/simulation/")
+
+    parliament = response.json()["params"][1]["parliament"]
+    swing_mps = [mp for mp in parliament["members"] if mp["partyLabel"] == "swing"]
+    court = response.json()["params"][2]["court"]
+
+    assert swing_mps and all(mp["partyPosition"] == "independent" for mp in swing_mps)
+    assert all(judge["partyLabel"] == "swing" for judge in court["judges"])
+    assert all(judge["partyPosition"] == "independent" for judge in court["judges"])
+
+
+def test_simulation_with_a_batch_reports_label_and_max_step_count(
+    admin_client, admin_user
+):
+    random_response = admin_client.post("/api/v1/simulation/")
+    simulation = Simulation.objects.get(pk=random_response.json()["id"])
+    batch_model = AggrandisementBatchModel.objects.create(
+        file_name="batch.zip",
+        simulation=simulation,
+        start_date=datetime(2025, 1, 1),
+        end_date=datetime(2025, 12, 31),
+    )
+    AggrandisementUnit.objects.create(batch=batch_model, step_no=7)
+
+    listed = admin_client.get("/api/v1/simulation/")
+    detailed = admin_client.get(f"/api/v1/simulation/{simulation.id}/")
+
+    label = next(s["label"] for s in listed.json() if s["id"] == simulation.id)
+    assert (
+        label == f"user simulation {simulation.id}\nbatch.zip [2025-01-01 → 2025-12-31]"
+    )
+    assert detailed.json()["maxStepCount"] == 7
+
+
+def test_simulation_with_a_nameless_batch_labelled_by_batch(admin_client):
+    random_response = admin_client.post("/api/v1/simulation/")
+    simulation = Simulation.objects.get(pk=random_response.json()["id"])
+    AggrandisementBatchModel.objects.create(
+        simulation=simulation,
+        start_date=datetime(2025, 1, 1),
+        end_date=datetime(2025, 12, 31),
+    )
+
+    listed = admin_client.get("/api/v1/simulation/").json()
+    label = next(s["label"] for s in listed if s["id"] == simulation.id)
+
+    assert label.startswith(f"user simulation {simulation.id}\nbatch [id=")

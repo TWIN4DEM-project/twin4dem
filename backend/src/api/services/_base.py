@@ -117,7 +117,7 @@ class SimulationBuilder(metaclass=ABCMeta):
         return links
 
     def _get_country(self) -> Country:
-        country = self._user_settings.countries.first()
+        country = self._user_settings.default_country
         assert country is not None
         return country
 
