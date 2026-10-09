@@ -3,11 +3,12 @@ from datetime import datetime
 import pytest
 from django.contrib.contenttypes.models import ContentType
 
-# the batch builder still references deleted models (Court, Parliament, Cabinet,
-# PartySettings) pending its rewrite for the new data model
+# the batch simulation feature is deprecated pending a complete rewrite for
+# the new data model; the module still references deleted models (Court,
+# Parliament, Cabinet, PartySettings), so importing it fails and skips tests
 _tested_module = pytest.importorskip(
     "api.services._batch_simulation",
-    reason="batch builder pending rewrite for the new data model",
+    reason="batch builder deprecated pending complete rewrite for the new data model",
 )
 
 from api.serializers import SimulationSerializer  # noqa: E402

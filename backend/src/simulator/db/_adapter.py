@@ -17,7 +17,8 @@ from common.models import (
     MPBelief,
     JudgeBelief,
     SimulationSubmodelLogEntry,
-    SubmodelType, InstitutionBranch,
+    SubmodelType,
+    InstitutionBranch,
 )
 from simulator.adapters import (
     GovernmentAdapter,
@@ -53,7 +54,9 @@ TBelief = TypeVar("TBelief", bound=models.Model)
 
 class RelatedInstitutionFinder:
     @classmethod
-    def _find_institution(cls, simulation: Simulation, branch: InstitutionBranch) -> SimulationInstitution | None:
+    def _find_institution(
+        cls, simulation: Simulation, branch: InstitutionBranch
+    ) -> SimulationInstitution | None:
         return (
             simulation.institutions.filter(
                 institution__kind__branch=branch,
@@ -63,12 +66,12 @@ class RelatedInstitutionFinder:
         )
 
     @classmethod
-    def _get_institution(cls, simulation: Simulation, branch: InstitutionBranch) -> SimulationInstitution:
+    def _get_institution(
+        cls, simulation: Simulation, branch: InstitutionBranch
+    ) -> SimulationInstitution:
         result = cls._find_institution(simulation, branch)
         if result is None:
-            raise ValueError(
-                f"there is no {branch} in simulation {simulation.id}"
-            )
+            raise ValueError(f"there is no {branch} in simulation {simulation.id}")
         return result
 
 

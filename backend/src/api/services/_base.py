@@ -10,6 +10,7 @@ from common.models import (
     Minister,
     MinisterLink,
     Country,
+    VirtualTimeline,
 )
 
 
@@ -22,9 +23,9 @@ class SimulationBuilder(metaclass=ABCMeta):
         self._user_settings = settings
         self._weights_count = weights_count
         self._simulation: Simulation | None = None
-        self._cabinet: Institution | None = None
-        self._parliament: Institution | None = None
-        self._court: Institution | None = None
+        self._cabinet: SimulationInstitution | None = None
+        self._parliament: SimulationInstitution | None = None
+        self._court: SimulationInstitution | None = None
 
     @classmethod
     def _get_label(
@@ -33,15 +34,15 @@ class SimulationBuilder(metaclass=ABCMeta):
         return f"{user_settings.user.username}-simulation-{simulation.id:06}{suffix}"
 
     @abstractmethod
-    def _create_cabinet(self) -> Institution:
+    def _create_cabinet(self) -> SimulationInstitution:
         pass
 
     @abstractmethod
-    def _create_parliament(self) -> Institution:
+    def _create_parliament(self) -> SimulationInstitution:
         pass
 
     @abstractmethod
-    def _create_court(self) -> Institution:
+    def _create_court(self) -> SimulationInstitution:
         pass
 
     @abstractmethod
@@ -54,15 +55,18 @@ class SimulationBuilder(metaclass=ABCMeta):
     ) -> SimulationInstitution:
         assert simulation is not None
         assert institution is not None
-        ok, result = SimulationInstitution.objects.get_or_create(
+        seat, _created = SimulationInstitution.objects.get_or_create(
             simulation=simulation,
             institution=institution,
         )
-        assert ok
-        return result
+        return seat
 
     def create(self, serializer: SimulationSerializer) -> Simulation:
-        self._simulation = serializer.save(user_settings=self._user_settings)
+        self._simulation = serializer.save(
+            user_settings=self._user_settings,
+            country=self._get_country(),
+            timeline=self._get_timeline(),
+        )
         assert self._simulation is not None
 
         self._cabinet = self._create_cabinet()
@@ -116,3 +120,8 @@ class SimulationBuilder(metaclass=ABCMeta):
         country = self._user_settings.countries.first()
         assert country is not None
         return country
+
+    def _get_timeline(self) -> VirtualTimeline:
+        timeline = self._user_settings.timelines.first()
+        assert timeline is not None
+        return timeline

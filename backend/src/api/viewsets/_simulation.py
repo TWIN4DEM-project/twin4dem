@@ -116,8 +116,9 @@ class SimulationViewSet(
                 )
 
             obj = self._handle_zip_file(uploaded_file)
-            # imported lazily until the batch builder is rewritten for the
-            # new data model (it still references deleted models)
+            # DEPRECATED: batch simulation from a zip upload is pending a
+            # complete rewrite for the new data model; imported lazily since
+            # the batch builder still references deleted models
             from api.services._batch_simulation import AggrandisementBatchBuilder
 
             builder = AggrandisementBatchBuilder(

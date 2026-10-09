@@ -236,5 +236,5 @@ def test_convert_without_court_raises(sut, populated_world_simulation, court):
 
     assert (
         str(err_proxy.value)
-        == f"there is no court in simulation {populated_world_simulation.id}"
+        == f"there is no judiciary in simulation {populated_world_simulation.id}"
     )

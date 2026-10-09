@@ -1,3 +1,10 @@
+"""DEPRECATED: builds a simulation from an uploaded aggrandisement batch zip.
+
+This module still references deleted models (Court, Parliament, Cabinet,
+PartySettings) from the old data model and is pending a complete rewrite.
+The zip upload tests are skipped until that rewrite lands.
+"""
+
 import json
 from itertools import permutations
 from pathlib import Path

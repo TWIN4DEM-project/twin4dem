@@ -22,6 +22,7 @@ from common.models import (
     CourtPayload,
     Country,
     Party,
+    SimulationInstitution,
 )
 
 DEFAULT_PARTY_POSITION = PartyPositionType.INDEPENDENT
@@ -55,26 +56,30 @@ class RandomSimulationBuilder(SimulationBuilder):
         self._court_size = DEFAULT_COURT_SIZE
         self._court_type = court_type
 
-    def _create_cabinet(self) -> Institution:
+    def _create_cabinet(self) -> SimulationInstitution:
         cabinet_label = self._get_label(
             self._simulation, self._user_settings, "-cabinet"
         )
         country = self._get_country()
 
         probability_for = self._user_settings.government_probability_for
-        cabinet_data = CabinetPayload(
+        payload = CabinetPayload(
             connectivity_degree=self._k, probability_for=probability_for
+        ).model_dump(mode="json")
+        kind, _ = InstitutionKind.objects.get_or_create(
+            country=country,
+            branch=InstitutionBranch.EXECUTIVE,
+            institution_name=self._cabinet_type,
         )
-        institution_kind = InstitutionKind.objects.get_or_create(
-            country=country, branch=InstitutionBranch.EXECUTIVE, type=self._cabinet_type
-        )
-        result = Institution.objects.create(
-            kind=institution_kind,
+        cabinet_institution = Institution.objects.create(
+            kind=kind,
             label=cabinet_label,
             size=self._cabinet_size,
-            payload=cabinet_data,
+            payload=payload,
         )
-        cabinet = self._link_institution_to_simulation(self._simulation, result)
+        cabinet = self._link_institution_to_simulation(
+            self._simulation, cabinet_institution
+        )
         majority_parties = list(
             country.parties.filter(
                 Q(positions__position__exact=PartyPositionType.MAJORITY)
@@ -110,7 +115,7 @@ class RandomSimulationBuilder(SimulationBuilder):
         links = self._build_minister_network(self._k, prime_minister, ministers)
         MinisterLink.objects.bulk_create(links)
 
-        return result
+        return cabinet
 
     def _party_seats(
         self, country: Country
@@ -206,24 +211,29 @@ class RandomSimulationBuilder(SimulationBuilder):
             seats[idx] += 1
         return {party.id: seat for party, seat in zip(bloc, seats)}
 
-    def _create_parliament(self) -> Institution:
+    def _create_parliament(self) -> SimulationInstitution:
         country = self._get_country()
         parliament_label = self._get_label(
             self._simulation, self._user_settings, "-parliament"
         )
         majority_for = self._user_settings.parliament_majority_probability_for
         opposition_for = self._user_settings.parliament_opposition_probability_for
-        institution_kind = InstitutionKind.objects.get_or_create(
-            country=country, branch=InstitutionBranch.EXECUTIVE, type=self._cabinet_type
+        kind, _ = InstitutionKind.objects.get_or_create(
+            country=country,
+            branch=InstitutionBranch.LEGISLATIVE,
+            institution_name=self._chamber_type,
         )
-        parliament = Institution.objects.create(
-            kind=institution_kind,
+        parliament_institution = Institution.objects.create(
+            kind=kind,
             payload=ChamberPayload(
                 majority_probability_for=majority_for,
                 opposition_probability_for=opposition_for,
-            ),
+            ).model_dump(mode="json"),
             label=parliament_label,
             size=self._parliament_size,
+        )
+        parliament = self._link_institution_to_simulation(
+            self._simulation, parliament_institution
         )
         mp_objects = []
         for party, position, member_count in self._party_seats(country):
@@ -247,7 +257,7 @@ class RandomSimulationBuilder(SimulationBuilder):
                     is_head=is_head,
                     weights=equal_weights(self._weights_count),
                     party=party,
-                    parliament=parliament,
+                    chamber=parliament,
                     personal_opinion=personal_opinion,
                     appointing_group_opinion=o_sup1,
                     supporting_group_opinion=0,
@@ -269,20 +279,25 @@ class RandomSimulationBuilder(SimulationBuilder):
         MemberOfParliament.objects.bulk_create(mp_objects)
         return parliament
 
-    def _create_court(self) -> Institution:
+    def _create_court(self) -> SimulationInstitution:
         country = self._get_country()
         court_label = self._get_label(self._simulation, self._user_settings, "-court")
         probability_for = self._user_settings.court_probability_for
-        court_institution_kind = InstitutionKind.objects.get_or_create(
+        kind, _ = InstitutionKind.objects.get_or_create(
             country=country,
-            name=self._court_type,
             branch=InstitutionBranch.JUDICIARY,
+            institution_name=self._court_type,
         )
-        court = Institution.objects.create(
-            kind=court_institution_kind,
+        court_institution = Institution.objects.create(
+            kind=kind,
             label=court_label,
             size=self._court_size,
-            payload=CourtPayload(probability_for=probability_for),
+            payload=CourtPayload(probability_for=probability_for).model_dump(
+                mode="json"
+            ),
+        )
+        court = self._link_institution_to_simulation(
+            self._simulation, court_institution
         )
         parties = list(country.parties.all())
         judges = [
@@ -290,16 +305,14 @@ class RandomSimulationBuilder(SimulationBuilder):
                 label=f"{court_label}-{idx:02}" if idx != 0 else f"{court_label}-P",
                 is_president=(idx == 0),
                 influence=random() if idx != 0 else 1.0,
-                weights=equal_weights(6),
+                weights=equal_weights(self._weights_count),
                 court=court,
                 party=choice(parties),
-                personal_opinion=int(
-                    round(random_gauss(court.probability_for, spread=0.1))
-                ),
+                personal_opinion=int(round(random_gauss(probability_for, spread=0.1))),
                 appointing_group_opinion=0,
                 supporting_group_opinion=0,
             )
-            for idx in range(self._user_settings.court_size)
+            for idx in range(self._court_size)
         ]
         links = [
             JudgeLink(from_judge=j1, to_judge=j2) for j1, j2 in permutations(judges, 2)

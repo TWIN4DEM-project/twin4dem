@@ -32,16 +32,14 @@ class SimulationParamSerializer(serializers.Serializer):
         CourtPayload: ("court", CourtSerializer),
     }
 
-    type = serializers.JSONField()
-    data = serializers.DictField()
-
     def to_representation(self, instance: SimulationInstitution):
-        institution = instance.institution
         try:
-            type_name, serialize_cls = self._PAYLOAD_MAP[institution.payload_schema]
+            type_name, serialize_cls = self._PAYLOAD_MAP[
+                instance.institution.payload_schema
+            ]
             return {
                 "type": type_name,
-                type_name: serialize_cls(institution.payload).data,
+                type_name: serialize_cls(instance).data,
             }
         except KeyError as e:
             raise NotImplementedError("Unsupported simulation param type") from e
@@ -97,8 +95,15 @@ class SimulationSerializer(SimulationListSerializer):
         )["max_step_no"]
 
     def get_params(self, obj: Simulation):
-        qs = obj.params.all()
-        return SimulationParamSerializer(qs, many=True).data
+        order = {
+            schema: idx
+            for idx, schema in enumerate(SimulationParamSerializer._PAYLOAD_MAP)
+        }
+        seats = sorted(
+            obj.institutions.all(),
+            key=lambda seat: order.get(seat.institution.payload_schema, len(order)),
+        )
+        return SimulationParamSerializer(seats, many=True).data
 
     def to_internal_value(self, data):
         return super().to_internal_value(data)
