@@ -3,6 +3,8 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/twin4dem.iml" filepath="$PROJECT_DIR$/.idea/twin4dem.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/twin4dem-frontend.iml" filepath="$PROJECT_DIR$/.idea/twin4dem-frontend.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/twin4dem-shared-resources.iml" filepath="$PROJECT_DIR$/.idea/twin4dem-shared-resources.iml" />
     </modules>
   </component>
 </project>

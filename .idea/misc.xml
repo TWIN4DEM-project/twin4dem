@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="Black">
-    <option name="sdkName" value="uv (backend)" />
+    <option name="sdkName" value="twin4dem (uv)" />
   </component>
-  <component name="ProjectRootManager" version="2" project-jdk-name="uv (backend)" project-jdk-type="Python SDK" />
+  <component name="ProjectRootManager" version="2" project-jdk-name="twin4dem (uv)" project-jdk-type="Python SDK" />
   <component name="ViteConfiguration">
     <option name="mode" value="MANUAL" />
     <option name="path" value="$PROJECT_DIR$/frontend/vite.config.ts" />
