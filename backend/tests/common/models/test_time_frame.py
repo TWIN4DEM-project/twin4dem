@@ -162,7 +162,7 @@ def test_frame_without_links_applies_to_all_timelines(
 ):
     frame = TimeFrame.objects.create_for(cabinet)
 
-    assert frame.applies_to_all_timelines
+    assert frame.is_on_all_timelines
     assert set(frame.get_timelines()) == {default_timeline, alternate_timeline}
 
 
@@ -184,7 +184,7 @@ def test_frame_with_links_applies_to_linked_timelines_only(
     frame = TimeFrame.objects.create_for(cabinet)
     frame.timelines.add(alternate_timeline)
 
-    assert not frame.applies_to_all_timelines
+    assert not frame.is_on_all_timelines
     assert list(frame.get_timelines()) == [alternate_timeline]
 
 
@@ -302,7 +302,7 @@ def test_deleting_timeline_keeps_frames_for_all_timelines(
 
     alternate_timeline.delete()
 
-    assert frame.applies_to_all_timelines
+    assert frame.is_on_all_timelines
     assert list(frame.get_timelines()) == [default_timeline]
 
 

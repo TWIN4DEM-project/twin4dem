@@ -7,8 +7,7 @@ from random import choice, random
 from django.core.management.base import BaseCommand
 from django.contrib.auth import authenticate
 
-from common.models import UserSettings, PartySettings
-
+from common.models import UserSettings, _party_position
 
 AGENT_FILE_FIELDNAMES = [
     "label",
@@ -228,7 +227,7 @@ class Command(BaseCommand):
         majority_parties = [
             party.label
             for party in settings.parties.filter(
-                position=PartySettings.PartyPosition.MAJORITY
+                position=_party_position.PartyPosition.MAJORITY
             )
         ]
         batch_settings = self._create_aggrandisement_batch_settings(

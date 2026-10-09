@@ -10,7 +10,7 @@ from rest_framework import mixins, viewsets, permissions, routers, status
 from rest_framework.exceptions import PermissionDenied, APIException
 from rest_framework.response import Response
 
-from api.services import RandomSimulationBuilder, AggrandisementBatchBuilder
+from api.services import RandomSimulationBuilder
 from common.models import (
     Simulation,
     UserSettings,
@@ -116,6 +116,10 @@ class SimulationViewSet(
                 )
 
             obj = self._handle_zip_file(uploaded_file)
+            # imported lazily until the batch builder is rewritten for the
+            # new data model (it still references deleted models)
+            from api.services._batch_simulation import AggrandisementBatchBuilder
+
             builder = AggrandisementBatchBuilder(
                 user_settings, Path(uploaded_file.name).stem
             )

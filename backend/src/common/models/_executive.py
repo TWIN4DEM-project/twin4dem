@@ -3,9 +3,8 @@ from django.db import models
 from common import fields
 from ._belief import BeliefModel
 from ._influence import InfluencerModel
-from ._institution import SerializationModel
 from ._party import Party
-from ._simulation import SimulationInstitution, validate_membership
+from ._simulation import SimulationInstitution
 
 
 class Minister(InfluencerModel, BeliefModel):
@@ -27,10 +26,6 @@ class Minister(InfluencerModel, BeliefModel):
         blank=True,
         editable=False,
     )
-
-    def clean(self):
-        super().clean()
-        validate_membership(self, "cabinet", SerializationModel.CABINET)
 
     class Meta(InfluencerModel.Meta):
         constraints = InfluencerModel.Meta.constraints + [

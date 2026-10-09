@@ -11,18 +11,18 @@ from ._settings import (
 from ._institution import (
     Institution,
     InstitutionPayload,
+    SerializationModel,
     CabinetPayload,
     ChamberPayload,
     CourtPayload,
-    SerializationModel,
 )
-from ._party import Party, PartyPosition, PartyPositionType
+from ._party import Party
+from ._party_position import PartyPositionType, PartyPosition, party_position_at
 from ._timeframe import (
     TimeFrame,
     TimeFrameSubjectType,
     TimelineTimeFrame,
     is_active,
-    party_position_at,
 )
 from ._simulation import (
     Simulation,
@@ -65,10 +65,10 @@ __all__ = (
     "InstitutionKind",
     "Institution",
     "InstitutionPayload",
+    "SerializationModel",
     "CabinetPayload",
     "ChamberPayload",
     "CourtPayload",
-    "SerializationModel",
     "Party",
     "PartyPosition",
     "PartyPositionType",

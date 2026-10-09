@@ -1,14 +1,16 @@
+import functools
 from collections import defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
+from typing import ClassVar, TypeVar
 
-from django.core.exceptions import ValidationError
+from django.apps import apps
+from django.core import checks
+from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.db import models, transaction
 from django.db.models import F, Q
 
-from common.models._institution import Institution
-from common.models._party import PartyPosition
 from common.models._settings import VirtualTimeline
 
 
@@ -17,32 +19,107 @@ class TimeFrameSubjectType(models.TextChoices):
     PARTY_POSITION = "party_position"
 
 
-SUBJECT_MODELS: dict[str, type[models.Model]] = {
-    TimeFrameSubjectType.INSTITUTION: Institution,
-    TimeFrameSubjectType.PARTY_POSITION: PartyPosition,
-}
+class TimeFrameMixin(models.Model):
+    """A model that can occupy a time frame (a window on a timeline).
 
-type TimeFrameSubject = Institution | PartyPosition
+    Concrete subclasses opt in by declaring a `time_frame_subject_type` from
+    `TimeFrameSubjectType` and implementing the sibling, label, and context
+    rules below. They add no fields and require no migration.
+    """
+
+    time_frame_subject_type: ClassVar[str]  # a TimeFrameSubjectType value
+
+    class Meta:
+        abstract = True
+
+    def time_frame_siblings(self) -> models.QuerySet:
+        """
+        The subjects that may not be active at the same time as self. Must
+        exclude self.pk when it is set.
+        """
+        raise NotImplementedError
+
+    def time_frame_label(self) -> str:
+        """The subject's name in overlap error messages."""
+        raise NotImplementedError
+
+    def time_frame_user_settings_id(self) -> int:
+        """The global context whose timelines the subject's frames apply to."""
+        raise NotImplementedError
+
+    @property
+    def time_frames(self) -> "TimeFrameQuerySet":
+        return TimeFrame.objects.of(self)
 
 
-def subject_type_of(subject: TimeFrameSubject) -> str:
-    for subject_type, model in SUBJECT_MODELS.items():
-        if isinstance(subject, model):
-            return subject_type
-    raise TypeError(f"{type(subject).__name__} cannot occupy a time frame")
+@functools.cache
+def _subject_models() -> dict[str, type[TimeFrameMixin]]:
+    """A cache containing the subclasses of the ``TimeFrameMixin``.
+
+    The keys in the cache are the ``TimeFrameMixin.time_frame_subject_type``.
+    The models themselves are derived from the Django app registry by calling
+    ``get_models()``: a subject model cannot silently forget to register itself.
+    """
+    subject_models: dict[str, type[TimeFrameMixin]] = {}
+    for model in apps.get_models():
+        if not issubclass(model, TimeFrameMixin):
+            continue
+        tag = model.time_frame_subject_type
+        if tag in subject_models:
+            raise ImproperlyConfigured(
+                f"The models {subject_models[tag].__name__} and {model.__name__} "
+                f"both claim the time frame subject type '{tag}'."
+            )
+        subject_models[tag] = model
+    return subject_models
 
 
-def subject_user_settings_id(subject: TimeFrameSubject) -> int:
-    if isinstance(subject, Institution):
-        return subject.institution_taxonomy.country.user_settings_id
-    return subject.party.country.user_settings_id
+# noinspection calling-non-callable
+@checks.register("models")
+def check_time_frame_subjects(app_configs=None, **kwargs):
+    """Run an app-wide check to load all ``TimeFrameMixin`` subclasses."""
+    errors = []
+    subject_models = _subject_models()
+    for tag in TimeFrameSubjectType.values:
+        if tag not in subject_models:
+            errors.append(
+                checks.Error(
+                    f"A model must opt in as the time frame subject type '{tag}'.",
+                    hint=(
+                        "Let the subject model inherit TimeFrameMixin and set its "
+                        "time_frame_subject_type to this tag."
+                    ),
+                    id="common.E001",
+                )
+            )
+    for tag, model in subject_models.items():
+        if tag not in TimeFrameSubjectType.values:
+            errors.append(
+                checks.Error(
+                    f"The model {model.__name__} opts in as the time frame "
+                    f"subject type '{tag}', which is not a TimeFrameSubjectType "
+                    "value.",
+                    hint="Set time_frame_subject_type to a TimeFrameSubjectType value.",
+                    obj=model,
+                    id="common.E002",
+                )
+            )
+    return errors
+
+
+def subject_type_of(subject: TimeFrameMixin) -> str:
+    """The `TimeFrameSubjectType` tag `subject` opts in with."""
+    if not isinstance(subject, TimeFrameMixin):
+        raise TypeError(f"{type(subject).__name__} cannot occupy a time frame")
+    return subject.time_frame_subject_type
 
 
 @dataclass(frozen=True)
 class FrameSpec:
-    """
-    The interval [valid_from, valid_to) on a set of timelines. A missing bound is
-    open-ended; `timeline_ids=None` stands for all timelines.
+    """An interval ``[valid_from, valid_to)`` on a set of timelines.
+
+    A missing bound signifies that that end is open. When ``timeline_ids=None``
+    it means that the time frame is registered on all timelines.
     """
 
     valid_from: datetime | None
@@ -87,10 +164,10 @@ ALWAYS = FrameSpec(valid_from=None, valid_to=None, timeline_ids=None)
 
 
 class TimeFrameQuerySet(models.QuerySet):
-    def of(self, subject: TimeFrameSubject) -> "TimeFrameQuerySet":
+    def of(self, subject: TimeFrameMixin) -> "TimeFrameQuerySet":
         return self.filter(subject_type=subject_type_of(subject), subject_id=subject.pk)
 
-    def create_for(self, subject: TimeFrameSubject, **kwargs) -> "TimeFrame":
+    def create_for(self, subject: TimeFrameMixin, **kwargs) -> "TimeFrame":
         """Create a time frame for the subject, without validation."""
         return self.create(
             subject_type=subject_type_of(subject), subject_id=subject.pk, **kwargs
@@ -98,7 +175,7 @@ class TimeFrameQuerySet(models.QuerySet):
 
     def occupy(
         self,
-        subject: TimeFrameSubject,
+        subject: TimeFrameMixin,
         valid_from: datetime | None = None,
         valid_to: datetime | None = None,
         timelines: Iterable[VirtualTimeline] = (),
@@ -123,19 +200,22 @@ class TimeFrameQuerySet(models.QuerySet):
 
 
 class TimeFrame(models.Model):
-    """
-    The interval [valid_from, valid_to) in which a subject (an institution or a
-    party position) is active. A missing bound means the interval is open-ended.
+    """An interval ``[valid_from, valid_to)`` in which a subject supporting
+     time frames is active.
 
-    The subject is referenced through a soft foreign key: `subject_type` names the
-    model and `subject_id` its primary key. The database does not enforce it.
+    A missing bound means the interval is open-ended. The subject is referenced
+    through a soft foreign key:
 
-    A time frame without timeline links applies to all timelines of the subject's
-    global context, including timelines added later.
+    * ``subject_type`` represents the tag registered by the model supporting time frames
+    * ``subject_id`` represents the primary key of the model instance
+
+    There is no enforcement for soft foreign keys at the database level.
+    A time frame without timeline links applies to all timelines of the
+    subject's global context, including timelines added later.
     """
 
     id = models.AutoField(primary_key=True)
-    subject_type = models.CharField(choices=TimeFrameSubjectType.choices)
+    subject_type = models.CharField(choices=TimeFrameSubjectType.choices, max_length=32)
     subject_id = models.IntegerField()
     valid_from = models.DateTimeField(null=True, blank=True)
     valid_to = models.DateTimeField(null=True, blank=True)
@@ -157,9 +237,9 @@ class TimeFrame(models.Model):
         return f"{self.subject_type}={self.subject_id} {_format_interval(self.spec)}"
 
     @property
-    def subject(self) -> TimeFrameSubject | None:
+    def subject(self) -> TimeFrameMixin | None:
         """The referenced subject, or None if it does not exist (anymore)."""
-        model = SUBJECT_MODELS.get(self.subject_type)
+        model = _subject_models().get(self.subject_type)
         if model is None:
             return None
         return model.objects.filter(pk=self.subject_id).first()
@@ -174,23 +254,23 @@ class TimeFrame(models.Model):
         return FrameSpec(self.valid_from, self.valid_to, timeline_ids or None)
 
     @property
-    def applies_to_all_timelines(self) -> bool:
+    def is_on_all_timelines(self) -> bool:
         return not self.timeline_links.exists()
 
     def get_timelines(self) -> models.QuerySet[VirtualTimeline]:
         """The timelines this time frame is active on."""
-        if self.applies_to_all_timelines:
+        if self.is_on_all_timelines:
             subject = self.subject
             if subject is None:
                 return VirtualTimeline.objects.none()
             return VirtualTimeline.objects.filter(
-                user_settings_id=subject_user_settings_id(subject)
+                user_settings_id=subject.time_frame_user_settings_id()
             )
         return self.timelines.all()
 
     def clean(self):
         super().clean()
-        if self.subject_type not in SUBJECT_MODELS:
+        if self.subject_type not in _subject_models():
             return
         subject = self.subject
         if subject is None:
@@ -241,12 +321,13 @@ class TimelineTimeFrame(models.Model):
 
     def clean(self):
         super().clean()
-        if self.time_frame_id is None or self.virtual_timeline_id is None:
-            return
         subject = self.time_frame.subject
         if subject is None:
             return
-        if self.virtual_timeline.user_settings_id != subject_user_settings_id(subject):
+        if (
+            self.virtual_timeline.user_settings_id
+            != subject.time_frame_user_settings_id()
+        ):
             raise ValidationError(
                 {
                     "virtual_timeline": (
@@ -275,32 +356,6 @@ class TimelineTimeFrame(models.Model):
         ]
 
 
-# --- overlap rules --------------------------------------------------------------
-
-
-def _siblings(subject: TimeFrameSubject) -> models.QuerySet:
-    """
-    The subjects that may not be active at the same time as `subject`: the other
-    institutions of the same type, or the other positions of the same party in the
-    same chamber.
-    """
-    if isinstance(subject, Institution):
-        siblings = Institution.objects.filter(
-            institution_taxonomy_id=subject.institution_taxonomy_id
-        )
-    else:
-        siblings = PartyPosition.objects.filter(
-            party_id=subject.party_id, chamber_id=subject.chamber_id
-        ).select_related("party")
-    return siblings.exclude(pk=subject.pk) if subject.pk is not None else siblings
-
-
-def _label(subject: TimeFrameSubject) -> str:
-    if isinstance(subject, Institution):
-        return f"'{subject.label}'"
-    return f"'{subject.party.label}' ({subject.position})"
-
-
 def _format_bound(value: datetime | None, default: str) -> str:
     if value is None:
         return default
@@ -326,12 +381,15 @@ def _format_timelines(timeline_ids: frozenset[int] | None, labels: dict) -> str:
     return ("timeline " if len(names) == 1 else "timelines ") + ", ".join(names)
 
 
-def frameless_sibling(subject: TimeFrameSubject) -> TimeFrameSubject | None:
+T = TypeVar("T", bound=TimeFrameMixin)
+
+
+def frameless_sibling(subject: T) -> T | None:
     """
     A sibling without time frames, which is active at all times on all timelines
     and therefore leaves no room for `subject`.
     """
-    siblings = _siblings(subject)
+    siblings = subject.time_frame_siblings()
     with_frames = TimeFrame.objects.filter(
         subject_type=subject_type_of(subject), subject_id__in=siblings.values("pk")
     ).values("subject_id")
@@ -339,24 +397,23 @@ def frameless_sibling(subject: TimeFrameSubject) -> TimeFrameSubject | None:
 
 
 def validate_time_frame(
-    subject: TimeFrameSubject,
-    frame: TimeFrame,
-    timeline_ids: Iterable[int] | None,
+    subject: T, frame: TimeFrame, timeline_ids: Iterable[int] | None
 ) -> None:
-    """
-    Check that `subject` may occupy `frame` on the given timelines (none: all
-    timelines):
+    """Validate the time frame of a single subject model on the given timelines.
 
     1. a subject occupies at most one time frame per timeline;
-    2. its siblings (see `_siblings`) are not active at the same time on the same
-       timeline. A sibling without time frames is always active.
+    2. its siblings (see `TimeFramed.time_frame_siblings`) are not active at the
+       same time on the same timeline. A sibling without time frames is always
+       active.
     """
-    candidate = FrameSpec(
-        frame.valid_from, frame.valid_to, frozenset(timeline_ids or ()) or None
-    )
+    frame_timelines = None
+    if timeline_ids is not None:
+        frame_timelines = frozenset(timeline_ids)
+    candidate = FrameSpec(frame.valid_from, frame.valid_to, frame_timelines)
+
     labels = dict(
         VirtualTimeline.objects.filter(
-            user_settings_id=subject_user_settings_id(subject)
+            user_settings_id=subject.time_frame_user_settings_id()
         ).values_list("id", "label")
     )
 
@@ -377,12 +434,12 @@ def validate_time_frame(
     for other in own_frames:
         if candidate.shares_timeline_with(other.spec):
             errors.append(
-                f"{_label(subject)} already occupies the time frame "
+                f"{subject.time_frame_label()} already occupies the time frame "
                 f"{_format_interval(other.spec)} on "
                 f"{_format_timelines(candidate.shared_timelines(other.spec), labels)}."
             )
 
-    siblings = list(_siblings(subject))
+    siblings = list(subject.time_frame_siblings())
     sibling_frames = defaultdict(list)
     for sibling_frame in TimeFrame.objects.filter(
         subject_type=subject_type_of(subject),
@@ -399,12 +456,13 @@ def validate_time_frame(
                 continue
             if spec is ALWAYS:
                 errors.append(
-                    f"{_label(sibling)} has no time frame, so it is active at all "
-                    f"times on all timelines."
+                    f"{sibling.time_frame_label()} has no time frame, so it is "
+                    f"active at all times on all timelines."
                 )
             else:
                 errors.append(
-                    f"Overlaps with {_label(sibling)} {_format_interval(spec)} on "
+                    f"Overlaps with {sibling.time_frame_label()} "
+                    f"{_format_interval(spec)} on "
                     f"{_format_timelines(candidate.shared_timelines(spec), labels)}."
                 )
 
@@ -412,15 +470,19 @@ def validate_time_frame(
         raise ValidationError(errors)
 
 
-# --- queries --------------------------------------------------------------------
-
-
 def active_subjects(
-    subjects: Iterable[TimeFrameSubject], timeline: VirtualTimeline, at: datetime
-) -> list[TimeFrameSubject]:
-    """
-    The subjects (all of the same type) active on `timeline` at the point in time
-    `at`. A subject without time frames is always active.
+    subjects: Iterable[T], timeline: VirtualTimeline, at: datetime
+) -> list[T]:
+    """Fetch the active subject models on a timeline at a given time.
+
+    All subject models must be of the same type.
+    A subject without time frames is always active.
+
+    :param subjects: input subject models to filter
+    :param timeline: the timeline on which the models must be active
+    :param at: the time at which the models should be active
+
+    :return: the active subject models on the specified timeline at the given time
     """
     subjects = list(subjects)
     if not subjects:
@@ -439,17 +501,5 @@ def active_subjects(
     ]
 
 
-def is_active(
-    subject: TimeFrameSubject, timeline: VirtualTimeline, at: datetime
-) -> bool:
+def is_active(subject: T, timeline: VirtualTimeline, at: datetime) -> bool:
     return bool(active_subjects([subject], timeline, at))
-
-
-def party_position_at(
-    party, chamber: Institution, timeline: VirtualTimeline, at: datetime
-) -> PartyPosition | None:
-    """The position `party` holds in `chamber` on `timeline` at `at`, if any."""
-    positions = active_subjects(
-        PartyPosition.objects.filter(party=party, chamber=chamber), timeline, at
-    )
-    return positions[0] if positions else None

@@ -3,7 +3,7 @@ from django.contrib import admin
 from django.db.models import Q
 
 from ..models._institution import Institution
-from ..models._party import PartyPosition
+from ..models import PartyPosition
 from ..models._settings import VirtualTimeline
 from ..models._timeframe import TimeFrame, TimeFrameSubjectType
 

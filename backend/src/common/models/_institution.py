@@ -5,8 +5,8 @@ from django.db import models
 from django_pydantic_field import SchemaField
 from pydantic import BaseModel, ConfigDict, Field
 
-from common.models import InstitutionBranch
-from common.models._settings import InstitutionKind
+from common.models._settings import InstitutionBranch, InstitutionKind
+from common.models._timeframe import TimeFrameMixin, TimeFrameSubjectType
 
 
 type Probability = Annotated[float, Field(ge=0.0, le=1.0)]
@@ -33,8 +33,16 @@ class CourtPayload(InstitutionPayload):
     probability_for: Optional[Probability] = None
 
 
-class Institution(models.Model):
+class SerializationModel(models.TextChoices):
+    CABINET = "cabinet"
+    CHAMBER = "chamber"
+    COURT = "court"
+
+
+class Institution(TimeFrameMixin):
     """An instance of an institution type, e.g. the 'Castex' cabinet."""
+
+    time_frame_subject_type = TimeFrameSubjectType.INSTITUTION
 
     _BRANCH_TO_PAYLOAD = {
         InstitutionBranch.EXECUTIVE.value: CabinetPayload,
@@ -53,7 +61,18 @@ class Institution(models.Model):
     )
 
     def __str__(self):
-        return f"{self.label}(id={self.id},kind={self.kind.name})"
+        return f"{self.label}(id={self.id},kind={self.kind.institution_name})"
+
+    def time_frame_siblings(self) -> models.QuerySet:
+        """The other institutions of the same kind."""
+        siblings = Institution.objects.filter(kind_id=self.kind_id)
+        return siblings.exclude(pk=self.pk) if self.pk is not None else siblings
+
+    def time_frame_label(self) -> str:
+        return f"'{self.label}'"
+
+    def time_frame_user_settings_id(self) -> int:
+        return self.kind.country.user_settings_id
 
     def clean(self) -> None:
         super().clean()

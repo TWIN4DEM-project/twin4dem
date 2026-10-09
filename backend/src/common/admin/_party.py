@@ -1,7 +1,8 @@
 from django.contrib import admin
-from ..models._institution import Institution, SerializationModel
-from ..models._party import Party, PartyPosition
-from ..models._settings import Country
+from ..models import PartyPosition
+from ..models._institution import Institution
+from ..models._party import Party
+from ..models._settings import Country, InstitutionBranch
 
 
 class PartyPositionInline(admin.TabularInline):
@@ -11,11 +12,11 @@ class PartyPositionInline(admin.TabularInline):
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if db_field.name == "chamber":
             chambers = Institution.objects.filter(
-                serialization_model=SerializationModel.CHAMBER
+                kind__branch=InstitutionBranch.LEGISLATIVE
             )
             if not request.user.is_superuser:
                 chambers = chambers.filter(
-                    institution_taxonomy__country__user_settings__user=request.user
+                    kind__country__user_settings__user=request.user
                 )
             kwargs["queryset"] = chambers
         return super().formfield_for_foreignkey(db_field, request, **kwargs)

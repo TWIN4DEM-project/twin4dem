@@ -1,6 +1,9 @@
 from django.db import models
 
-from common.models import Simulation, Minister, MemberOfParliament, Judge
+from common.models._executive import Minister
+from common.models._judiciary import Judge
+from common.models._legislative import MemberOfParliament
+from common.models._simulation import Simulation
 from common.models._belief import BeliefModel
 
 

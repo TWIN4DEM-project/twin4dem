@@ -93,27 +93,22 @@ class SimulationInstitution(models.Model):
 
     def clean(self):
         super().clean()
-        if self.simulation_id is None or self.institution_id is None:
-            return
+
         simulation = self.simulation
         institution = self.institution
 
-        if institution.institution_taxonomy.country_id != simulation.country_id:
+        if institution.kind.country_id != simulation.country_id:
             raise ValidationError(
                 {"institution": "The institution must belong to the simulated country."}
             )
 
         same_model = SimulationInstitution.objects.filter(
-            simulation_id=self.simulation_id,
-            institution__serialization_model=institution.serialization_model,
+            simulation_id=self.simulation_id, institution__kind=institution.kind
         ).exclude(pk=self.pk)
         if same_model.exists():
             raise ValidationError(
                 {
-                    "institution": (
-                        f"The simulation already has a "
-                        f"{institution.serialization_model}."
-                    )
+                    "institution": f"The simulation already has a {institution.kind.institution_name}"
                 }
             )
 
@@ -144,19 +139,9 @@ def validate_membership(agent: models.Model, field_name: str, serialization_mode
     if getattr(agent, f"{field_name}_id") is None:
         return
     institution = getattr(agent, field_name).institution
-    if institution.serialization_model != serialization_model:
-        raise ValidationError(
-            {
-                field_name: (
-                    f"A {agent._meta.verbose_name} must belong to a "
-                    f"{serialization_model}, not to a "
-                    f"{institution.serialization_model}."
-                )
-            }
-        )
     if (
         agent.party_id is not None
-        and agent.party.country_id != institution.institution_taxonomy.country_id
+        and agent.party.country_id != institution.kind.country_id
     ):
         raise ValidationError(
             {"party": "The party must belong to the institution's country."}

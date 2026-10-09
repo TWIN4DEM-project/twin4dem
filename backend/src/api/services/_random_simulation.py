@@ -17,11 +17,20 @@ from common.models import (
     UserSettings,
     InstitutionKind,
     InstitutionBranch,
-    PartyPositionType, ChamberPayload, PartyPosition, )
+    PartyPositionType,
+    ChamberPayload,
+    CourtPayload,
+    Country,
+    Party,
+)
+
+DEFAULT_PARTY_POSITION = PartyPositionType.INDEPENDENT
 
 DEFAULT_PARLIAMENT_SIZE = 100
 DEFAULT_COURT_SIZE = 5
 DEFAULT_GOVT_CONNECTIVITY = 2
+MAX_INDEPENDENT_POOL_SHARE = 8
+MIN_SPLIT_WEIGHT = 1.0
 
 CABINET_INSTITUTION_KIND = "cabinet"
 COURT_INSTITUTION_KIND = "court"
@@ -103,6 +112,100 @@ class RandomSimulationBuilder(SimulationBuilder):
 
         return result
 
+    def _party_seats(
+        self, country: Country
+    ) -> list[tuple[Party, PartyPositionType, int]]:
+        parties = list(country.parties.all())
+        if not parties:
+            return []
+
+        positions = self._party_positions(parties)
+        pool = self._parliament_size - len(parties)
+        member_counts = self._allocate_member_seats(pool, parties, positions)
+        return [
+            (party, positions[party.id], member_counts[party.id]) for party in parties
+        ]
+
+    @staticmethod
+    def _party_positions(parties: list[Party]) -> dict[int, PartyPositionType]:
+        positions: dict[int, PartyPositionType] = {}
+        for party in parties:
+            latest = party.latest_position
+            positions[party.id] = (
+                PartyPositionType(latest.position)
+                if latest is not None
+                else DEFAULT_PARTY_POSITION
+            )
+        return positions
+
+    def _allocate_member_seats(
+        self, pool: int, parties: list[Party], positions: dict[int, PartyPositionType]
+    ) -> dict[int, int]:
+        blocs = {
+            position_type: [
+                party for party in parties if positions[party.id] == position_type
+            ]
+            for position_type in PartyPositionType
+        }
+        member_counts: dict[int, int] = {}
+        for position_type, seats in self._bloc_member_seats(pool, blocs).items():
+            member_counts.update(self._split_seats(seats, blocs[position_type]))
+        return member_counts
+
+    @staticmethod
+    def _bloc_member_seats(
+        pool: int, blocs: dict[PartyPositionType, list[Party]]
+    ) -> dict[PartyPositionType, int]:
+        majorities = blocs[PartyPositionType.MAJORITY]
+        opposition = blocs[PartyPositionType.OPPOSITION]
+        independents = blocs[PartyPositionType.INDEPENDENT]
+
+        independent_seats = (
+            randint(0, pool // MAX_INDEPENDENT_POOL_SHARE)
+            if independents and pool > 0
+            else 0
+        )
+        remaining = max(pool - independent_seats, 0)
+
+        if majorities and opposition:
+            head_gap = len(opposition) - len(majorities)
+            opposition_seats = randint(
+                0, min(max(0, (remaining - head_gap - 1) // 2), remaining)
+            )
+            majority_seats = remaining - opposition_seats
+        elif majorities:
+            majority_seats, opposition_seats = remaining, 0
+        elif opposition:
+            majority_seats, opposition_seats = 0, remaining
+        else:
+            independent_seats += remaining
+            majority_seats, opposition_seats = 0, 0
+
+        return {
+            PartyPositionType.MAJORITY: majority_seats,
+            PartyPositionType.OPPOSITION: opposition_seats,
+            PartyPositionType.INDEPENDENT: independent_seats,
+        }
+
+    @staticmethod
+    def _split_seats(total: int, bloc: list[Party]) -> dict[int, int]:
+        if not bloc or total <= 0:
+            return {party.id: 0 for party in bloc}
+
+        weights = [MIN_SPLIT_WEIGHT + random() for _ in bloc]
+        total_weight = sum(weights)
+        exact = [weight * total / total_weight for weight in weights]
+        seats = [int(value) for value in exact]
+        leftover = max(total - sum(seats), 0)
+        order = sorted(
+            range(len(bloc)),
+            key=lambda idx: exact[idx] - seats[idx],
+            reverse=True,
+        )
+        for idx in order[:leftover]:
+            seats[idx] += 1
+        return {party.id: seat for party, seat in zip(bloc, seats)}
+
     def _create_parliament(self) -> Institution:
         country = self._get_country()
         parliament_label = self._get_label(
@@ -117,21 +220,19 @@ class RandomSimulationBuilder(SimulationBuilder):
             kind=institution_kind,
             payload=ChamberPayload(
                 majority_probability_for=majority_for,
-                opposition_probability_for=opposition_for
+                opposition_probability_for=opposition_for,
             ),
             label=parliament_label,
             size=self._parliament_size,
         )
         mp_objects = []
-        remaining = self._parliament_size
-        for party in country.parties.all():
-            position = party.latest_position.position
+        for party, position, member_count in self._party_seats(country):
             match position:
                 case PartyPositionType.MAJORITY:
-                    prob_distribution_center = parliament.majority_probability_for
+                    prob_distribution_center = majority_for
                     o_sup1 = 1
                 case PartyPositionType.OPPOSITION:
-                    prob_distribution_center = parliament.opposition_probability_for
+                    prob_distribution_center = opposition_for
                     o_sup1 = 0
                 case _:
                     prob_distribution_center = 0.5
@@ -163,18 +264,27 @@ class RandomSimulationBuilder(SimulationBuilder):
                     label=f"{parliament_label}-{party.label}-member-{idx:03}",
                     is_head=False,
                 )
-                for idx in range(1, party.member_count)
+                for idx in range(1, member_count + 1)
             )
         MemberOfParliament.objects.bulk_create(mp_objects)
         return parliament
 
-    def _create_court(self) -> Court:
+    def _create_court(self) -> Institution:
+        country = self._get_country()
         court_label = self._get_label(self._simulation, self._user_settings, "-court")
-        court = Court.objects.create(
-            label=court_label,
-            probability_for=self._user_settings.court_probability_for,
+        probability_for = self._user_settings.court_probability_for
+        court_institution_kind = InstitutionKind.objects.get_or_create(
+            country=country,
+            name=self._court_type,
+            branch=InstitutionBranch.JUDICIARY,
         )
-        parties = list(self._user_settings.parties.all())
+        court = Institution.objects.create(
+            kind=court_institution_kind,
+            label=court_label,
+            size=self._court_size,
+            payload=CourtPayload(probability_for=probability_for),
+        )
+        parties = list(country.parties.all())
         judges = [
             Judge(
                 label=f"{court_label}-{idx:02}" if idx != 0 else f"{court_label}-P",

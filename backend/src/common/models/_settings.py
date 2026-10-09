@@ -132,7 +132,7 @@ class InstitutionKind(models.Model):
 
     id = models.AutoField(primary_key=True)
 
-    name = models.CharField(max_length=100)
+    institution_name = models.CharField(max_length=100)
     country = models.ForeignKey(
         to=Country, on_delete=models.CASCADE, related_name="institution_kinds"
     )
@@ -140,14 +140,14 @@ class InstitutionKind(models.Model):
     branch = models.CharField(choices=InstitutionBranch.choices)
 
     def __str__(self):
-        return f"{self.country}: {self.name} ({self.branch})"
+        return f"{self.country}: {self.institution_name} ({self.branch})"
 
     class Meta:
-        verbose_name_plural = "Institution taxonomies"
+        verbose_name_plural = "Institution kinds"
         constraints = [
             models.UniqueConstraint(
-                name="uq_institutionkind_kind_per_country",
-                fields=["name", "country"],
+                name="uq_institutionkind_institution_name_per_country",
+                fields=["institution_name", "country"],
             ),
             models.CheckConstraint(
                 name="ck_institutiontaxonomy_branch",

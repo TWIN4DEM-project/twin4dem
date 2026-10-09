@@ -5,44 +5,40 @@
     "fields": {"user_settings": 1, "name": "Testland"}
   },
   {
-    "model": "common.institutiontaxonomy",
+    "model": "common.institutionkind",
     "pk": 1,
-    "fields": {"country": 1, "branch": "executive", "type": "government"}
+    "fields": {"country": 1, "branch": "executive", "institution_name": "government"}
   },
   {
-    "model": "common.institutiontaxonomy",
+    "model": "common.institutionkind",
     "pk": 2,
-    "fields": {"country": 1, "branch": "legislative", "type": "parliament"}
+    "fields": {"country": 1, "branch": "legislative", "institution_name": "parliament"}
   },
   {
-    "model": "common.institutiontaxonomy",
+    "model": "common.institutionkind",
     "pk": 3,
-    "fields": {"country": 1, "branch": "judiciary", "type": "court"}
+    "fields": {"country": 1, "branch": "judiciary", "institution_name": "court"}
   },
   {
     "model": "common.institution",
     "pk": 1,
     "fields": {
-      "institution_taxonomy": 1,
+      "kind": 1,
       "label": "Testland government",
       "size": 15,
-      "serialization_model": "cabinet",
-      "serialization_version": 1,
-      "payload": {"connectivity_degree": 3, "government_probability_for": null}
+      "payload": {"connectivity_degree": 3, "probability_for": null}
     }
   },
   {
     "model": "common.institution",
     "pk": 2,
     "fields": {
-      "institution_taxonomy": 2,
+      "kind": 2,
       "label": "Testland parliament",
       "size": 100,
-      "serialization_model": "chamber",
-      "serialization_version": 1,
       "payload": {
-        "parliament_majority_probability_for": null,
-        "parliament_opposition_probability_for": null
+        "majority_probability_for": null,
+        "opposition_probability_for": null
       }
     }
   },
@@ -50,12 +46,10 @@
     "model": "common.institution",
     "pk": 3,
     "fields": {
-      "institution_taxonomy": 3,
+      "kind": 3,
       "label": "Testland court",
       "size": 5,
-      "serialization_model": "court",
-      "serialization_version": 1,
-      "payload": {"court_probability_for": null}
+      "payload": {"probability_for": null}
     }
   },
   {
