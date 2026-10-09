@@ -10,7 +10,7 @@ from common.dto import (
     SubmodelType,
     VbarSubmodelResult,
 )
-from common.models import SerializationModel
+from common.models import InstitutionBranch
 
 
 @pytest.fixture
@@ -27,7 +27,7 @@ def simulation(executive_simulation):
 
 @pytest.fixture
 def cabinet(simulation, simulation_institution):
-    return simulation_institution(simulation, SerializationModel.CABINET)
+    return simulation_institution(simulation, InstitutionBranch.EXECUTIVE)
 
 
 @pytest.fixture

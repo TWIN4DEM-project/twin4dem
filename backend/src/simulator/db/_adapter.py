@@ -8,7 +8,6 @@ from django.db import models
 from common.models import (
     Simulation,
     SimulationInstitution,
-    SerializationModel,
     PartyPositionType,
     party_position_at,
     Minister as MinisterModel,
@@ -18,7 +17,7 @@ from common.models import (
     MPBelief,
     JudgeBelief,
     SimulationSubmodelLogEntry,
-    SubmodelType,
+    SubmodelType, InstitutionBranch,
 )
 from simulator.adapters import (
     GovernmentAdapter,
@@ -54,10 +53,7 @@ TBelief = TypeVar("TBelief", bound=models.Model)
 
 class RelatedInstitutionFinder:
     @classmethod
-    def _find_institution(
-        cls, simulation: Simulation, serialization_model: str
-    ) -> SimulationInstitution | None:
-        branch = SerializationModel(serialization_model).branch
+    def _find_institution(cls, simulation: Simulation, branch: InstitutionBranch) -> SimulationInstitution | None:
         return (
             simulation.institutions.filter(
                 institution__kind__branch=branch,
@@ -67,13 +63,11 @@ class RelatedInstitutionFinder:
         )
 
     @classmethod
-    def _get_institution(
-        cls, simulation: Simulation, serialization_model: str
-    ) -> SimulationInstitution:
-        result = cls._find_institution(simulation, serialization_model)
+    def _get_institution(cls, simulation: Simulation, branch: InstitutionBranch) -> SimulationInstitution:
+        result = cls._find_institution(simulation, branch)
         if result is None:
             raise ValueError(
-                f"there is no {serialization_model} in simulation {simulation.id}"
+                f"there is no {branch} in simulation {simulation.id}"
             )
         return result
 
@@ -89,7 +83,7 @@ class PartyPositionFinder(RelatedInstitutionFinder):
         position there, or simulations without a chamber, count as independent.
         """
         party_ids = set(party_ids)
-        chamber = cls._find_institution(simulation, SerializationModel.CHAMBER)
+        chamber = cls._find_institution(simulation, InstitutionBranch.LEGISLATIVE)
         if chamber is None:
             return {party_id: PartyPositionType.INDEPENDENT for party_id in party_ids}
         result = {}
@@ -203,7 +197,7 @@ class GovernmentDbAdapter(
         beliefs_for_step = self._get_beliefs_for_step(
             MinisterBelief, simulation_id, step_no
         )
-        cabinet = self._get_institution(value, SerializationModel.CABINET)
+        cabinet = self._get_institution(value, InstitutionBranch.EXECUTIVE)
         minister_models = list(
             cabinet.ministers.all().prefetch_related("neighbours_in")
         )
@@ -279,7 +273,7 @@ class ParliamentDbAdapter(
         value = Simulation.objects.select_related("user_settings").get(pk=simulation_id)
         step_no = kwargs.get("step_no")
         beliefs_for_step = self._get_beliefs_for_step(MPBelief, simulation_id, step_no)
-        chamber = self._get_institution(value, SerializationModel.CHAMBER)
+        chamber = self._get_institution(value, InstitutionBranch.LEGISLATIVE)
         chamber_members = list(
             chamber.members.all().select_related("party").order_by("id")
         )
@@ -370,7 +364,7 @@ class CouncilDbAdapter(
         beliefs_for_step = self._get_beliefs_for_step(
             JudgeBelief, simulation_id, step_no
         )
-        court = self._get_institution(value, SerializationModel.COURT)
+        court = self._get_institution(value, InstitutionBranch.JUDICIARY)
         court_judges = list(court.judges.all().prefetch_related("neighbours_in"))
         judge_adapter = JudgeDbAdapter(
             _effective(

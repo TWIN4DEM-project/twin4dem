@@ -1,7 +1,7 @@
 import pytest
 
 from common.dto import SimulationStepResult
-from common.models import SerializationModel, SimulationLogEntry
+from common.models import SimulationLogEntry, InstitutionBranch
 from simulator.persistence import get_simulation_persistence
 from simulator.tasks import executive_submodel, subsequent_submodel
 
@@ -11,7 +11,7 @@ def test_step_by_step_simulation_persists_flow(load_simulation, simulation_insti
     simulation = load_simulation(
         "complete/legislative_simulation.json", simulation_id=1
     )
-    cabinet = simulation_institution(simulation, SerializationModel.CABINET)
+    cabinet = simulation_institution(simulation, InstitutionBranch.EXECUTIVE)
 
     # always take the legislative path, so the parliament votes in every step
     simulation.user_settings.legislative_path_probability = 1.0

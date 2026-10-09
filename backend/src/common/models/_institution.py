@@ -33,21 +33,6 @@ class CourtPayload(InstitutionPayload):
     probability_for: Optional[Probability] = None
 
 
-class SerializationModel(models.TextChoices):
-    CABINET = "cabinet"
-    CHAMBER = "chamber"
-    COURT = "court"
-
-    @property
-    def branch(self) -> InstitutionBranch:
-        """The institution branch that serialises as this model."""
-        return {
-            SerializationModel.CABINET: InstitutionBranch.EXECUTIVE,
-            SerializationModel.CHAMBER: InstitutionBranch.LEGISLATIVE,
-            SerializationModel.COURT: InstitutionBranch.JUDICIARY,
-        }[self]
-
-
 class Institution(TimeFrameMixin):
     """An instance of an institution type, e.g. the 'Castex' cabinet."""
 

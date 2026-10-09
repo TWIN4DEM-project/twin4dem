@@ -5,9 +5,8 @@ from typing import Callable
 
 import pytest
 from django.core.management import call_command
-from common.models import Simulation, SimulationInstitution
+from common.models import Simulation, SimulationInstitution, InstitutionBranch
 from common.models import (
-    SerializationModel,
     SubmodelType,
     UserSettings,
     VirtualTimeline,
@@ -143,11 +142,10 @@ def simulation_institution():
     Usage: simulation_institution(simulation, "cabinet") -> SimulationInstitution
     """
 
-    def _get(simulation, serialization_model: str) -> SimulationInstitution:
-        branch = SerializationModel(serialization_model).branch
+    def _get(simulation, branch: InstitutionBranch) -> SimulationInstitution:
         obj = simulation.institutions.filter(institution__kind__branch=branch).first()
         assert obj is not None, (
-            f"No {serialization_model} found in Simulation(id={simulation.id}). "
+            f"No {branch} institutions found in Simulation(id={simulation.id})."
             f"Did you load the right fixture?"
         )
         return obj

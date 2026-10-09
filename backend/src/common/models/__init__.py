@@ -11,7 +11,6 @@ from ._settings import (
 from ._institution import (
     Institution,
     InstitutionPayload,
-    SerializationModel,
     CabinetPayload,
     ChamberPayload,
     CourtPayload,
@@ -65,7 +64,6 @@ __all__ = (
     "InstitutionKind",
     "Institution",
     "InstitutionPayload",
-    "SerializationModel",
     "CabinetPayload",
     "ChamberPayload",
     "CourtPayload",
