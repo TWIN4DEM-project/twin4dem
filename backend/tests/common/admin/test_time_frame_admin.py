@@ -2,18 +2,11 @@ from datetime import datetime, UTC
 
 import pytest
 
-from common.models import TimeFrame, TimeFrameSubjectType, VirtualTimeline
+from common.models import TimeFrame, TimeFrameSubjectType
 
 pytestmark = pytest.mark.urls("tests.common.admin.urls")
 
 ADD_URL = "/admin/common/timeframe/add/"
-
-
-@pytest.fixture
-def alternate(test_settings) -> VirtualTimeline:
-    return VirtualTimeline.objects.create(
-        user_settings=test_settings, label="alternate"
-    )
 
 
 def _form_data(subject, valid_from: str, valid_to: str, timelines=()) -> dict:
@@ -52,23 +45,25 @@ def test_admin_pages_render(admin_client, url):
 
 
 @pytest.mark.django_db
-def test_add_time_frame_with_timelines(admin_client, cabinet, alternate):
+def test_add_time_frame_with_timelines(admin_client, cabinet, alternate_timeline):
     response = admin_client.post(
-        ADD_URL, _form_data(cabinet, "2020-07-03", "2022-05-16", [alternate])
+        ADD_URL, _form_data(cabinet, "2020-07-03", "2022-05-16", [alternate_timeline])
     )
 
     assert response.status_code == 302
     frame = TimeFrame.objects.of(cabinet).get()
     assert frame.valid_from == datetime(2020, 7, 3, tzinfo=UTC)
-    assert list(frame.timelines.all()) == [alternate]
+    assert list(frame.timelines.all()) == [alternate_timeline]
 
 
 @pytest.mark.django_db
-def test_add_overlapping_time_frame_shows_error(admin_client, cabinet, alternate):
+def test_add_overlapping_time_frame_shows_error(
+    admin_client, cabinet, alternate_timeline
+):
     TimeFrame.objects.occupy(cabinet, valid_from=datetime(2020, 7, 3, tzinfo=UTC))
 
     response = admin_client.post(
-        ADD_URL, _form_data(cabinet, "2030-01-01", "2031-01-01", [alternate])
+        ADD_URL, _form_data(cabinet, "2030-01-01", "2031-01-01", [alternate_timeline])
     )
 
     assert response.status_code == 200

@@ -61,6 +61,19 @@ def renaissance(france) -> Party:
 
 
 @pytest.fixture
+def senat(france) -> Institution:
+    taxonomy = InstitutionKind.objects.create(
+        country=france, branch=InstitutionBranch.LEGISLATIVE, type="senat"
+    )
+    return Institution.objects.create(
+        institution_taxonomy=taxonomy,
+        label="Senat2023",
+        size=348,
+        serialization_model=SerializationModel.CHAMBER,
+    )
+
+
+@pytest.fixture
 def court(french_taxonomy) -> Institution:
     return Institution.objects.create(
         institution_taxonomy=french_taxonomy[InstitutionBranch.JUDICIARY],
@@ -73,6 +86,13 @@ def court(french_taxonomy) -> Institution:
 @pytest.fixture
 def default_timeline(test_settings) -> VirtualTimeline:
     return test_settings.timelines.get(label=VirtualTimeline.DEFAULT_LABEL)
+
+
+@pytest.fixture
+def alternate_timeline(test_settings) -> VirtualTimeline:
+    return VirtualTimeline.objects.create(
+        user_settings=test_settings, label="alternate"
+    )
 
 
 @pytest.fixture

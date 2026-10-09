@@ -20,18 +20,6 @@ def _dt(year: int, month: int = 1, day: int = 1) -> datetime:
 
 
 @pytest.fixture
-def default_timeline(test_settings) -> VirtualTimeline:
-    return test_settings.timelines.get(label="default")
-
-
-@pytest.fixture
-def alternate_timeline(test_settings) -> VirtualTimeline:
-    return VirtualTimeline.objects.create(
-        user_settings=test_settings, label="alternate"
-    )
-
-
-@pytest.fixture
 def majority_position(renaissance, assemblee) -> PartyPosition:
     return PartyPosition.objects.create(
         party=renaissance, chamber=assemblee, position=PartyPositionType.MAJORITY

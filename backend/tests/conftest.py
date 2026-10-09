@@ -6,7 +6,7 @@ from typing import Callable
 import pytest
 from django.core.management import call_command
 from common.models import Simulation, SimulationInstitution
-from common.models import UserSettings, VirtualTimeline
+from common.models import SubmodelType, UserSettings, VirtualTimeline
 
 
 @pytest.fixture(autouse=True)
@@ -69,6 +69,16 @@ def test_settings(admin_user):
 
 
 @pytest.fixture
+def test_user(django_user_model):
+    return django_user_model.objects.get(username="test_user")
+
+
+@pytest.fixture
+def test_user_settings(test_user):
+    return UserSettings.objects.get(user=test_user)
+
+
+@pytest.fixture
 def simulation_id(request) -> int:
     return getattr(request, "param", 1)
 
@@ -89,20 +99,36 @@ def load_simulation(db, django_db_blocker):
 
 
 @pytest.fixture
+def judiciary_log_simulation(load_simulation):
+    return load_simulation("complete/judiciary_simulation.json", 3)
+
+
+@pytest.fixture
+def legislative_log_simulation(load_simulation):
+    return load_simulation("complete/legislative_simulation.json", 1)
+
+
+@pytest.fixture
+def log_simulation_type(request):
+    return getattr(request, "param", SubmodelType.LEGISLATIVE)
+
+
+@pytest.fixture
+def log_simulation(
+    request, legislative_log_simulation, judiciary_log_simulation, log_simulation_type
+):
+    match log_simulation_type:
+        case (SubmodelType.EXECUTIVE, SubmodelType.LEGISLATIVE):
+            return legislative_log_simulation
+        case _:
+            return judiciary_log_simulation
+
+
+@pytest.fixture
 def executive_simulation(load_simulation, simulation_id):
     return load_simulation(
         f"executive/scenario{simulation_id}.json", simulation_id=simulation_id
     )
-
-
-@pytest.fixture
-def judiciary_simulation(load_simulation, simulation_id):
-    return load_simulation("judiciary/judiciary.json", simulation_id=simulation_id)
-
-
-@pytest.fixture
-def legislative_simulation(load_simulation, simulation_id):
-    return load_simulation("legislative/legislative.json", simulation_id=simulation_id)
 
 
 @pytest.fixture

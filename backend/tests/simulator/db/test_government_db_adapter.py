@@ -2,15 +2,12 @@ from random import random
 from unittest.mock import patch, call, ANY
 
 import pytest
-from django.utils import timezone
 
 from common.models import (
     SimulationLogEntry,
     SimulationSubmodelLogEntry,
     SubmodelType,
     PathSubmodelInfo,
-    AggrandisementBatch,
-    AggrandisementUnit,
     MinisterBelief,
     PartyPositionType,
     SerializationModel,
@@ -18,11 +15,6 @@ from common.models import (
 )
 import simulator.db._adapter as adapter_module
 from simulator.db import GovernmentDbAdapter
-
-
-@pytest.fixture
-def cabinet(simulation, simulation_institution):
-    return simulation_institution(simulation, SerializationModel.CABINET)
 
 
 @pytest.fixture
@@ -122,46 +114,15 @@ def step_no():
 
 
 @pytest.fixture
-def aggrandisement_unit(simulation, step_no):
-    batch = AggrandisementBatch.objects.create(
-        simulation=simulation,
-        start_date=timezone.now(),
-        end_date=timezone.now(),
-    )
-    return AggrandisementUnit.objects.create(batch=batch, step_no=step_no)
+def aggrandisement_unit(simulation, step_no, make_aggrandisement_unit):
+    return make_aggrandisement_unit(simulation, step_no)
 
 
 @pytest.fixture
-def targeted_and_fallback_ministers(cabinet):
+def targeted_and_fallback(cabinet):
     ministers = list(cabinet.ministers.all().order_by("id"))
     assert len(ministers) >= 2
     return ministers[0], ministers[1]
-
-
-@pytest.fixture
-def configured_global_beliefs(targeted_and_fallback_ministers):
-    targeted, fallback = targeted_and_fallback_ministers
-    targeted.personal_opinion = 0.0
-    targeted.appointing_group_opinion = 0.0
-    targeted.supporting_group_opinion = 0.0
-    targeted.save(
-        update_fields=[
-            "personal_opinion",
-            "appointing_group_opinion",
-            "supporting_group_opinion",
-        ]
-    )
-    fallback.personal_opinion = 1.0
-    fallback.appointing_group_opinion = 1.0
-    fallback.supporting_group_opinion = 1.0
-    fallback.save(
-        update_fields=[
-            "personal_opinion",
-            "appointing_group_opinion",
-            "supporting_group_opinion",
-        ]
-    )
-    return targeted, fallback
 
 
 @pytest.fixture

@@ -4,27 +4,10 @@ from django.db import IntegrityError, transaction
 
 from common.models import (
     Country,
-    Institution,
-    InstitutionBranch,
-    InstitutionKind,
     Party,
     PartyPosition,
     PartyPositionType,
-    SerializationModel,
 )
-
-
-@pytest.fixture
-def senat(france) -> Institution:
-    taxonomy = InstitutionKind.objects.create(
-        country=france, branch=InstitutionBranch.LEGISLATIVE, type="senat"
-    )
-    return Institution.objects.create(
-        institution_taxonomy=taxonomy,
-        label="Senat2023",
-        size=100,
-        serialization_model=SerializationModel.CHAMBER,
-    )
 
 
 @pytest.mark.django_db

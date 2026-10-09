@@ -6,14 +6,12 @@ from django.core.exceptions import ValidationError
 from common.models import (
     Institution,
     InstitutionBranch,
-    InstitutionKind,
     PartyPosition,
     PartyPositionType,
     SerializationModel,
     TimeFrame,
     TimelineTimeFrame,
     UserSettings,
-    VirtualTimeline,
 )
 from common.models._timeframe import FrameSpec
 
@@ -77,18 +75,6 @@ def test_shared_timelines(a, b, expected_shared):
 # --- the example from the 'User Settings — Next' page ---------------------------
 
 
-@pytest.fixture
-def default(test_settings) -> VirtualTimeline:
-    return test_settings.timelines.get(label="default")
-
-
-@pytest.fixture
-def alternate(test_settings) -> VirtualTimeline:
-    return VirtualTimeline.objects.create(
-        user_settings=test_settings, label="alternate"
-    )
-
-
 def _create(taxonomy, label, valid_from=None, valid_to=None, timelines=None):
     """Create an institution and, unless both bounds are None, its time frame."""
     model = {
@@ -107,7 +93,9 @@ def _create(taxonomy, label, valid_from=None, valid_to=None, timelines=None):
 
 
 @pytest.fixture
-def france_2017(french_taxonomy, default, alternate) -> dict[str, Institution]:
+def france_2017(
+    french_taxonomy, default_timeline, alternate_timeline
+) -> dict[str, Institution]:
     cabinet = french_taxonomy[InstitutionBranch.EXECUTIVE]
     chamber = french_taxonomy[InstitutionBranch.LEGISLATIVE]
     court = french_taxonomy[InstitutionBranch.JUDICIARY]
@@ -115,14 +103,18 @@ def france_2017(french_taxonomy, default, alternate) -> dict[str, Institution]:
         institution.label: institution
         for institution in (
             _create(
-                cabinet, "Philippe I", _dt(2017, 5, 15), _dt(2017, 6, 21), [default]
+                cabinet,
+                "Philippe I",
+                _dt(2017, 5, 15),
+                _dt(2017, 6, 21),
+                [default_timeline],
             ),
             _create(
                 cabinet,
                 "Philippe II",
                 _dt(2017, 6, 21),
                 _dt(2020, 7, 3),
-                [default, alternate],
+                [default_timeline, alternate_timeline],
             ),
             _create(cabinet, "Castex", _dt(2020, 7, 3), _dt(2022, 5, 16)),
             _create(chamber, "RN2017", _dt(2017, 7, 1), _dt(2022, 6, 30)),
@@ -146,15 +138,17 @@ def test_docs_example_is_valid(france_2017):
 
 
 @pytest.mark.django_db
-def test_extend_philippe_ii_on_alternate_timeline(france_2017, default, alternate):
+def test_extend_philippe_ii_on_alternate_timeline(
+    france_2017, default_timeline, alternate_timeline
+):
     philippe_ii = france_2017["Philippe II"]
-    TimeFrame.objects.of(philippe_ii).get().timelines.set([default])
+    TimeFrame.objects.of(philippe_ii).get().timelines.set([default_timeline])
 
     extended = TimeFrame.objects.occupy(
-        philippe_ii, _dt(2017, 5, 15), _dt(2020, 7, 3), [alternate]
+        philippe_ii, _dt(2017, 5, 15), _dt(2020, 7, 3), [alternate_timeline]
     )
 
-    assert list(extended.get_timelines()) == [alternate]
+    assert list(extended.get_timelines()) == [alternate_timeline]
 
 
 @pytest.mark.django_db
@@ -249,10 +243,10 @@ def test_open_ended_frame_blocks_later_siblings(france_2017, french_taxonomy):
 
 
 @pytest.mark.django_db
-def test_subject_occupies_one_frame_per_timeline(france_2017, alternate):
+def test_subject_occupies_one_frame_per_timeline(france_2017, alternate_timeline):
     with pytest.raises(ValidationError) as err_proxy:
         TimeFrame.objects.occupy(
-            france_2017["Castex"], _dt(2030), _dt(2031), [alternate]
+            france_2017["Castex"], _dt(2030), _dt(2031), [alternate_timeline]
         )
 
     assert err_proxy.value.messages == [
@@ -263,17 +257,19 @@ def test_subject_occupies_one_frame_per_timeline(france_2017, alternate):
 
 @pytest.mark.django_db
 def test_subject_occupies_different_frames_on_different_timelines(
-    france_2017, french_taxonomy, default, alternate
+    france_2017, french_taxonomy, default_timeline, alternate_timeline
 ):
     borne = _create(
         french_taxonomy[InstitutionBranch.EXECUTIVE],
         "Borne",
         _dt(2022, 5, 16),
         _dt(2024, 1, 9),
-        [default],
+        [default_timeline],
     )
 
-    TimeFrame.objects.occupy(borne, _dt(2022, 5, 16), _dt(2023, 1, 1), [alternate])
+    TimeFrame.objects.occupy(
+        borne, _dt(2022, 5, 16), _dt(2023, 1, 1), [alternate_timeline]
+    )
 
     assert TimeFrame.objects.of(borne).count() == 2
 
@@ -290,14 +286,18 @@ def test_editing_frame_does_not_conflict_with_itself(france_2017):
 
 
 @pytest.mark.django_db
-def test_adding_timeline_link_validates_overlaps(france_2017, default, alternate):
+def test_adding_timeline_link_validates_overlaps(
+    france_2017, default_timeline, alternate_timeline
+):
     philippe_ii = france_2017["Philippe II"]
-    TimeFrame.objects.of(philippe_ii).get().timelines.set([default])
+    TimeFrame.objects.of(philippe_ii).get().timelines.set([default_timeline])
     TimeFrame.objects.occupy(
-        philippe_ii, _dt(2017, 5, 15), _dt(2020, 7, 3), [alternate]
+        philippe_ii, _dt(2017, 5, 15), _dt(2020, 7, 3), [alternate_timeline]
     )
     philippe_i_frame = TimeFrame.objects.of(france_2017["Philippe I"]).get()
-    link = TimelineTimeFrame(time_frame=philippe_i_frame, virtual_timeline=alternate)
+    link = TimelineTimeFrame(
+        time_frame=philippe_i_frame, virtual_timeline=alternate_timeline
+    )
 
     with pytest.raises(ValidationError) as err_proxy:
         link.full_clean()
@@ -338,19 +338,6 @@ def test_occupy_rejects_timeline_of_other_context(france_2017, test_settings):
 
 
 # --- party positions ------------------------------------------------------------
-
-
-@pytest.fixture
-def senat(france) -> Institution:
-    taxonomy = InstitutionKind.objects.create(
-        country=france, branch=InstitutionBranch.LEGISLATIVE, type="senat"
-    )
-    return Institution.objects.create(
-        institution_taxonomy=taxonomy,
-        label="Senat2023",
-        size=348,
-        serialization_model=SerializationModel.CHAMBER,
-    )
 
 
 def _position(party, chamber, position, valid_from=None, valid_to=None):

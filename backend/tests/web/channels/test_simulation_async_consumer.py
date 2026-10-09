@@ -4,11 +4,6 @@ import pytest
 import pytest_asyncio
 
 
-@pytest.fixture
-def simulation_id(request):
-    return int(getattr(request, "param", 1))
-
-
 @pytest_asyncio.fixture
 async def sim_comm(new_communicator, simulation_id, simulation_task_mock):
     c = new_communicator(f"ws/simulation/{simulation_id}/")

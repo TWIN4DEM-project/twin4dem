@@ -3,13 +3,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from common.dto import SimulationStepResult, ExecutiveSubmodelResult, SubmodelType
-from common.models import SerializationModel
 from simulator.tasks import executive_submodel
-
-
-@pytest.fixture
-def simulation(executive_simulation):
-    return executive_simulation
 
 
 @pytest.fixture
@@ -17,11 +11,6 @@ def simulation_input_param(simulation):
     return SimulationStepResult(
         step_no=0, simulation_id=simulation.id, results=[]
     ).model_dump()
-
-
-@pytest.fixture
-def cabinet(simulation, simulation_institution):
-    return simulation_institution(simulation, SerializationModel.CABINET)
 
 
 @pytest.mark.django_db

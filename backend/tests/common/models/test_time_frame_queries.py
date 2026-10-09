@@ -9,7 +9,6 @@ from common.models import (
     PartyPositionType,
     SerializationModel,
     TimeFrame,
-    VirtualTimeline,
     is_active,
     party_position_at,
 )
@@ -17,13 +16,6 @@ from common.models import (
 
 def _dt(year: int, month: int = 1, day: int = 1) -> datetime:
     return datetime(year, month, day, tzinfo=UTC)
-
-
-@pytest.fixture
-def alternate(test_settings) -> VirtualTimeline:
-    return VirtualTimeline.objects.create(
-        user_settings=test_settings, label="alternate"
-    )
 
 
 @pytest.fixture
@@ -65,15 +57,17 @@ def test_is_active_within_bounds(philippe_cabinets, default_timeline, at, expect
 
 
 @pytest.mark.django_db
-def test_is_active_only_on_linked_timelines(philippe_cabinets, alternate):
-    assert not is_active(philippe_cabinets["Philippe I"], alternate, _dt(2017, 6, 1))
+def test_is_active_only_on_linked_timelines(philippe_cabinets, alternate_timeline):
+    assert not is_active(
+        philippe_cabinets["Philippe I"], alternate_timeline, _dt(2017, 6, 1)
+    )
 
 
 @pytest.mark.django_db
 def test_frame_for_all_timelines_is_active_on_each(
-    philippe_cabinets, default_timeline, alternate
+    philippe_cabinets, default_timeline, alternate_timeline
 ):
-    for timeline in (default_timeline, alternate):
+    for timeline in (default_timeline, alternate_timeline):
         assert is_active(philippe_cabinets["Philippe II"], timeline, _dt(2018))
 
 
