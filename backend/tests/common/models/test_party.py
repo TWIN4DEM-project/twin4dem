@@ -6,7 +6,7 @@ from common.models import (
     Country,
     Institution,
     InstitutionBranch,
-    InstitutionTaxonomy,
+    InstitutionKind,
     Party,
     PartyPosition,
     PartyPositionType,
@@ -16,7 +16,7 @@ from common.models import (
 
 @pytest.fixture
 def senat(france) -> Institution:
-    taxonomy = InstitutionTaxonomy.objects.create(
+    taxonomy = InstitutionKind.objects.create(
         country=france, branch=InstitutionBranch.LEGISLATIVE, type="senat"
     )
     return Institution.objects.create(

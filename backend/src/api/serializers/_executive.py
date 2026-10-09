@@ -2,7 +2,7 @@ from typing import cast
 from rest_framework import serializers
 
 from common.fields import SeparatedValuesField
-from common.models import Cabinet, Minister
+from common.models import CabinetPayload, Minister
 from api import fields
 from ._base import LCCModelSerializer
 
@@ -42,7 +42,7 @@ class CabinetSerializer(LCCModelSerializer):
     ministers = serializers.SerializerMethodField()
 
     class Meta:
-        model = Cabinet
+        model = CabinetPayload
         fields = [
             "id",
             "label",

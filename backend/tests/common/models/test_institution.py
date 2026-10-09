@@ -70,7 +70,7 @@ def test_get_payload_returns_typed_attributes(cabinet_type):
     payload = institution.get_payload()
 
     assert payload.connectivity_degree == 4
-    assert payload.government_probability_for == 0.7
+    assert payload.probability_for == 0.7
 
 
 @pytest.mark.django_db

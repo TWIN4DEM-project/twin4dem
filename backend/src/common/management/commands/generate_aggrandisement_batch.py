@@ -117,7 +117,7 @@ class Command(BaseCommand):
                 "label": f"minister-{idx}",
                 "party": choice(majority_parties),
                 "influence": random(),
-                **self._generate_agent_beliefs(settings.government_probability_for),
+                **self._generate_agent_beliefs(settings.probability_for),
             }
             for idx in range(1, settings.government_size + 1)
         ]
@@ -128,9 +128,9 @@ class Command(BaseCommand):
                 "label": f"{party}-mp-{idx}",
                 "party": party,
                 **self._generate_agent_beliefs(
-                    settings.parliament_majority_probability_for
+                    settings.majority_probability_for
                     if party in majority_parties
-                    else settings.parliament_opposition_probability_for
+                    else settings.opposition_probability_for
                 ),
             }
             for party, member_count in party_map.items()
@@ -144,7 +144,7 @@ class Command(BaseCommand):
                 "label": f"judge-{idx}",
                 "party": choice(parties),
                 "influence": random(),
-                **self._generate_agent_beliefs(settings.court_probability_for),
+                **self._generate_agent_beliefs(settings.probability_for),
             }
             for idx in range(1, settings.court_size + 1)
         ]

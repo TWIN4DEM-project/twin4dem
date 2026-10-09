@@ -6,7 +6,7 @@ from ._settings import (
     VirtualTimeline,
     Country,
     InstitutionBranch,
-    InstitutionTaxonomy,
+    InstitutionKind,
 )
 from ._institution import (
     Institution,
@@ -62,7 +62,7 @@ __all__ = (
     "VirtualTimeline",
     "Country",
     "InstitutionBranch",
-    "InstitutionTaxonomy",
+    "InstitutionKind",
     "Institution",
     "InstitutionPayload",
     "CabinetPayload",

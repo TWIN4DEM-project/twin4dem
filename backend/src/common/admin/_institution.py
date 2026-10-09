@@ -1,6 +1,6 @@
 from django.contrib import admin
 from ..models._institution import Institution
-from ..models._settings import InstitutionTaxonomy
+from ..models._settings import InstitutionKind
 
 
 @admin.register(Institution)
@@ -26,7 +26,7 @@ class InstitutionAdmin(admin.ModelAdmin):
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if db_field.name == "institution_taxonomy" and not request.user.is_superuser:
-            kwargs["queryset"] = InstitutionTaxonomy.objects.filter(
+            kwargs["queryset"] = InstitutionKind.objects.filter(
                 country__user_settings__user=request.user
             )
         return super().formfield_for_foreignkey(db_field, request, **kwargs)

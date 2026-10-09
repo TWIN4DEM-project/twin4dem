@@ -2,7 +2,7 @@ from typing import cast
 from rest_framework import serializers
 
 from common.fields import SeparatedValuesField
-from common.models import Court, Judge
+from common.models import CourtPayload, Judge
 from api import fields
 from ._base import LCCModelSerializer
 
@@ -47,7 +47,7 @@ class CourtSerializer(LCCModelSerializer):
     judges = serializers.SerializerMethodField()
 
     class Meta:
-        model = Court
+        model = CourtPayload
         fields = [
             "id",
             "label",

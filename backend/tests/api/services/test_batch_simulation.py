@@ -64,10 +64,7 @@ def test_create_adds_cabinet(sut, serializer, test_user_settings):
 
     executive_settings = sut.aggrandisement_batch.settings.executive
     assert cabinet.ministers.count() == len(executive_settings.ministers)
-    assert (
-        cabinet.government_probability_for
-        == test_user_settings.government_probability_for
-    )
+    assert cabinet.probability_for == test_user_settings.government_probability_for
 
 
 def test_create_adds_parliament(sut, serializer, test_user_settings):

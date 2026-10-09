@@ -285,11 +285,11 @@ class ParliamentDbAdapter(
         payload = chamber.institution.get_payload()
         mp_adapter = MPDbAdapter(
             _effective(
-                payload.parliament_majority_probability_for,
+                payload.majority_probability_for,
                 value.user_settings.parliament_majority_probability_for,
             ),
             _effective(
-                payload.parliament_opposition_probability_for,
+                payload.opposition_probability_for,
                 value.user_settings.parliament_opposition_probability_for,
             ),
             beliefs_for_step=beliefs_for_step,
@@ -373,7 +373,7 @@ class CouncilDbAdapter(
         court_judges = list(court.judges.all().prefetch_related("neighbours_in"))
         judge_adapter = JudgeDbAdapter(
             _effective(
-                court.institution.get_payload().court_probability_for,
+                court.institution.get_payload().probability_for,
                 value.user_settings.court_probability_for,
             ),
             beliefs_for_step=beliefs_for_step,

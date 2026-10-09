@@ -4,7 +4,7 @@ from ..models._settings import (
     UserSettings,
     VirtualTimeline,
     Country,
-    InstitutionTaxonomy,
+    InstitutionKind,
 )
 
 
@@ -33,7 +33,7 @@ class UserSettingsAdmin(admin.ModelAdmin):
 
 
 class InstitutionTaxonomyInline(admin.TabularInline):
-    model = InstitutionTaxonomy
+    model = InstitutionKind
     extra = 0
 
 

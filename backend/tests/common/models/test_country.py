@@ -5,7 +5,7 @@ from django.db import IntegrityError, transaction
 from common.models import (
     Country,
     InstitutionBranch,
-    InstitutionTaxonomy,
+    InstitutionKind,
     UserSettings,
 )
 
@@ -34,20 +34,20 @@ def test_same_country_allowed_in_different_settings(test_settings, france):
 
 @pytest.mark.django_db
 def test_country_declares_taxonomy(france):
-    InstitutionTaxonomy.objects.bulk_create(
+    InstitutionKind.objects.bulk_create(
         [
-            InstitutionTaxonomy(
+            InstitutionKind(
                 country=france, branch=InstitutionBranch.EXECUTIVE, type="cabinet"
             ),
-            InstitutionTaxonomy(
+            InstitutionKind(
                 country=france,
                 branch=InstitutionBranch.LEGISLATIVE,
                 type="assemblee nationale",
             ),
-            InstitutionTaxonomy(
+            InstitutionKind(
                 country=france, branch=InstitutionBranch.LEGISLATIVE, type="senat"
             ),
-            InstitutionTaxonomy(
+            InstitutionKind(
                 country=france,
                 branch=InstitutionBranch.JUDICIARY,
                 type="conseil constitutionnel",
@@ -66,13 +66,13 @@ def test_country_declares_taxonomy(france):
 
 @pytest.mark.django_db
 def test_taxonomy_type_is_unique_per_country(france):
-    InstitutionTaxonomy.objects.create(
+    InstitutionKind.objects.create(
         country=france, branch=InstitutionBranch.EXECUTIVE, type="cabinet"
     )
 
     with pytest.raises(IntegrityError) as err_proxy:
         with transaction.atomic():
-            InstitutionTaxonomy.objects.create(
+            InstitutionKind.objects.create(
                 country=france, branch=InstitutionBranch.JUDICIARY, type="cabinet"
             )
 
@@ -86,7 +86,7 @@ def test_taxonomy_type_is_unique_per_country(france):
 def test_taxonomy_branch_rejected_by_database(france):
     with pytest.raises(IntegrityError) as err_proxy:
         with transaction.atomic():
-            InstitutionTaxonomy.objects.create(
+            InstitutionKind.objects.create(
                 country=france, branch="monarchy", type="crown"
             )
 
@@ -97,7 +97,7 @@ def test_taxonomy_branch_rejected_by_database(france):
 
 @pytest.mark.django_db
 def test_taxonomy_branch_rejected_by_validation(france):
-    taxonomy = InstitutionTaxonomy(country=france, branch="monarchy", type="crown")
+    taxonomy = InstitutionKind(country=france, branch="monarchy", type="crown")
 
     with pytest.raises(ValidationError) as err_proxy:
         taxonomy.full_clean()
@@ -107,10 +107,10 @@ def test_taxonomy_branch_rejected_by_validation(france):
 
 @pytest.mark.django_db
 def test_deleting_country_deletes_taxonomy(france):
-    taxonomy = InstitutionTaxonomy.objects.create(
+    taxonomy = InstitutionKind.objects.create(
         country=france, branch=InstitutionBranch.EXECUTIVE, type="cabinet"
     )
 
     france.delete()
 
-    assert not InstitutionTaxonomy.objects.filter(pk=taxonomy.pk).exists()
+    assert not InstitutionKind.objects.filter(pk=taxonomy.pk).exists()

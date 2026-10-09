@@ -6,7 +6,7 @@ from django.core.exceptions import ValidationError
 from common.models import (
     Institution,
     InstitutionBranch,
-    InstitutionTaxonomy,
+    InstitutionKind,
     PartyPosition,
     PartyPositionType,
     SerializationModel,
@@ -342,7 +342,7 @@ def test_occupy_rejects_timeline_of_other_context(france_2017, test_settings):
 
 @pytest.fixture
 def senat(france) -> Institution:
-    taxonomy = InstitutionTaxonomy.objects.create(
+    taxonomy = InstitutionKind.objects.create(
         country=france, branch=InstitutionBranch.LEGISLATIVE, type="senat"
     )
     return Institution.objects.create(

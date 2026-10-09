@@ -76,7 +76,7 @@ def test_same_label_allowed_for_different_users(test_user, django_user_model):
 @pytest.mark.parametrize("oob_value", [-0.01, 1.01])
 def test_court_probability_for_out_of_range(test_settings, oob_value):
     with transaction.atomic():
-        test_settings.court_probability_for = oob_value
+        test_settings.probability_for = oob_value
 
         with pytest.raises(IntegrityError) as err_proxy:
             test_settings.save()

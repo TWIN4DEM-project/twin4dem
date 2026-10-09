@@ -127,25 +127,27 @@ class InstitutionBranch(models.TextChoices):
     JUDICIARY = "judiciary"
 
 
-class InstitutionTaxonomy(models.Model):
-    """A type of institution that a country supports (e.g. 'cabinet', 'senate')."""
+class InstitutionKind(models.Model):
+    """A kind of institution that a country supports (e.g. 'cabinet', 'senate')."""
 
     id = models.AutoField(primary_key=True)
+
+    name = models.CharField(max_length=100)
     country = models.ForeignKey(
-        to=Country, on_delete=models.CASCADE, related_name="taxonomy"
+        to=Country, on_delete=models.CASCADE, related_name="institution_kinds"
     )
+
     branch = models.CharField(choices=InstitutionBranch.choices)
-    type = models.CharField(max_length=100)
 
     def __str__(self):
-        return f"{self.country}: {self.type} ({self.branch})"
+        return f"{self.country}: {self.name} ({self.branch})"
 
     class Meta:
         verbose_name_plural = "Institution taxonomies"
         constraints = [
             models.UniqueConstraint(
-                name="uq_institutiontaxonomy_country_type",
-                fields=["country", "type"],
+                name="uq_institutionkind_kind_per_country",
+                fields=["name", "country"],
             ),
             models.CheckConstraint(
                 name="ck_institutiontaxonomy_branch",

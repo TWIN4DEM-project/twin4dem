@@ -6,16 +6,17 @@ from rest_framework import serializers
 
 from api.serializers._base import LCCModelSerializer
 from common.models import (
-    Cabinet,
+    CabinetPayload,
+    ChamberPayload,
+    CourtPayload,
     Simulation,
-    SimulationParams,
-    Parliament,
-    Court,
+    SimulationInstitution,
     SimulationLogEntry,
     PathSubmodelInfo,
     VbarSubmodelInfo,
     SubmodelType,
     AggrandisementUnit,
+    InstitutionPayload,
 )
 from ._executive import CabinetSerializer
 from ._judiciary import CourtSerializer
@@ -23,30 +24,27 @@ from ._legislative import ParliamentSerializer
 
 
 class SimulationParamSerializer(serializers.Serializer):
+    _PAYLOAD_MAP: dict[
+        type[InstitutionPayload] | None, tuple[str, type[LCCModelSerializer]]
+    ] = {
+        CabinetPayload: ("cabinet", CabinetSerializer),
+        ChamberPayload: ("parliament", ParliamentSerializer),
+        CourtPayload: ("court", CourtSerializer),
+    }
+
     type = serializers.JSONField()
     data = serializers.DictField()
 
-    def to_representation(self, instance: SimulationParams):
-        obj = instance.params
-        if obj is None:
-            return None
-
-        if isinstance(obj, Cabinet):
+    def to_representation(self, instance: SimulationInstitution):
+        institution = instance.institution
+        try:
+            type_name, serialize_cls = self._PAYLOAD_MAP[institution.payload_schema]
             return {
-                "type": "cabinet",
-                "cabinet": CabinetSerializer(obj).data,
+                "type": type_name,
+                type_name: serialize_cls(institution.payload).data,
             }
-        elif isinstance(obj, Parliament):
-            return {
-                "type": "parliament",
-                "parliament": ParliamentSerializer(obj).data,
-            }
-        elif isinstance(obj, Court):
-            return {"type": "court", "court": CourtSerializer(obj).data}
-        else:
-            raise NotImplementedError(
-                f"Unsupported simulation param type: {obj.__class__.__name__}"
-            )
+        except KeyError as e:
+            raise NotImplementedError("Unsupported simulation param type") from e
 
 
 class SimulationListSerializer(LCCModelSerializer):

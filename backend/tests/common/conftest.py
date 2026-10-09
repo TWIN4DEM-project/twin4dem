@@ -6,7 +6,7 @@ from common.models import (
     Country,
     Institution,
     InstitutionBranch,
-    InstitutionTaxonomy,
+    InstitutionKind,
     Party,
     SerializationModel,
     Simulation,
@@ -21,10 +21,10 @@ def france(test_settings) -> Country:
 
 
 @pytest.fixture
-def french_taxonomy(france) -> dict[str, InstitutionTaxonomy]:
+def french_taxonomy(france) -> dict[str, InstitutionKind]:
     """The taxonomy from the 'User Settings — Next' example in the docs."""
     return {
-        branch: InstitutionTaxonomy.objects.create(
+        branch: InstitutionKind.objects.create(
             country=france, branch=branch, type=type_
         )
         for branch, type_ in (
