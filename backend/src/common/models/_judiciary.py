@@ -1,32 +1,11 @@
-from django.contrib.contenttypes.fields import GenericRelation
 from django.db import models
 
 from common import fields
 from common.models._belief import BeliefModel
 from common.models._influence import InfluencerModel
-from common.models._settings import PartySettings
-from common.models._simulation import SimulationParams
-
-
-class Court(models.Model):
-    id = models.AutoField(primary_key=True)
-    label = models.CharField(max_length=50, unique=True)
-    probability_for = models.FloatField(default=0.5)
-    simulation_param = GenericRelation(
-        to=SimulationParams,
-        content_type_field="type",
-        object_id_field="content_id",
-        related_query_name="court",
-    )
-
-    class Meta:
-        constraints = [
-            models.CheckConstraint(
-                name="ck_court_probability_for_is_prob",
-                condition=models.Q(probability_for__gte=0)
-                & models.Q(probability_for__lte=1),
-            ),
-        ]
+from common.models._party import Party
+from common.models._settings import InstitutionBranch
+from common.models._simulation import SimulationInstitution, validate_membership
 
 
 class Judge(InfluencerModel, BeliefModel):
@@ -34,9 +13,11 @@ class Judge(InfluencerModel, BeliefModel):
     label = models.CharField(max_length=50)
     is_president = models.BooleanField(null=False, default=False)
     weights = fields.SeparatedValuesField(base_field=models.FloatField(), blank=True)
-    court = models.ForeignKey(to=Court, on_delete=models.CASCADE, related_name="judges")
+    court = models.ForeignKey(
+        to=SimulationInstitution, on_delete=models.CASCADE, related_name="judges"
+    )
     party = models.ForeignKey(
-        to=PartySettings, on_delete=models.RESTRICT, related_name="judges"
+        to=Party, on_delete=models.RESTRICT, related_name="judges"
     )
     neighbours_out = models.ManyToManyField(
         "self",
@@ -46,6 +27,10 @@ class Judge(InfluencerModel, BeliefModel):
         blank=True,
         editable=False,
     )
+
+    def clean(self):
+        super().clean()
+        validate_membership(self, "court", InstitutionBranch.JUDICIARY, "judge")
 
     class Meta(InfluencerModel.Meta):
         constraints = InfluencerModel.Meta.constraints + [

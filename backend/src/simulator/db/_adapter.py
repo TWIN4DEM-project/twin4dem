@@ -1,22 +1,24 @@
 import random
-from typing import Any, Generic, TypeVar
+from collections import Counter
+from collections.abc import Iterable
+from typing import Any, TypeVar
 
-from django.contrib.contenttypes.models import ContentType
 from django.db import models
 
 from common.models import (
     Simulation,
-    Cabinet,
+    SimulationInstitution,
+    PartyPositionType,
+    party_position_at,
     Minister as MinisterModel,
-    Parliament as ParliamentModel,
     MemberOfParliament,
-    Court as CourtModel,
     Judge as JudgeModel,
     MinisterBelief,
     MPBelief,
     JudgeBelief,
     SimulationSubmodelLogEntry,
     SubmodelType,
+    InstitutionBranch,
 )
 from simulator.adapters import (
     GovernmentAdapter,
@@ -42,21 +44,62 @@ def _random_frequency(center: float, lo: float = 0.0, hi: float = 1.0) -> float:
     return hi if random.random() < center else lo
 
 
-T = TypeVar("T", Cabinet, ParliamentModel, CourtModel)
+def _effective(override: float | None, default: float) -> float:
+    """An institution's probability override, or the user settings default."""
+    return default if override is None else override
+
+
 TBelief = TypeVar("TBelief", bound=models.Model)
 
 
-class RelatedInstitutionFinder(Generic[T]):
+class RelatedInstitutionFinder:
     @classmethod
-    def _find_institution(cls, simulation: Simulation, model_class: type[T]) -> T:
-        related_of_type = simulation.params.filter(
-            type=ContentType.objects.get_for_model(model_class)
-        ).select_related("type")
-        if not related_of_type.exists():
-            raise ValueError(
-                f"there are no {model_class.__name__} models in simulation {simulation.id}"
+    def _find_institution(
+        cls, simulation: Simulation, branch: InstitutionBranch
+    ) -> SimulationInstitution | None:
+        return (
+            simulation.institutions.filter(
+                institution__kind__branch=branch,
             )
-        return related_of_type.first().params
+            .select_related("institution")
+            .first()
+        )
+
+    @classmethod
+    def _get_institution(
+        cls, simulation: Simulation, branch: InstitutionBranch
+    ) -> SimulationInstitution:
+        result = cls._find_institution(simulation, branch)
+        if result is None:
+            raise ValueError(f"there is no {branch} in simulation {simulation.id}")
+        return result
+
+
+class PartyPositionFinder(RelatedInstitutionFinder):
+    @classmethod
+    def _get_party_positions(
+        cls, simulation: Simulation, party_ids: Iterable[int]
+    ) -> dict[int, str]:
+        """
+        The position (majority, opposition, independent) of each party in the
+        simulation's chamber at the simulated point in time. Parties without a
+        position there, or simulations without a chamber, count as independent.
+        """
+        party_ids = set(party_ids)
+        chamber = cls._find_institution(simulation, InstitutionBranch.LEGISLATIVE)
+        if chamber is None:
+            return {party_id: PartyPositionType.INDEPENDENT for party_id in party_ids}
+        result = {}
+        for party_id in party_ids:
+            party_position = party_position_at(
+                party_id, chamber.institution, simulation.timeline, simulation.valid_at
+            )
+            result[party_id] = (
+                party_position.position
+                if party_position is not None
+                else PartyPositionType.INDEPENDENT
+            )
+        return result
 
 
 class StepBeliefsFinder:
@@ -92,8 +135,13 @@ class PrevVotesFinder:
 
 
 class MinisterDbAdapter(AgentAdapter[MinisterModel, Minister]):
-    def __init__(self, beliefs_for_step: dict[int, MinisterBelief] | None = None):
+    def __init__(
+        self,
+        beliefs_for_step: dict[int, MinisterBelief] | None = None,
+        party_positions: dict[int, str] | None = None,
+    ):
         self._beliefs_for_step = beliefs_for_step or {}
+        self._party_positions = party_positions or {}
 
     def convert(self, value: MinisterModel) -> Minister:
         step_belief = self._beliefs_for_step.get(value.id)
@@ -102,7 +150,9 @@ class MinisterDbAdapter(AgentAdapter[MinisterModel, Minister]):
             id=value.id,
             T_i="Minister",
             is_pm=value.is_prime_minister,
-            P_i=value.party.position,
+            P_i=self._party_positions.get(
+                value.party_id, PartyPositionType.INDEPENDENT
+            ),
             S_i=value.influence,
             W=Weights(value.weights),
             belief=AgentBelief(
@@ -130,7 +180,7 @@ class MinisterDbAdapter(AgentAdapter[MinisterModel, Minister]):
 
 class GovernmentDbAdapter(
     GovernmentAdapter[int],
-    RelatedInstitutionFinder[Cabinet],
+    PartyPositionFinder,
     PrevVotesFinder,
     StepBeliefsFinder,
 ):
@@ -143,21 +193,29 @@ class GovernmentDbAdapter(
         }
 
     def convert(self, simulation_id: int, **kwargs: Any) -> Government:
-        value = Simulation.objects.get(pk=simulation_id)
+        value = Simulation.objects.select_related("user_settings", "timeline").get(
+            pk=simulation_id
+        )
         step_no = kwargs.get("step_no")
         beliefs_for_step = self._get_beliefs_for_step(
             MinisterBelief, simulation_id, step_no
         )
-        minister_adapter = MinisterDbAdapter(beliefs_for_step=beliefs_for_step)
-        cabinet = self._find_institution(value, Cabinet)
+        cabinet = self._get_institution(value, InstitutionBranch.EXECUTIVE)
         minister_models = list(
-            cabinet.ministers.all().prefetch_related("cabinet", "neighbours_in")
+            cabinet.ministers.all().prefetch_related("neighbours_in")
+        )
+        minister_adapter = MinisterDbAdapter(
+            beliefs_for_step=beliefs_for_step,
+            party_positions=self._get_party_positions(
+                value, (minister.party_id for minister in minister_models)
+            ),
         )
         ministers = list(map(minister_adapter.convert, minister_models))
         previous_votes = self._get_prev_votes(value, SubmodelType.EXECUTIVE)
 
         return Government(
-            pact=cabinet.legislative_probability,
+            # the cabinet's legislative path probability is a global parameter now
+            pact=value.user_settings.legislative_path_probability,
             alpha=value.social_influence_susceptibility,
             gamma=value.office_retention_sensitivity,
             epsilon=value.user_settings.abstention_threshold,
@@ -209,30 +267,39 @@ class MPDbAdapter(AgentAdapter[MemberOfParliament, MP]):
 
 class ParliamentDbAdapter(
     ParliamentAdapter[int],
-    RelatedInstitutionFinder[ParliamentModel],
+    RelatedInstitutionFinder,
     PrevVotesFinder,
     StepBeliefsFinder,
 ):
 
     def convert(self, simulation_id: int, **kwargs: Any) -> Parliament:
-        value = Simulation.objects.get(pk=simulation_id)
+        value = Simulation.objects.select_related("user_settings").get(pk=simulation_id)
         step_no = kwargs.get("step_no")
         beliefs_for_step = self._get_beliefs_for_step(MPBelief, simulation_id, step_no)
-        parliament = self._find_institution(value, ParliamentModel)
-        parliament_members = list(
-            parliament.members.all().prefetch_related("parliament")
+        chamber = self._get_institution(value, InstitutionBranch.LEGISLATIVE)
+        chamber_members = list(
+            chamber.members.all().select_related("party").order_by("id")
         )
+        payload = chamber.institution.get_payload()
         mp_adapter = MPDbAdapter(
-            parliament.majority_probability_for,
-            parliament.opposition_probability_for,
+            _effective(
+                payload.majority_probability_for,
+                value.user_settings.parliament_majority_probability_for,
+            ),
+            _effective(
+                payload.opposition_probability_for,
+                value.user_settings.parliament_opposition_probability_for,
+            ),
             beliefs_for_step=beliefs_for_step,
         )
-        mps = list(map(mp_adapter.convert, parliament_members))
+        mps = list(map(mp_adapter.convert, chamber_members))
         previous_votes = self._get_prev_votes(value, SubmodelType.LEGISLATIVE)
+        # seats per party, in the order the parties first appear among the MPs
+        seats = Counter(mp.party_id for mp in chamber_members)
         return Parliament(
             mps=mps,
-            n_party=len(value.user_settings.parties.all()),
-            n_sits=[p.member_count for p in value.user_settings.parties.all()],
+            n_party=len(seats),
+            n_sits=list(seats.values()),
             alpha=value.social_influence_susceptibility,
             epsilon=value.user_settings.abstention_threshold,
             gamma=value.office_retention_sensitivity,
@@ -245,9 +312,11 @@ class JudgeDbAdapter(AgentAdapter[JudgeModel, Judge]):
         self,
         probability_for: float,
         beliefs_for_step: dict[int, JudgeBelief] | None = None,
+        party_positions: dict[int, str] | None = None,
     ):
         self._p = probability_for
         self._beliefs_for_step = beliefs_for_step or {}
+        self._party_positions = party_positions or {}
 
     def convert(self, judge: JudgeModel) -> Judge:
         step_belief = self._beliefs_for_step.get(judge.id)
@@ -255,7 +324,9 @@ class JudgeDbAdapter(AgentAdapter[JudgeModel, Judge]):
             id=judge.id,
             is_president=judge.is_president,
             T_i="judge",
-            P_i=judge.party.position,
+            P_i=self._party_positions.get(
+                judge.party_id, PartyPositionType.INDEPENDENT
+            ),
             S_i=judge.influence,
             W=Weights(judge.weights),
             belief=AgentBelief(
@@ -280,7 +351,7 @@ class JudgeDbAdapter(AgentAdapter[JudgeModel, Judge]):
 
 class CouncilDbAdapter(
     CouncilAdapter[int],
-    RelatedInstitutionFinder[CourtModel],
+    PartyPositionFinder,
     PrevVotesFinder,
     StepBeliefsFinder,
 ):
@@ -289,17 +360,24 @@ class CouncilDbAdapter(
         return {to.id: [fro.id for fro in to.neighbours_in.all()] for to in judges}
 
     def convert(self, simulation_id: int, **kwargs: Any) -> Council:
-        value = Simulation.objects.get(pk=simulation_id)
+        value = Simulation.objects.select_related("user_settings", "timeline").get(
+            pk=simulation_id
+        )
         step_no = kwargs.get("step_no")
         beliefs_for_step = self._get_beliefs_for_step(
             JudgeBelief, simulation_id, step_no
         )
-        court = self._find_institution(value, CourtModel)
+        court = self._get_institution(value, InstitutionBranch.JUDICIARY)
+        court_judges = list(court.judges.all().prefetch_related("neighbours_in"))
         judge_adapter = JudgeDbAdapter(
-            court.probability_for, beliefs_for_step=beliefs_for_step
-        )
-        court_judges = list(
-            court.judges.all().prefetch_related("court", "neighbours_in")
+            _effective(
+                court.institution.get_payload().probability_for,
+                value.user_settings.court_probability_for,
+            ),
+            beliefs_for_step=beliefs_for_step,
+            party_positions=self._get_party_positions(
+                value, (judge.party_id for judge in court_judges)
+            ),
         )
         prev_votes = self._get_prev_votes(value, SubmodelType.JUDICIARY)
         return Council(

@@ -2,36 +2,30 @@ import itertools
 import random
 
 import pytest
-from django.contrib.contenttypes.models import ContentType
-from django.utils import timezone
 
 import simulator.db._adapter as adapter_module
 from common.models import (
-    Court,
     Judge,
     JudgeLink,
+    Party,
+    PartyPositionType,
     Simulation,
-    SimulationParams,
-    AggrandisementBatch,
-    AggrandisementUnit,
+    SimulationInstitution,
     JudgeBelief,
 )
 from simulator.db._adapter import CouncilDbAdapter
 
 pytestmark = pytest.mark.django_db
-TEST_SIMULATION_ID = 42
+# world.json: country 1 with its chamber (institution 2), its court (institution 3)
+# and parties 1 (majority) and 2 (opposition)
+COUNTRY_ID = 1
+CHAMBER_ID = 2
+COURT_ID = 3
 
 
 @pytest.fixture
-def court_size(test_settings, request):
-    test_settings.court_size = getattr(request, "param", 5)
-    test_settings.save()
-    return test_settings.court_size
-
-
-@pytest.fixture
-def probability_for(request):
-    return getattr(request, "param", 0.5)
+def court_size(request):
+    return getattr(request, "param", 5)
 
 
 @pytest.fixture
@@ -47,7 +41,7 @@ def weights(request):
 
 def _create_judge(idx, court, parties, weights, is_president=False):
     return Judge.objects.create(
-        label=f"{court.label}-{idx}",
+        label=f"{court.institution.label}-{idx}",
         court=court,
         party=random.choice(parties),
         weights=weights,
@@ -57,12 +51,19 @@ def _create_judge(idx, court, parties, weights, is_president=False):
 
 
 @pytest.fixture
-def court(weights, test_settings, probability_for, court_size):
-    result = Court.objects.create(
-        label="test-court",
-        probability_for=probability_for,
+def chamber(world_simulation) -> SimulationInstitution:
+    # the chamber determines the judges' party positions
+    return SimulationInstitution.objects.create(
+        simulation=world_simulation, institution_id=CHAMBER_ID
     )
-    parties = list(test_settings.parties.all())
+
+
+@pytest.fixture
+def court(world_simulation, chamber, weights, court_size):
+    result = SimulationInstitution.objects.create(
+        simulation=world_simulation, institution_id=COURT_ID
+    )
+    parties = list(Party.objects.filter(country_id=COUNTRY_ID))
     judges = [
         _create_judge(idx, result, parties, weights, idx == 0)
         for idx in range(court_size)
@@ -74,40 +75,30 @@ def court(weights, test_settings, probability_for, court_size):
 
 
 @pytest.fixture
-def simulation(test_settings, court) -> Simulation:
-    content_type = ContentType.objects.get_for_model(Court)
-    simulation, ok = Simulation.objects.get_or_create(
-        pk=TEST_SIMULATION_ID,
-        user_settings=test_settings,
-    )
-    if not ok:
-        raise AssertionError("simulation fixture failed")
-    SimulationParams.objects.get_or_create(
-        content_id=court.id,
-        type_id=content_type.id,
-        simulation_id=TEST_SIMULATION_ID,
-    )
-    return simulation
+def populated_world_simulation(world_simulation, court) -> Simulation:
+    return world_simulation
 
 
 @pytest.fixture
-def sut(simulation, court) -> CouncilDbAdapter:
+def sut(populated_world_simulation, court) -> CouncilDbAdapter:
     return CouncilDbAdapter()
 
 
-def test_convert_sets_expected_basic_council_properties(sut, simulation, test_settings):
-    council = sut.convert(simulation.id)
+def test_convert_sets_expected_basic_council_properties(
+    sut, populated_world_simulation, test_settings
+):
+    council = sut.convert(populated_world_simulation.id)
 
-    assert council.alpha == simulation.social_influence_susceptibility
-    assert council.gamma == simulation.office_retention_sensitivity
+    assert council.alpha == populated_world_simulation.social_influence_susceptibility
+    assert council.gamma == populated_world_simulation.office_retention_sensitivity
     assert council.epsilon == test_settings.abstention_threshold
 
 
 @pytest.mark.parametrize("court_size", [1, 2, 5], indirect=("court_size",))
 def test_convert_returns_judges_with_expected_basic_attributes(
-    sut, simulation, court_size
+    sut, populated_world_simulation, court_size
 ):
-    council = sut.convert(simulation.id)
+    council = sut.convert(populated_world_simulation.id)
 
     assert len(council.judges) == court_size
     presidents = 0
@@ -124,19 +115,23 @@ def test_convert_returns_judges_with_expected_basic_attributes(
 
 
 @pytest.mark.parametrize("weights", [[0.1, 0.2, 0.3, 0.2, 0.1, 0.1]], indirect=True)
-def test_convert_returns_judges_with_expected_weights(sut, simulation, weights):
-    council = sut.convert(simulation.id)
+def test_convert_returns_judges_with_expected_weights(
+    sut, populated_world_simulation, weights
+):
+    council = sut.convert(populated_world_simulation.id)
 
     assert all(j.W == weights for j in council.judges)
 
 
-def test_convert_uses_persisted_personal_opinion(sut, simulation, court):
+def test_convert_uses_persisted_personal_opinion(
+    sut, populated_world_simulation, court
+):
     judges = list(court.judges.all())
     for idx, judge in enumerate(judges):
         judge.personal_opinion = idx % 2
         judge.save(update_fields=["personal_opinion"])
 
-    council = sut.convert(simulation.id)
+    council = sut.convert(populated_world_simulation.id)
     opinions = {j.id: j.belief.o_i for j in council.judges}
 
     expected = {j.id: j.personal_opinion for j in judges}
@@ -144,8 +139,8 @@ def test_convert_uses_persisted_personal_opinion(sut, simulation, court):
 
 
 @pytest.mark.parametrize("court_size", [1, 2, 5], indirect=True)
-def test_convert_creates_expected_network(sut, simulation, court_size):
-    council = sut.convert(simulation.id)
+def test_convert_creates_expected_network(sut, populated_world_simulation, court_size):
+    council = sut.convert(populated_world_simulation.id)
 
     assert len(council.network) == court_size
     for judge_id, linked_judge_ids in council.network.items():
@@ -155,7 +150,9 @@ def test_convert_creates_expected_network(sut, simulation, court_size):
         assert len(linked_judge_ids) == len(set(linked_judge_ids))
 
 
-def test_judge_personal_opinion_stable_across_conversions(sut, simulation, monkeypatch):
+def test_judge_personal_opinion_stable_across_conversions(
+    sut, populated_world_simulation, monkeypatch
+):
     phase = {"value": 0.9}
 
     def fake_random_gauss(center, spread=1.0, lo=0.0, hi=1.0):
@@ -163,11 +160,11 @@ def test_judge_personal_opinion_stable_across_conversions(sut, simulation, monke
 
     monkeypatch.setattr(adapter_module, "_random_gauss", fake_random_gauss)
 
-    council_first = sut.convert(simulation.id)
+    council_first = sut.convert(populated_world_simulation.id)
     opinions_first = {j.id: j.belief.o_i for j in council_first.judges}
 
     phase["value"] = 0.1
-    council_second = sut.convert(simulation.id)
+    council_second = sut.convert(populated_world_simulation.id)
     opinions_second = {j.id: j.belief.o_i for j in council_second.judges}
 
     assert opinions_first == opinions_second
@@ -179,51 +176,20 @@ def step_no():
 
 
 @pytest.fixture
-def aggrandisement_unit(simulation, step_no):
-    batch = AggrandisementBatch.objects.create(
-        simulation=simulation,
-        start_date=timezone.now(),
-        end_date=timezone.now(),
-    )
-    return AggrandisementUnit.objects.create(batch=batch, step_no=step_no)
+def aggrandisement_unit(populated_world_simulation, step_no, make_aggrandisement_unit):
+    return make_aggrandisement_unit(populated_world_simulation, step_no)
 
 
 @pytest.fixture
-def targeted_and_fallback_judges(court):
+def targeted_and_fallback(court):
     judges = list(court.judges.all().order_by("id"))
     assert len(judges) >= 2
     return judges[0], judges[1]
 
 
 @pytest.fixture
-def configured_global_judge_beliefs(targeted_and_fallback_judges):
-    targeted, fallback = targeted_and_fallback_judges
-    targeted.personal_opinion = 0.0
-    targeted.appointing_group_opinion = 0.0
-    targeted.supporting_group_opinion = 0.0
-    targeted.save(
-        update_fields=[
-            "personal_opinion",
-            "appointing_group_opinion",
-            "supporting_group_opinion",
-        ]
-    )
-    fallback.personal_opinion = 1.0
-    fallback.appointing_group_opinion = 1.0
-    fallback.supporting_group_opinion = 1.0
-    fallback.save(
-        update_fields=[
-            "personal_opinion",
-            "appointing_group_opinion",
-            "supporting_group_opinion",
-        ]
-    )
-    return targeted, fallback
-
-
-@pytest.fixture
-def judge_step_belief(aggrandisement_unit, configured_global_judge_beliefs):
-    targeted, _ = configured_global_judge_beliefs
+def judge_step_belief(aggrandisement_unit, configured_global_beliefs):
+    targeted, _ = configured_global_beliefs
     return JudgeBelief.objects.create(
         unit=aggrandisement_unit,
         agent=targeted,
@@ -235,10 +201,14 @@ def judge_step_belief(aggrandisement_unit, configured_global_judge_beliefs):
 
 @pytest.mark.django_db
 def test_convert_uses_step_specific_judge_beliefs_with_global_fallback(
-    sut, simulation, step_no, configured_global_judge_beliefs, judge_step_belief
+    sut,
+    populated_world_simulation,
+    step_no,
+    configured_global_beliefs,
+    judge_step_belief,
 ):
-    targeted, fallback = configured_global_judge_beliefs
-    council = sut.convert(simulation.id, step_no=step_no)
+    targeted, fallback = configured_global_beliefs
+    council = sut.convert(populated_world_simulation.id, step_no=step_no)
     converted = {j.id: j for j in council.judges}
 
     assert converted[targeted.id].belief.o_i == 1.0
@@ -248,3 +218,23 @@ def test_convert_uses_step_specific_judge_beliefs_with_global_fallback(
     assert converted[fallback.id].belief.o_i == fallback.personal_opinion
     assert converted[fallback.id].belief.o_sup1 == fallback.appointing_group_opinion
     assert converted[fallback.id].belief.o_sup2 == fallback.supporting_group_opinion
+
+
+def test_judges_are_independent_without_chamber(sut, populated_world_simulation):
+    populated_world_simulation.institutions.filter(institution_id=CHAMBER_ID).delete()
+
+    council = sut.convert(populated_world_simulation.id)
+
+    assert {j.P_i for j in council.judges} == {PartyPositionType.INDEPENDENT}
+
+
+def test_convert_without_court_raises(sut, populated_world_simulation, court):
+    court.delete()
+
+    with pytest.raises(ValueError) as err_proxy:
+        sut.convert(populated_world_simulation.id)
+
+    assert (
+        str(err_proxy.value)
+        == f"there is no judiciary in simulation {populated_world_simulation.id}"
+    )

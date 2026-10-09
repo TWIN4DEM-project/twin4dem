@@ -4,11 +4,6 @@ import pytest
 import pytest_asyncio
 
 
-@pytest.fixture
-def simulation_id(request):
-    return int(getattr(request, "param", 1))
-
-
 @pytest_asyncio.fixture
 async def sim_comm(new_communicator, simulation_id, simulation_task_mock):
     c = new_communicator(f"ws/simulation/{simulation_id}/")
@@ -68,3 +63,20 @@ async def test_step_finished_event(
     assert status == {"status": "task completed"}
     assert persistence_mock.persist_step.call_count == 1
     assert persistence_mock.persist_step.call_args_list == [call(payload)]
+
+
+@pytest.mark.django_db
+@pytest.mark.asyncio
+async def test_simulation_step_refused_after_the_last_step(
+    sim_comm, simulation_id, simulation_task_mock, persistence_mock
+):
+    persistence_mock.can_perform_step.return_value = False
+
+    await sim_comm.send_json_to({"action": "step"})
+    response = await sim_comm.receive_json_from()
+
+    assert response == {
+        "status": f"task {simulation_id} cannot start",
+        "reason": "last simulation step reached",
+    }
+    assert simulation_task_mock.apply_async.call_count == 0

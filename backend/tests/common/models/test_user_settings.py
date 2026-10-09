@@ -1,8 +1,7 @@
 import pytest
-from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 
-from common.models import UserSettings, PartySettings
+from common.models import UserSettings
 
 
 @pytest.fixture
@@ -18,10 +17,6 @@ def test_create_default_user_settings(test_user):
     assert settings.id > 0
     assert settings.user.username == test_user.username
     assert settings.label == "default"
-    assert settings.government_size == 15
-    assert settings.government_connectivity_degree == 3
-    assert settings.parliament_size == 100
-    assert settings.court_size == 5
     assert settings.abstention_threshold == 0.2
     assert settings.data_update_frequency == 10
     assert settings.legislative_path_probability == 0.5
@@ -50,105 +45,32 @@ def test_check_probability_values(test_user, property_name, check_name, invalid_
     assert str(err_proxy.value) == f"CHECK constraint failed: {check_name}"
 
 
-@pytest.mark.django_db(transaction=False)
-def test_check_too_few_total_party_members(test_user):
-    settings = UserSettings.objects.get(user=test_user)
-    settings.parties.bulk_create(
-        [
-            PartySettings(
-                user_settings=settings,
-                label="party 1",
-                member_count="58",
-                position="majority",
-            ),
-            PartySettings(
-                user_settings=settings,
-                label="party 2",
-                member_count="42",
-                position="opposition",
-            ),
-        ]
-    )
-    first_party = settings.parties.first()
+@pytest.mark.django_db
+def test_user_can_have_multiple_settings(test_user):
+    UserSettings.objects.create(user=test_user, label="alternate")
 
-    with pytest.raises(ValidationError) as err_proxy:
-        first_party.delete()
-        settings.clean()
+    labels = set(test_user.user_settings.values_list("label", flat=True))
 
-    assert err_proxy.value.message_dict == {
-        "parliament_size": [
-            "Sum of party member_count (42) must equal parliament_size (100).",
-        ]
-    }
+    assert labels == {"default", "alternate"}
 
 
 @pytest.mark.django_db
-def test_check_too_many_total_party_members(test_user):
-    settings = UserSettings.objects.get(user=test_user)
-    settings.parties.bulk_create(
-        [
-            PartySettings(
-                user_settings=settings,
-                label="party 1",
-                member_count="58",
-                position="majority",
-            ),
-            PartySettings(
-                user_settings=settings,
-                label="party 2",
-                member_count="42",
-                position="opposition",
-            ),
-        ]
-    )
-
-    with pytest.raises(ValidationError) as err_proxy:
+def test_label_is_unique_per_user(test_user):
+    with pytest.raises(IntegrityError) as err_proxy:
         with transaction.atomic():
-            settings.parties.create(
-                label="extra", member_count=1, position="opposition"
-            )
-            settings.clean()
+            UserSettings.objects.create(user=test_user, label="default")
 
-    assert err_proxy.value.message_dict == {
-        "parliament_size": [
-            "Sum of party member_count (101) must equal parliament_size (100).",
-        ]
-    }
+    assert str(err_proxy.value) == (
+        "UNIQUE constraint failed: common_usersettings.user_id, common_usersettings.label"
+    )
 
 
 @pytest.mark.django_db
-def test_check_change_party_members(test_user):
-    settings = UserSettings.objects.get(user=test_user)
-    settings.parties.bulk_create(
-        [
-            PartySettings(
-                user_settings=settings,
-                label="party 1",
-                member_count="58",
-                position="majority",
-            ),
-            PartySettings(
-                user_settings=settings,
-                label="party 2",
-                member_count="42",
-                position="opposition",
-            ),
-        ]
-    )
+def test_same_label_allowed_for_different_users(test_user, django_user_model):
+    other_user = django_user_model.objects.get(username="test_staff")
 
-    with pytest.raises(ValidationError) as err_proxy:
-        with transaction.atomic():
-            party_settings = settings.parties.first()
-            party_settings.member_count += 1
-            party_settings.save()
-
-            settings.clean()
-
-    assert err_proxy.value.message_dict == {
-        "parliament_size": [
-            "Sum of party member_count (101) must equal parliament_size (100).",
-        ]
-    }
+    assert UserSettings.objects.filter(user=test_user, label="default").exists()
+    assert UserSettings.objects.filter(user=other_user, label="default").exists()
 
 
 @pytest.mark.parametrize("oob_value", [-0.01, 1.01])

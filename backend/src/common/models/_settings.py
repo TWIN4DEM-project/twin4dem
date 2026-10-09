@@ -1,23 +1,23 @@
-from django.core.exceptions import ValidationError
 from django.db import models
 from django.conf import settings
-from django.db.models import Q, Sum
+from django.db.models import Q
 
 
 class UserSettings(models.Model):
+    """A global context: the simulated 'world' of a user (one user, many contexts)."""
+
     id = models.AutoField(primary_key=True)
-    user = models.OneToOneField(to=settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    label = models.CharField(null=False, max_length=50, default="default")
-    government_size = models.PositiveSmallIntegerField(null=False, default=15)
-    government_connectivity_degree = models.PositiveSmallIntegerField(
-        null=False, default=3
+    user = models.ForeignKey(
+        to=settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="user_settings",
     )
+    label = models.CharField(null=False, max_length=50, default="default")
+    # defaults for the institutions (cabinets, chambers, courts) of this context
     government_probability_for = models.FloatField(default=0.5)
     parliament_majority_probability_for = models.FloatField(default=0.5)
     parliament_opposition_probability_for = models.FloatField(default=0.5)
     court_probability_for = models.FloatField(default=0.5)
-    parliament_size = models.PositiveSmallIntegerField(null=False, default=100)
-    court_size = models.PositiveSmallIntegerField(null=False, default=5)
     # general parameters
     office_retention_sensitivity = models.FloatField(default=5.0)
     social_influence_susceptibility = models.FloatField(default=0.5)
@@ -25,36 +25,22 @@ class UserSettings(models.Model):
     data_update_frequency = models.PositiveSmallIntegerField(null=False, default=10)
     legislative_path_probability = models.FloatField(null=False, default=0.5)
 
+    @property
+    def default_country(self) -> "Country | None":
+        """The first country of this context, used as the default."""
+        return self.countries.first()
+
     def __str__(self):
         return f"{self.label}(id={self.id})"
-
-    def clean(self):
-        super().clean()
-        if not self.pk:
-            return
-
-        parties = self.parties.all()
-        if not parties.exists():
-            return
-        if getattr(self, "_skip_parliament_validation", False):
-            return
-
-        total_members = parties.aggregate(total=Sum("member_count"))["total"] or 0
-        if total_members != self.parliament_size:
-            raise ValidationError(
-                {
-                    "parliament_size": (
-                        f"Sum of party member_count ({total_members}) "
-                        f"must equal parliament_size ({self.parliament_size})."
-                    )
-                }
-            )
 
     class Meta:
         verbose_name = "User settings"
         verbose_name_plural = "User settings"
 
         constraints = [
+            models.UniqueConstraint(
+                name="uq_usersettings_user_label", fields=["user", "label"]
+            ),
             models.CheckConstraint(
                 name="ck_usersettings_abstention_threshold",
                 condition=Q(abstention_threshold__gte=0.0)
@@ -97,30 +83,79 @@ class UserSettings(models.Model):
         ]
 
 
-class PartySettings(models.Model):
-    class Meta:
-        ordering = ["position", "member_count"]
+class VirtualTimeline(models.Model):
+    """One of the alternative timelines a global context can be simulated on."""
 
-    class PartyPosition(models.TextChoices):
-        MAJORITY = "majority"
-        OPPOSITION = "opposition"
-        INDEPENDENT = "independent"
+    DEFAULT_LABEL = "default"
 
     id = models.AutoField(primary_key=True)
     user_settings = models.ForeignKey(
-        to=UserSettings, related_name="parties", on_delete=models.CASCADE
+        to=UserSettings, on_delete=models.CASCADE, related_name="timelines"
     )
-    label = models.CharField(max_length=50)
-    member_count = models.PositiveSmallIntegerField()
-    position = models.CharField(choices=PartyPosition.choices)
+    label = models.CharField(max_length=50, default=DEFAULT_LABEL)
 
-    @property
-    def parliament_size(self):
-        return self.user_settings.parliament_size
+    def __str__(self):
+        return f"{self.label}(id={self.id})"
 
-    def clean(self):
-        super().clean()
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                name="uq_virtualtimeline_user_settings_label",
+                fields=["user_settings", "label"],
+            )
+        ]
 
-        if self.user_settings_id is None:
-            return
-        self.user_settings.clean()
+
+class Country(models.Model):
+    id = models.AutoField(primary_key=True)
+    user_settings = models.ForeignKey(
+        to=UserSettings, on_delete=models.CASCADE, related_name="countries"
+    )
+    name = models.CharField(max_length=100)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        verbose_name_plural = "Countries"
+        constraints = [
+            models.UniqueConstraint(
+                name="uq_country_user_settings_name",
+                fields=["user_settings", "name"],
+            )
+        ]
+
+
+class InstitutionBranch(models.TextChoices):
+    EXECUTIVE = "executive"
+    LEGISLATIVE = "legislative"
+    JUDICIARY = "judiciary"
+
+
+class InstitutionKind(models.Model):
+    """A kind of institution that a country supports (e.g. 'cabinet', 'senate')."""
+
+    id = models.AutoField(primary_key=True)
+
+    institution_name = models.CharField(max_length=100)
+    country = models.ForeignKey(
+        to=Country, on_delete=models.CASCADE, related_name="institution_kinds"
+    )
+
+    branch = models.CharField(choices=InstitutionBranch.choices)
+
+    def __str__(self):
+        return f"{self.country}: {self.institution_name} ({self.branch})"
+
+    class Meta:
+        verbose_name_plural = "Institution kinds"
+        constraints = [
+            models.UniqueConstraint(
+                name="uq_institutionkind_institution_name_per_country",
+                fields=["institution_name", "country"],
+            ),
+            models.CheckConstraint(
+                name="ck_institutiontaxonomy_branch",
+                condition=Q(branch__in=InstitutionBranch.values),
+            ),
+        ]

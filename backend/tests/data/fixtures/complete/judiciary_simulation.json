@@ -9,25 +9,26 @@
       "current_step": 0,
       "office_retention_sensitivity": 5.0,
       "social_influence_susceptibility": 0.5,
-      "user_settings": 1
+      "user_settings": 1,
+      "country": 1,
+      "timeline": 1,
+      "valid_at": "20260113T14:15:16Z"
     }
   },
   {
-    "model": "common.simulationparams",
+    "model": "common.simulationinstitution",
     "pk": 3,
     "fields": {
       "simulation": 3,
-      "type": 13,
-      "content_id": 3
+      "institution": 1
     }
   },
   {
-    "model": "common.cabinet",
-    "pk": 3,
+    "model": "common.simulationinstitution",
+    "pk": 203,
     "fields": {
-      "label": "scenario 2",
-      "government_probability_for": 0.7,
-      "legislative_probability": 0.6
+      "simulation": 3,
+      "institution": 3
     }
   },
   {
@@ -222,24 +223,6 @@
       "to_minister": 23
     }
   },
-
-  {
-    "model": "common.simulationparams",
-    "pk": 1,
-    "fields": {
-      "simulation": 3,
-      "type": 14,
-      "content_id": 3
-    }
-  },
-  {
-    "model": "common.court",
-    "pk": 3,
-    "fields": {
-      "label": "simulation 3 - court",
-      "probability_for": 0.7
-    }
-  },
   {
     "model": "common.judge",
     "pk": 1,
@@ -248,7 +231,7 @@
       "label": "simulation 3 - president",
       "is_president": true,
       "party": 1,
-      "court": 3,
+      "court": 203,
       "weights": "0.1667, 0.1667, 0.1667, 0.1667, 0.1667, 0.1667"
     }
   },
@@ -260,7 +243,7 @@
       "label": "simulation 3 - judge #1",
       "is_president": false,
       "party": 1,
-      "court": 3,
+      "court": 203,
       "weights": "0.1667, 0.1667, 0.1667, 0.1667, 0.1667, 0.1667"
     }
   },
@@ -272,7 +255,7 @@
       "label": "simulation 3 - judge #2",
       "is_president": false,
       "party": 1,
-      "court": 3,
+      "court": 203,
       "weights": "0.1667, 0.1667, 0.1667, 0.1667, 0.1667, 0.1667"
     }
   }

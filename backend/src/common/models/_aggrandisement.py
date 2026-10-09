@@ -1,6 +1,9 @@
 from django.db import models
 
-from common.models import Simulation, Minister, MemberOfParliament, Judge
+from common.models._executive import Minister
+from common.models._judiciary import Judge
+from common.models._legislative import MemberOfParliament
+from common.models._simulation import Simulation
 from common.models._belief import BeliefModel
 
 
@@ -23,7 +26,6 @@ class AggrandisementBatch(models.Model):
                 self.start_date.strftime("%Y-%m-%d"),
                 self.end_date.strftime("%Y-%m-%d"),
             )
-            return self.file_name
         return "[id={0:06}, {1} → {2}]".format(
             self.id,
             self.start_date.strftime("%Y-%m-%d"),
