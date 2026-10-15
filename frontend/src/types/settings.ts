@@ -11,7 +11,7 @@ export type UserSettingsList = UserSettingsListItem[];
 export const PartySettingsSchema = z.object({
   id: z.number(),
   label: z.string(),
-  position: z.literal(["majority", "opposition", "independent"]).nullable()
+  position: z.literal(["majority", "opposition", "independent"]).nullable(),
 });
 export const UserSettingsSchema = z.object({
   id: z.number(),
