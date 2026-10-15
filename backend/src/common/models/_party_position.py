@@ -31,12 +31,20 @@ class PartyPosition(TimeFrameMixin):
         to=Party, on_delete=models.CASCADE, related_name="positions"
     )
     chamber = models.ForeignKey(
-        to=Institution, on_delete=models.CASCADE, related_name="party_positions"
+        to=Institution,
+        on_delete=models.CASCADE,
+        related_name="party_positions",
+        null=True,
+        blank=True,
     )
     position = models.CharField(choices=PartyPositionType.choices)
 
     def __str__(self):
-        return f"{self.party} ({self.position}) in {self.chamber.label}"
+        return (
+            f"{self.party} ({self.position}) in {self.chamber.label}"
+            if self.chamber
+            else f"{self.party} ({self.position})"
+        )
 
     def time_frame_siblings(self) -> models.QuerySet:
         """The other positions of the same party in the same chamber."""

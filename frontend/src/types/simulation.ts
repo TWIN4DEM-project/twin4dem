@@ -29,8 +29,7 @@ export const MinisterSchema = z.object({
 export const CabinetSchema = z.object({
   id: z.number(),
   label: z.string(),
-  governmentProbabilityFor: z.number(),
-  legislativeProbability: z.number(),
+  probabilityFor: z.number(),
   ministers: z.array(MinisterSchema),
 });
 

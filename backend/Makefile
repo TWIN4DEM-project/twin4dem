@@ -33,8 +33,21 @@ clean:
 	@# Clean untracked files but keep .venv if present
 	git clean -fdx -e .venv
 
-migrations: bootstrap
+setup-db: bootstrap
+	@if ! command -v psql; then echo "psql command missing" && exit 1; fi
+	@if ! command -v createdb; then echo "createdb command missing" && exit 1; fi
+	psql -h 127.0.0.1 -p 5432 -U twin4dem -tAc "SELECT 1 FROM pg_database WHERE datname='twin4dem'" | grep -q 1 \
+		|| createdb -h 127.0.0.1 -p 5432 -U twin4dem twin4dem
+
+migrations: setup-db
 	uv run python src/manage.py makemigrations
+
+db-from-scratch: migrations
+	uv run python src/manage.py migrate common "zero"
+	uv run python src/manage.py migrate common
+
+su: migrations
+	uv run python src/manage.py createsuperuser --username admin
 
 format: bootstrap
 	uv run black --fast .

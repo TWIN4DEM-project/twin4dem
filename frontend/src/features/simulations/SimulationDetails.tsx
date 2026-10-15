@@ -60,7 +60,9 @@ export function SimulationDetails({ updateSimulationStep }: SimulationDetailsPar
   const parties = useMemo<string[]>(() => {
     if (settings === null) return [];
 
-    return settings.parties.map((p) => `${p.label} (${p.position})`).sort();
+    return settings.parties
+      .map((p) => (p.position ? `${p.label} (${p.position})` : p.label))
+      .sort();
   }, [settings]);
 
   // simulation state
@@ -264,10 +266,7 @@ export function SimulationDetails({ updateSimulationStep }: SimulationDetailsPar
           <div className="executiveContainerHeader">
             <p>
               The cabinet was configured with an overall probability of&nbsp;
-              <b>{cabinet.current?.governmentProbabilityFor}</b> to vote
-              pro-aggrandisement. After the vote, the probability that the
-              aggrandisement unit will be sent to the parliament for approval is{" "}
-              <b>{cabinet.current?.legislativeProbability}</b>.
+              <b>{cabinet.current?.probabilityFor}</b> to vote pro-aggrandisement.
             </p>
           </div>
         </div>
