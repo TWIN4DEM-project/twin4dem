@@ -1,10 +1,12 @@
 from django.db import models
 
-from ._belief import BeliefModel
-from ._executive import Minister
-from ._judiciary import Judge
-from ._legislative import MemberOfParliament
-from ._simulation import Simulation
+from .runtime import (
+    BeliefModel,
+    Judge,
+    MemberOfParliament,
+    Minister,
+    Simulation,
+)
 
 
 class AggrandisementBatch(models.Model):

@@ -1,6 +1,19 @@
-from ._executive import Minister, MinisterLink
-from ._legislative import MemberOfParliament
-from ._judiciary import Judge, JudgeLink
+from .runtime import (
+    Judge,
+    JudgeLink,
+    MemberOfParliament,
+    Minister,
+    MinisterLink,
+    Simulation,
+    SimulationInstitution,
+    SimulationLogEntry,
+    SimulationSubmodelLogEntry,
+    SubmodelLogEntryInfoBase,
+    PathSubmodelInfo,
+    VbarSubmodelInfo,
+    AggrandisementPathType,
+    SubmodelType,
+)
 from .world import (
     UserSettings,
     Country,
@@ -24,17 +37,6 @@ from .timeline import (
     VirtualTimeline,
     active_subjects,
     is_active,
-)
-from ._simulation import (
-    Simulation,
-    SimulationInstitution,
-    SimulationLogEntry,
-    SimulationSubmodelLogEntry,
-    SubmodelLogEntryInfoBase,
-    PathSubmodelInfo,
-    VbarSubmodelInfo,
-    AggrandisementPathType,
-    SubmodelType,
 )
 from ._aggrandisement import (
     AggrandisementUnit,

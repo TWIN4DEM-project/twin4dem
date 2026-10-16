@@ -2,9 +2,9 @@ from django.db import models
 
 from common import fields
 
+from ..institution import InstitutionBranch
+from ..party import Party
 from ._belief import BeliefModel
-from .institution import InstitutionBranch
-from .party import Party
 from ._simulation import SimulationInstitution, validate_membership
 
 
