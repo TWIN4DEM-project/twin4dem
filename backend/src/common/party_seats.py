@@ -1,8 +1,6 @@
 from random import randint, random
 
-from common.models._party import Party
-from common.models._party_position import PartyPositionType
-from common.models._settings import Country
+from common.models import Country, Party, PartyPositionType
 
 DEFAULT_PARTY_POSITION = PartyPositionType.INDEPENDENT
 

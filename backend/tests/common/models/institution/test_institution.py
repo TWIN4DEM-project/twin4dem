@@ -8,6 +8,7 @@ from common.models import (
     CourtPayload,
     Institution,
     InstitutionBranch,
+    InstitutionKind,
 )
 
 
@@ -123,3 +124,19 @@ def test_deleting_country_deletes_institutions(france, cabinet_type):
     france.delete()
 
     assert not Institution.objects.filter(pk=institution.pk).exists()
+
+
+def test_institution_payload_of_an_unknown_branch_is_rejected():
+    kind = InstitutionKind(institution_name="council", country_id=1, branch="weird")
+
+    with pytest.raises(LookupError, match="not supported"):
+        Institution(kind=kind, label="hall", size=1).get_payload()
+
+
+def test_institution_with_an_unknown_branch_fails_clean():
+    kind = InstitutionKind(institution_name="council", country_id=1, branch="weird")
+
+    with pytest.raises(ValidationError) as err_proxy:
+        Institution(kind=kind, label="hall", size=1).clean()
+
+    assert "not supported" in err_proxy.value.message_dict["kind"][0]

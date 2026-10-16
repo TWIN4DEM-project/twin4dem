@@ -46,8 +46,37 @@ line-length = 88
 target-version = ['py313']
 include = '\.(pyi?|ipynb)$'
 
+[tool.ruff.lint]
+extend-select = ["TID251"]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"common.models.activity._batch".msg = "Import from the public common.models.activity interface instead."
+"common.models.activity._beliefs".msg = "Import from the public common.models.activity interface instead."
+"common.models.activity._log".msg = "Import from the public common.models.activity interface instead."
+"common.models.activity._unit".msg = "Import from the public common.models.activity interface instead."
+"common.models.institution._branch".msg = "Import from the public common.models.institution interface instead."
+"common.models.institution._institution".msg = "Import from the public common.models.institution interface instead."
+"common.models.institution._kind".msg = "Import from the public common.models.institution interface instead."
+"common.models.party._party".msg = "Import from the public common.models.party interface instead."
+"common.models.party._party_position".msg = "Import from the public common.models.party interface instead."
+"common.models.runtime._belief".msg = "Import from the public common.models.runtime interface instead."
+"common.models.runtime._executive".msg = "Import from the public common.models.runtime interface instead."
+"common.models.runtime._influence".msg = "Import from the public common.models.runtime interface instead."
+"common.models.runtime._judiciary".msg = "Import from the public common.models.runtime interface instead."
+"common.models.runtime._legislative".msg = "Import from the public common.models.runtime interface instead."
+"common.models.runtime._simulation".msg = "Import from the public common.models.runtime interface instead."
+"common.models.timeline._spec".msg = "Import from the public common.models.timeline interface instead."
+"common.models.timeline._subjects".msg = "Import from the public common.models.timeline interface instead."
+"common.models.timeline._timeframe".msg = "Import from the public common.models.timeline interface instead."
+"common.models.timeline._timeline".msg = "Import from the public common.models.timeline interface instead."
+"common.models.timeline._validation".msg = "Import from the public common.models.timeline interface instead."
+"common.models.world._country".msg = "Import from the public common.models.world interface instead."
+"common.models.world._settings".msg = "Import from the public common.models.world interface instead."
+
 [tool.ruff.lint.per-file-ignores]
 "src/twin4dem/settings_dev.py" = ["F403", "F405"]
+"src/common/models/**" = ["TID251"]
+"src/common/migrations/**" = ["TID251"]
 
 [dependency-groups]
 dev = [

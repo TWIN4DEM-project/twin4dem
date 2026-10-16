@@ -1,10 +1,10 @@
 from django.contrib import admin
-from ..models._party import Party
-from ..models._settings import (
+from ..models import (
     UserSettings,
     VirtualTimeline,
     Country,
     InstitutionKind,
+    Party,
 )
 
 

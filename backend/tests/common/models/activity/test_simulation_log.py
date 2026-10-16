@@ -2,11 +2,11 @@ import pytest
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 
-from common.models._simulation import SubmodelType
 from common.models import (
+    PathSubmodelInfo,
     SimulationLogEntry,
     SimulationSubmodelLogEntry,
-    PathSubmodelInfo,
+    SubmodelType,
     VbarSubmodelInfo,
 )
 

@@ -2,8 +2,13 @@ from datetime import UTC, datetime
 
 import pytest
 
-from common.models import TimeFrame, TimeFrameSubjectType, TimelineTimeFrame
-from common.models._timeframe import TimeFrameMixin, active_subjects
+from common.models import (
+    TimeFrame,
+    TimeFrameMixin,
+    TimeFrameSubjectType,
+    TimelineTimeFrame,
+    active_subjects,
+)
 
 
 def make_mixin() -> TimeFrameMixin:

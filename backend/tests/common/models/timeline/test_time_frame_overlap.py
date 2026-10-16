@@ -4,6 +4,7 @@ import pytest
 from django.core.exceptions import ValidationError
 
 from common.models import (
+    FrameSpec,
     Institution,
     InstitutionBranch,
     PartyPosition,
@@ -12,7 +13,6 @@ from common.models import (
     TimelineTimeFrame,
     UserSettings,
 )
-from common.models._timeframe import FrameSpec
 
 
 def _dt(year: int, month: int = 1, day: int = 1) -> datetime:

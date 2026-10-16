@@ -1,10 +1,11 @@
 from django.db import models
 
 from common import fields
+
+from ..institution import InstitutionBranch
+from ..party import Party
 from ._belief import BeliefModel
 from ._influence import InfluencerModel
-from ._party import Party
-from ._settings import InstitutionBranch
 from ._simulation import SimulationInstitution, validate_membership
 
 

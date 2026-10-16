@@ -2,10 +2,13 @@ from django import forms
 from django.contrib import admin
 from django.db.models import Q
 
-from ..models._institution import Institution
-from ..models import PartyPosition
-from ..models._settings import VirtualTimeline
-from ..models._timeframe import TimeFrame, TimeFrameSubjectType
+from ..models import (
+    PartyPosition,
+    Institution,
+    VirtualTimeline,
+    TimeFrame,
+    TimeFrameSubjectType,
+)
 
 
 class TimeFrameAdminForm(forms.ModelForm):
