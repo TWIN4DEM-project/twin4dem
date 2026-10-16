@@ -2,7 +2,11 @@ from typing import cast
 from rest_framework import serializers
 
 from common.fields import SeparatedValuesField
-from common.models import Parliament, MemberOfParliament
+from common.models import (
+    MemberOfParliament,
+    PartyPositionType,
+    SimulationInstitution,
+)
 from api import fields
 from ._base import LCCModelSerializer
 
@@ -31,14 +35,20 @@ class MemberOfParliamentSerializer(LCCModelSerializer):
         return obj.party.label
 
     def get_party_position(self, obj):
-        return obj.party.position
+        latest = obj.party.latest_position
+        if latest is None:
+            return PartyPositionType.INDEPENDENT
+        return latest.position
 
 
 class ParliamentSerializer(LCCModelSerializer):
+    label = serializers.SerializerMethodField()
+    majority_probability_for = serializers.SerializerMethodField()
+    opposition_probability_for = serializers.SerializerMethodField()
     members = serializers.SerializerMethodField()
 
     class Meta:
-        model = Parliament
+        model = SimulationInstitution
         fields = [
             "id",
             "label",
@@ -47,6 +57,15 @@ class ParliamentSerializer(LCCModelSerializer):
             "members",
         ]
 
-    def get_members(self, parliament):
-        qs = parliament.members.all().prefetch_related("party")
+    def get_label(self, seat: SimulationInstitution):
+        return seat.institution.label
+
+    def get_majority_probability_for(self, seat: SimulationInstitution):
+        return seat.institution.get_payload().majority_probability_for
+
+    def get_opposition_probability_for(self, seat: SimulationInstitution):
+        return seat.institution.get_payload().opposition_probability_for
+
+    def get_members(self, seat: SimulationInstitution):
+        qs = seat.members.all().prefetch_related("party")
         return MemberOfParliamentSerializer(qs, many=True).data

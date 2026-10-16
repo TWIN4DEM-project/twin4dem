@@ -1,18 +1,35 @@
 from rest_framework.fields import IntegerField
+from rest_framework.serializers import SerializerMethodField
 
 from common.models import UserSettings
 
 from ._base import LCCModelSerializer
-from ._party_settings import PartySettingsSerializer
 
 
 class UserSettingsSerializer(LCCModelSerializer):
-    parties = PartySettingsSerializer(many=True, read_only=True)
     user_id = IntegerField(read_only=True)
+    parties = SerializerMethodField()
 
     class Meta:
         model = UserSettings
         exclude = ("user",)
+
+    def get_parties(self, obj: UserSettings) -> list[dict]:
+        """Legacy flat list of the default country's parties, kept for backwards
+        compatibility with the payload of the former `PartySettings` model."""
+        country = obj.default_country
+        if country is None:
+            return []
+        return [self._party_payload(party) for party in country.parties.order_by("id")]
+
+    @staticmethod
+    def _party_payload(party) -> dict:
+        position = party.latest_position
+        return {
+            "id": party.id,
+            "label": party.label,
+            "position": position.position if position is not None else None,
+        }
 
     def get_fields(self):
         fields = super().get_fields()
@@ -30,10 +47,6 @@ class UserSettingsSerializer(LCCModelSerializer):
                     in {
                         "id",
                         "label",
-                        "government_size",
-                        "government_connectivity_degree",
-                        "parliament_size",
-                        "court_size",
                     }
                 }
             case _:

@@ -33,6 +33,14 @@ DJANGO_SETTINGS_MODULE = "tests.settings"
 pythonpath = [".", "src"]
 addopts = "--cov=src --cov-branch --cov-report xml:./coverage.xml --cov-report term-missing:skip-covered"
 
+[tool.coverage.run]
+omit = [
+    "*/api/services/_batch_simulation.py",
+    "manage.py",
+    "*/twin4dem/settings.py",
+    "*/twin4dem/settings_dev.py",
+]
+
 [tool.black]
 line-length = 88
 target-version = ['py313']

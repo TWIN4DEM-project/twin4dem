@@ -2,7 +2,7 @@ from typing import cast
 from rest_framework import serializers
 
 from common.fields import SeparatedValuesField
-from common.models import Cabinet, Minister
+from common.models import Minister, SimulationInstitution
 from api import fields
 from ._base import LCCModelSerializer
 
@@ -39,20 +39,32 @@ class MinisterNetworkSerializer(LCCModelSerializer):
 
 
 class CabinetSerializer(LCCModelSerializer):
+    label = serializers.SerializerMethodField()
+    probability_for = serializers.SerializerMethodField()
+    connectivity_degree = serializers.SerializerMethodField()
     ministers = serializers.SerializerMethodField()
 
     class Meta:
-        model = Cabinet
+        model = SimulationInstitution
         fields = [
             "id",
             "label",
-            "government_probability_for",
-            "legislative_probability",
+            "probability_for",
+            "connectivity_degree",
             "ministers",
         ]
 
-    def get_ministers(self, cabinet):
-        qs = cabinet.ministers.all().prefetch_related(
+    def get_label(self, seat: SimulationInstitution):
+        return seat.institution.label
+
+    def get_probability_for(self, seat: SimulationInstitution):
+        return seat.institution.get_payload().probability_for
+
+    def get_connectivity_degree(self, seat: SimulationInstitution):
+        return seat.institution.get_payload().connectivity_degree
+
+    def get_ministers(self, seat: SimulationInstitution):
+        qs = seat.ministers.all().prefetch_related(
             "party", "neighbours_out", "neighbours_in"
         )
         return MinisterNetworkSerializer(qs, many=True).data

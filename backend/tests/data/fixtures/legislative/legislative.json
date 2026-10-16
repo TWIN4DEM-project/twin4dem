@@ -9,25 +9,18 @@
       "updated_at": "20260113T14:15:16Z",
       "office_retention_sensitivity": 5.0,
       "social_influence_susceptibility": 0.5,
-      "user_settings": 1
+      "user_settings": 1,
+      "country": 1,
+      "timeline": 1,
+      "valid_at": "20260113T14:15:16Z"
     }
   },
   {
-    "model": "common.simulationparams",
-    "pk": 1,
+    "model": "common.simulationinstitution",
+    "pk": 101,
     "fields": {
       "simulation": 1,
-      "type": ["common", "parliament"],
-      "content_id": 1
-    }
-  },
-  {
-    "model": "common.parliament",
-    "pk": 1,
-    "fields": {
-      "label": "scenario 1",
-      "majority_probability_for": 0.5,
-      "opposition_probability_for": 0.5
+      "institution": 2
     }
   },
   {
@@ -38,7 +31,7 @@
       "is_head": true,
       "weights": "0.1667, 0.1667, 0.1667, 0.1667, 0.1667, 0.1667",
       "party": 1,
-      "parliament": 1
+      "chamber": 101
     }
   },
   {
@@ -49,7 +42,7 @@
       "is_head": false,
       "weights": "0.1667, 0.1667, 0.1667, 0.1667, 0.1667, 0.1667",
       "party": 1,
-      "parliament": 1
+      "chamber": 101
     }
   },
   {
@@ -60,7 +53,7 @@
       "is_head": true,
       "weights": "0.1667, 0.1667, 0.1667, 0.1667, 0.1667, 0.1667",
       "party": 2,
-      "parliament": 1
+      "chamber": 101
     }
   },
   {
@@ -71,7 +64,7 @@
       "is_head": false,
       "weights": "0.1667, 0.1667, 0.1667, 0.1667, 0.1667, 0.1667",
       "party": 2,
-      "parliament": 1
+      "chamber": 101
     }
   }
 ]

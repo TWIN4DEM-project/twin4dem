@@ -1,49 +1,29 @@
 import pytest
-from django.contrib.contenttypes.models import ContentType
 
 from common.dto import SimulationStepResult
-from common.models import (
-    Cabinet,
-    Parliament,
-    SimulationLogEntry,
-    SimulationParams,
-)
+from common.models import SimulationLogEntry, InstitutionBranch
 from simulator.persistence import get_simulation_persistence
 from simulator.tasks import executive_submodel, subsequent_submodel
 
 
 @pytest.mark.django_db
-def test_step_by_step_simulation_persists_flow(load_simulation):
+def test_step_by_step_simulation_persists_flow(load_simulation, simulation_institution):
     simulation = load_simulation(
         "complete/legislative_simulation.json", simulation_id=1
     )
-    cabinet = Cabinet.objects.get(pk=1)
-    parliament = Parliament.objects.get(pk=1)
+    cabinet = simulation_institution(simulation, InstitutionBranch.EXECUTIVE)
 
-    SimulationParams.objects.filter(simulation=simulation).delete()
-    SimulationParams.objects.create(
-        simulation=simulation,
-        type=ContentType.objects.get_for_model(Cabinet),
-        content_id=cabinet.id,
-    )
-    SimulationParams.objects.create(
-        simulation=simulation,
-        type=ContentType.objects.get_for_model(Parliament),
-        content_id=parliament.id,
-    )
-
-    cabinet.government_probability_for = 1.0
-    cabinet.legislative_probability = 1.0
-    cabinet.save(
-        update_fields=["government_probability_for", "legislative_probability"]
-    )
+    # always take the legislative path, so the parliament votes in every step
+    simulation.user_settings.legislative_path_probability = 1.0
     cabinet.ministers.all().update(
         personal_opinion=1, appointing_group_opinion=1, supporting_group_opinion=1
     )
     simulation.office_retention_sensitivity = 25.0
     simulation.save(update_fields=["office_retention_sensitivity"])
     simulation.user_settings.abstention_threshold = 0.0
-    simulation.user_settings.save(update_fields=["abstention_threshold"])
+    simulation.user_settings.save(
+        update_fields=["abstention_threshold", "legislative_path_probability"]
+    )
 
     persistence = get_simulation_persistence()
     step_count = 3

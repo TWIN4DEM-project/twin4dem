@@ -1,0 +1,75 @@
+[
+  {
+    "model": "common.country",
+    "pk": 1,
+    "fields": {"user_settings": 1, "name": "Testland"}
+  },
+  {
+    "model": "common.institutionkind",
+    "pk": 1,
+    "fields": {"country": 1, "branch": "executive", "institution_name": "government"}
+  },
+  {
+    "model": "common.institutionkind",
+    "pk": 2,
+    "fields": {"country": 1, "branch": "legislative", "institution_name": "parliament"}
+  },
+  {
+    "model": "common.institutionkind",
+    "pk": 3,
+    "fields": {"country": 1, "branch": "judiciary", "institution_name": "court"}
+  },
+  {
+    "model": "common.institution",
+    "pk": 1,
+    "fields": {
+      "kind": 1,
+      "label": "Testland government",
+      "size": 15,
+      "payload": {"connectivity_degree": 3, "probability_for": null}
+    }
+  },
+  {
+    "model": "common.institution",
+    "pk": 2,
+    "fields": {
+      "kind": 2,
+      "label": "Testland parliament",
+      "size": 100,
+      "payload": {
+        "majority_probability_for": null,
+        "opposition_probability_for": null
+      }
+    }
+  },
+  {
+    "model": "common.institution",
+    "pk": 3,
+    "fields": {
+      "kind": 3,
+      "label": "Testland court",
+      "size": 5,
+      "payload": {"probability_for": null}
+    }
+  },
+  {
+    "model": "common.party",
+    "pk": 1,
+    "fields": {"country": 1, "label": "majority"}
+  },
+  {
+    "model": "common.party",
+    "pk": 2,
+    "fields": {"country": 1, "label": "opposition"}
+  },
+  {
+    "model": "common.partyposition",
+    "pk": 1,
+    "fields": {"party": 1, "chamber": 2, "position": "majority"}
+  },
+  {
+    "model": "common.partyposition",
+    "pk": 2,
+    "fields": {"party": 2, "chamber": 2, "position": "opposition"}
+  }
+]

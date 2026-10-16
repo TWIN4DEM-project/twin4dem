@@ -147,3 +147,21 @@ async def test_base_consumer_startup_callback_is_called(
 
     assert start_mock.call_count == 1
     assert start_mock.call_args_list == [call()]
+
+
+@pytest.mark.asyncio
+async def test_base_consumer_skips_the_task_when_it_cannot_start(task_mock):
+    class RefusingConsumer(Twin4DemAsyncConsumer):
+        async def _can_run_task(self, *args, **kwargs) -> bool:
+            return False
+
+        async def _on_task_started(self):
+            pytest.fail("the task must not start")
+
+    consumer = RefusingConsumer(task_mock)
+    consumer.scope = {}
+    consumer.channel_name = "test-channel"
+
+    await consumer.receive()
+
+    task_mock.apply_async.assert_not_called()

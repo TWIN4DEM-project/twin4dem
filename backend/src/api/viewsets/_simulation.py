@@ -1,6 +1,5 @@
 import json
 import zipfile
-from http import HTTPStatus
 from pathlib import Path
 
 from django.core.files.uploadedfile import UploadedFile, TemporaryUploadedFile
@@ -10,7 +9,7 @@ from rest_framework import mixins, viewsets, permissions, routers, status
 from rest_framework.exceptions import PermissionDenied, APIException
 from rest_framework.response import Response
 
-from api.services import RandomSimulationBuilder, AggrandisementBatchBuilder
+from api.services import RandomSimulationBuilder
 from common.models import (
     Simulation,
     UserSettings,
@@ -111,11 +110,14 @@ class SimulationViewSet(
                 "application/zip",
                 "application/x-zip-compressed",
             ]:
-                raise APIException(
-                    code=HTTPStatus.BAD_REQUEST, detail="Only ZIP files are supported"
-                )
+                raise UploadException(detail="Only ZIP files are supported")
 
             obj = self._handle_zip_file(uploaded_file)
+            # DEPRECATED: batch simulation from a zip upload is pending a
+            # complete rewrite for the new data model; imported lazily since
+            # the batch builder still references deleted models
+            from api.services._batch_simulation import AggrandisementBatchBuilder
+
             builder = AggrandisementBatchBuilder(
                 user_settings, Path(uploaded_file.name).stem
             )

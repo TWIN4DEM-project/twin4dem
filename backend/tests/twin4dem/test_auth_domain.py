@@ -9,6 +9,7 @@ from django.urls import reverse
 
 from twin4dem.auth.adapters import DomainRestrictedAccountAdapter
 from twin4dem.auth.adapters import DomainRestrictedSocialAccountAdapter
+from twin4dem.auth.adapters import _extract_social_email
 from twin4dem.auth.policy import email_is_allowed
 from twin4dem.auth.policy import normalize_allowed_email_domains
 
@@ -191,3 +192,50 @@ def test_pre_social_login_allows_suffix_matches(
     )
 
     assert social_adapter.pre_social_login(request_with_messages, sociallogin) is None
+
+
+@pytest.mark.parametrize(
+    "user_email,linked_emails,expected",
+    [
+        ("user@example.com", [], "user@example.com"),
+        ("", ["linked@example.com"], "linked@example.com"),
+        ("", ["", "further@x.io"], "further@x.io"),
+        ("", [], "extra@example.net"),
+    ],
+    ids=["user-email", "linked-email", "skip-empty-linked", "extra-data"],
+)
+def test_extract_social_email_prefers_the_user_then_linked_emails(
+    user_email, linked_emails, expected
+):
+    sociallogin = SimpleNamespace(
+        user=SimpleNamespace(email=user_email),
+        email_addresses=[SimpleNamespace(email=email) for email in linked_emails],
+        account=SimpleNamespace(extra_data={"email": "extra@example.net"}),
+    )
+
+    assert _extract_social_email(sociallogin) == expected
+
+
+def test_pre_login_honours_an_intercepting_parent_response(
+    monkeypatch, account_adapter
+):
+    from allauth.account.adapter import DefaultAccountAdapter
+
+    sentinel = SimpleNamespace(status_code=302)
+    monkeypatch.setattr(DefaultAccountAdapter, "pre_login", lambda *a, **k: sentinel)
+
+    response = account_adapter.pre_login(
+        request=None,
+        user=None,
+        email_verification=None,
+        signal_kwargs=None,
+        email=None,
+        signup=False,
+        redirect_url=None,
+    )
+
+    assert response is sentinel
+
+
+def test_normalization_without_domains_allows_everything():
+    assert normalize_allowed_email_domains(None) == []

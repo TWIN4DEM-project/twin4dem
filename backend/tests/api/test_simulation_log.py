@@ -9,30 +9,6 @@ from common.models import (
 
 
 @pytest.fixture
-def judiciary_simulation(load_simulation):
-    return load_simulation("complete/judiciary_simulation.json", 3)
-
-
-@pytest.fixture
-def legislative_simulation(load_simulation):
-    return load_simulation("complete/legislative_simulation.json", 1)
-
-
-@pytest.fixture
-def simulation_type(request):
-    return getattr(request, "param", SubmodelType.LEGISLATIVE)
-
-
-@pytest.fixture
-def simulation(request, legislative_simulation, judiciary_simulation, simulation_type):
-    match simulation_type:
-        case (SubmodelType.EXECUTIVE, SubmodelType.LEGISLATIVE):
-            return legislative_simulation
-        case _:
-            return judiciary_simulation
-
-
-@pytest.fixture
 def additional_info(request):
     info = getattr(request, "param", None)
     if info is not None:
@@ -41,11 +17,11 @@ def additional_info(request):
 
 
 @pytest.fixture(autouse=True)
-def simulation_log(request, simulation, simulation_type, additional_info):
+def simulation_log(request, log_simulation, log_simulation_type, additional_info):
     n = getattr(request, "param", 1)
     for step_no in range(1, n + 1):
         log = SimulationLogEntry.objects.create(
-            simulation=simulation,
+            simulation=log_simulation,
             approved=False,
             step_no=step_no,
         )
@@ -77,8 +53,8 @@ def test_get_by_id_anonymous_forbidden(client):
     }
 
 
-def test_get_by_id_returns_log_entries(admin_client, simulation):
-    response = admin_client.get(f"/api/v1/simulation/{simulation.id}/log/")
+def test_get_by_id_returns_log_entries(admin_client, log_simulation):
+    response = admin_client.get(f"/api/v1/simulation/{log_simulation.id}/log/")
 
     assert response.status_code == 200
     assert response.json() == [
@@ -107,10 +83,10 @@ def test_get_by_id_returns_log_entries(admin_client, simulation):
     indirect=["simulation_log"],
 )
 def test_get_by_id_returns_top_n_log_entries(
-    admin_client, simulation, max_entries, expected_entries
+    admin_client, log_simulation, max_entries, expected_entries
 ):
     response = admin_client.get(
-        f"/api/v1/simulation/{simulation.id}/log/?max_steps={max_entries}"
+        f"/api/v1/simulation/{log_simulation.id}/log/?max_steps={max_entries}"
     )
 
     assert response.status_code == 200

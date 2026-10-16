@@ -11,41 +11,21 @@ from common.models import (
 )
 
 
-@pytest.fixture
-def judiciary_simulation(load_simulation):
-    return load_simulation("complete/judiciary_simulation.json", 3)
-
-
-@pytest.fixture
-def legislative_simulation(load_simulation):
-    return load_simulation("complete/legislative_simulation.json", 1)
-
-
-@pytest.fixture
-def simulation_type(request):
-    return getattr(request, "param", SubmodelType.LEGISLATIVE)
-
-
-@pytest.fixture
-def simulation(request, legislative_simulation, judiciary_simulation, simulation_type):
-    match simulation_type:
-        case (SubmodelType.EXECUTIVE, SubmodelType.LEGISLATIVE):
-            return legislative_simulation
-        case _:
-            return judiciary_simulation
-
-
 @pytest.mark.parametrize("approved", [True, False])
 @pytest.mark.parametrize(
-    "simulation_type", [SubmodelType.LEGISLATIVE, SubmodelType.JUDICIARY], indirect=True
+    "log_simulation_type",
+    [SubmodelType.LEGISLATIVE, SubmodelType.JUDICIARY],
+    indirect=True,
 )
-def test_simulation_log_unique_step_per_simulation(simulation, approved):
+def test_simulation_log_unique_step_per_simulation(
+    log_simulation, log_simulation_type, approved
+):
     SimulationLogEntry.objects.create(
-        simulation=simulation, approved=approved, step_no=1
+        simulation=log_simulation, approved=approved, step_no=1
     )
     with pytest.raises(ValidationError) as err_proxy:
         SimulationLogEntry.objects.create(
-            simulation=simulation, approved=approved, step_no=1
+            simulation=log_simulation, approved=approved, step_no=1
         )
 
     assert (
@@ -55,12 +35,19 @@ def test_simulation_log_unique_step_per_simulation(simulation, approved):
 
 
 @pytest.mark.parametrize(
-    "simulation_type", [SubmodelType.LEGISLATIVE, SubmodelType.JUDICIARY], indirect=True
+    "log_simulation_type",
+    [SubmodelType.LEGISLATIVE, SubmodelType.JUDICIARY],
+    indirect=True,
 )
-def test_simulation_log_invalid_aggrandisement_path_raises_error(simulation):
+def test_simulation_log_invalid_aggrandisement_path_raises_error(
+    log_simulation, log_simulation_type
+):
     with pytest.raises(ValidationError) as err_proxy:
         SimulationLogEntry.objects.create(
-            simulation=simulation, approved=True, step_no=1, aggrandisement_path="abc"
+            simulation=log_simulation,
+            approved=True,
+            step_no=1,
+            aggrandisement_path="abc",
         )
 
     assert (
@@ -69,9 +56,9 @@ def test_simulation_log_invalid_aggrandisement_path_raises_error(simulation):
     )
 
 
-def test_simulation_submodel_log_unique_submodel_type_per_log_entry(simulation):
+def test_simulation_submodel_log_unique_submodel_type_per_log_entry(log_simulation):
     log = SimulationLogEntry.objects.create(
-        simulation=simulation,
+        simulation=log_simulation,
         approved=False,
         step_no=1,
     )
@@ -105,9 +92,11 @@ def test_simulation_submodel_log_unique_submodel_type_per_log_entry(simulation):
         (VbarSubmodelInfo(votes={"1": 1}, vbar=0.3)),
     ],
 )
-def test_simulation_submodel_log_allows_both_path_and_vbar(simulation, additional_info):
+def test_simulation_submodel_log_allows_both_path_and_vbar(
+    log_simulation, additional_info
+):
     log = SimulationLogEntry.objects.create(
-        simulation=simulation,
+        simulation=log_simulation,
         approved=False,
         step_no=1,
     )

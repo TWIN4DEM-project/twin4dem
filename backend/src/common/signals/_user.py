@@ -9,4 +9,4 @@ from common.models import UserSettings
 def create_default_settings(sender, instance, created, **kwargs):
     if not created:
         return
-    UserSettings.objects.get_or_create(user=instance)
+    UserSettings.objects.get_or_create(user=instance, label="default")

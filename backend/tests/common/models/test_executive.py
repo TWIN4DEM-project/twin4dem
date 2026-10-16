@@ -1,26 +1,23 @@
 import pytest
-from django.db import IntegrityError
+from django.core.exceptions import ValidationError
+from django.db import IntegrityError, transaction
 
-from common.models import Cabinet, Minister, MinisterLink
-
-
-@pytest.mark.django_db
-def test_cabinet_unique_name():
-    Cabinet.objects.create(label="abc", legislative_probability=0.3)
-
-    with pytest.raises(IntegrityError) as err_proxy:
-        Cabinet.objects.create(label="abc", legislative_probability=0.3)
-
-    assert str(err_proxy.value) == "UNIQUE constraint failed: common_cabinet.label"
+from common.models import (
+    Country,
+    Minister,
+    MinisterLink,
+    Simulation,
+    SimulationInstitution,
+)
 
 
 @pytest.mark.django_db
-def test_same_cabinet_same_minister_names(test_settings):
-    p = test_settings.parties.first()
-    c = Cabinet.objects.create(label="abc", legislative_probability=0.3)
-    Minister.objects.create(label="m1", cabinet=c, party_id=p.id)
+def test_same_cabinet_same_minister_names(cabinet_seat, renaissance):
+    Minister.objects.create(label="m1", cabinet=cabinet_seat, party=renaissance)
+
     with pytest.raises(IntegrityError) as err_proxy:
-        Minister.objects.create(label="m1", cabinet=c, party_id=p.id)
+        with transaction.atomic():
+            Minister.objects.create(label="m1", cabinet=cabinet_seat, party=renaissance)
 
     assert (
         str(err_proxy.value)
@@ -29,24 +26,70 @@ def test_same_cabinet_same_minister_names(test_settings):
 
 
 @pytest.mark.django_db
-def test_different_cabinets_same_minister_names(test_settings):
-    p = test_settings.parties.first()
-    c1 = Cabinet.objects.create(label="abc", legislative_probability=0.3)
-    c2 = Cabinet.objects.create(label="def", legislative_probability=0.3)
-    Minister.objects.create(label="m1", cabinet=c1, party_id=p.id)
-    Minister.objects.create(label="m1", cabinet=c2, party_id=p.id)
+def test_same_cabinet_in_two_simulations_has_separate_ministers(
+    french_simulation, cabinet, cabinet_seat, renaissance
+):
+    other_simulation = Simulation.objects.create(
+        user_settings=french_simulation.user_settings,
+        country=french_simulation.country,
+        timeline=french_simulation.timeline,
+    )
+    other_seat = SimulationInstitution.objects.create(
+        simulation=other_simulation, institution=cabinet
+    )
+    Minister.objects.create(label="m1", cabinet=cabinet_seat, party=renaissance)
+    Minister.objects.create(label="m1", cabinet=other_seat, party=renaissance)
 
-    assert len(Minister.objects.all()) == 2
+    assert cabinet_seat.ministers.count() == 1
+    assert other_seat.ministers.count() == 1
 
 
 @pytest.mark.django_db
-def test_simple_minister_link(test_settings):
-    p = test_settings.parties.first()
-    c = Cabinet.objects.create(label="abc", legislative_probability=0.3)
-    m1 = Minister.objects.create(
-        label="m1", cabinet=c, party_id=p.id, influence=1.0, is_prime_minister=True
+def test_minister_valid(cabinet_seat, renaissance):
+    minister = Minister(label="m1", cabinet=cabinet_seat, party=renaissance)
+
+    minister.full_clean()
+
+
+@pytest.mark.django_db
+def test_minister_must_belong_to_cabinet(chamber_seat, renaissance):
+    minister = Minister(label="m1", cabinet=chamber_seat, party=renaissance)
+
+    with pytest.raises(ValidationError) as err_proxy:
+        minister.full_clean()
+
+    assert err_proxy.value.message_dict == {
+        "cabinet": ["A minister must belong to a cabinet, not to a chamber."]
+    }
+
+
+@pytest.mark.django_db
+def test_minister_party_must_belong_to_country(test_settings, cabinet_seat):
+    belgium = Country.objects.create(user_settings=test_settings, name="Belgium")
+    minister = Minister(
+        label="m1", cabinet=cabinet_seat, party=belgium.parties.create(label="MR")
     )
-    m2 = Minister.objects.create(label="m2", cabinet=c, party_id=p.id, influence=0.3)
+
+    with pytest.raises(ValidationError) as err_proxy:
+        minister.full_clean()
+
+    assert err_proxy.value.message_dict == {
+        "party": ["The party must belong to the institution's country."]
+    }
+
+
+@pytest.mark.django_db
+def test_simple_minister_link(cabinet_seat, renaissance):
+    m1 = Minister.objects.create(
+        label="m1",
+        cabinet=cabinet_seat,
+        party=renaissance,
+        influence=1.0,
+        is_prime_minister=True,
+    )
+    m2 = Minister.objects.create(
+        label="m2", cabinet=cabinet_seat, party=renaissance, influence=0.3
+    )
 
     pm_edge = MinisterLink.objects.create(from_minister=m1, to_minister=m2)
     other_edge = MinisterLink.objects.create(from_minister=m2, to_minister=m1)
@@ -62,3 +105,25 @@ def test_simple_minister_link(test_settings):
     assert other_edge in m2.out_edges.all()
     assert pm_edge.influence == 1.0
     assert other_edge.influence == 0.3
+
+
+@pytest.mark.django_db
+def test_deleting_simulation_deletes_ministers(
+    french_simulation, cabinet_seat, renaissance
+):
+    Minister.objects.create(label="m1", cabinet=cabinet_seat, party=renaissance)
+
+    french_simulation.delete()
+
+    assert not Minister.objects.exists()
+
+
+def test_minister_without_a_cabinet_skips_membership_validation(renaissance):
+    Minister(
+        label="free agent",
+        party=renaissance,
+        weights=[0.1] * 6,
+        personal_opinion=0,
+        appointing_group_opinion=0,
+        supporting_group_opinion=0,
+    ).clean()

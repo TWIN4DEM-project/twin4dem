@@ -2,7 +2,7 @@ from typing import cast
 from rest_framework import serializers
 
 from common.fields import SeparatedValuesField
-from common.models import Court, Judge
+from common.models import Judge, PartyPositionType, SimulationInstitution
 from api import fields
 from ._base import LCCModelSerializer
 
@@ -40,21 +40,27 @@ class JudgeNetworkSerializer(LCCModelSerializer):
         return obj.party.label
 
     def get_party_position(self, obj):
-        return obj.party.position
+        latest = obj.party.latest_position
+        if latest is None:
+            return PartyPositionType.INDEPENDENT
+        return latest.position
 
 
 class CourtSerializer(LCCModelSerializer):
+    label = serializers.SerializerMethodField()
+    probability_for = serializers.SerializerMethodField()
     judges = serializers.SerializerMethodField()
 
     class Meta:
-        model = Court
-        fields = [
-            "id",
-            "label",
-            "probability_for",
-            "judges",
-        ]
+        model = SimulationInstitution
+        fields = ["id", "label", "probability_for", "judges"]
 
-    def get_judges(self, court):
-        qs = court.judges.all().prefetch_related("party")
+    def get_label(self, seat: SimulationInstitution):
+        return seat.institution.label
+
+    def get_probability_for(self, seat: SimulationInstitution):
+        return seat.institution.get_payload().probability_for
+
+    def get_judges(self, seat: SimulationInstitution):
+        qs = seat.judges.all().prefetch_related("party")
         return JudgeNetworkSerializer(qs, many=True).data

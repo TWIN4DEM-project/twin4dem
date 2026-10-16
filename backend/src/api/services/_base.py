@@ -1,18 +1,16 @@
 from abc import ABCMeta, abstractmethod
 from random import randint, sample
 
-from django.contrib.contenttypes.models import ContentType
-
 from api.serializers import SimulationSerializer
 from common.models import (
     UserSettings,
-    Cabinet,
-    SimulationParams,
-    Parliament,
-    Court,
+    SimulationInstitution,
+    Institution,
     Simulation,
     Minister,
     MinisterLink,
+    Country,
+    VirtualTimeline,
 )
 
 
@@ -24,10 +22,10 @@ class SimulationBuilder(metaclass=ABCMeta):
     ) -> None:
         self._user_settings = settings
         self._weights_count = weights_count
-        self._simulation = None
-        self._cabinet = None
-        self._parliament = None
-        self._court = None
+        self._simulation: Simulation | None = None
+        self._cabinet: SimulationInstitution | None = None
+        self._parliament: SimulationInstitution | None = None
+        self._court: SimulationInstitution | None = None
 
     @classmethod
     def _get_label(
@@ -36,42 +34,44 @@ class SimulationBuilder(metaclass=ABCMeta):
         return f"{user_settings.user.username}-simulation-{simulation.id:06}{suffix}"
 
     @abstractmethod
-    def _create_cabinet(self) -> Cabinet:
+    def _create_cabinet(self) -> SimulationInstitution:
         pass
 
     @abstractmethod
-    def _create_parliament(self) -> Parliament:
+    def _create_parliament(self) -> SimulationInstitution:
         pass
 
     @abstractmethod
-    def _create_court(self) -> Court:
+    def _create_court(self) -> SimulationInstitution:
         pass
 
     @abstractmethod
     def _init_aggrandisement_batch(self) -> None:
         pass
 
+    @staticmethod
+    def _link_institution_to_simulation(
+        simulation: Simulation | None, institution: Institution | None
+    ) -> SimulationInstitution:
+        assert simulation is not None
+        assert institution is not None
+        seat, _created = SimulationInstitution.objects.get_or_create(
+            simulation=simulation,
+            institution=institution,
+        )
+        return seat
+
     def create(self, serializer: SimulationSerializer) -> Simulation:
-        self._simulation = serializer.save(user_settings=self._user_settings)
+        self._simulation = serializer.save(
+            user_settings=self._user_settings,
+            country=self._get_country(),
+            timeline=self._get_timeline(),
+        )
+        assert self._simulation is not None
 
         self._cabinet = self._create_cabinet()
-        ct = ContentType.objects.get_for_model(Cabinet)
-        SimulationParams.objects.create(
-            simulation=self._simulation, type=ct, content_id=self._cabinet.id
-        )
-
         self._parliament = self._create_parliament()
-        ct = ContentType.objects.get_for_model(Parliament)
-        SimulationParams.objects.create(
-            simulation=self._simulation, type=ct, content_id=self._parliament.id
-        )
-
         self._court = self._create_court()
-        ct = ContentType.objects.get_for_model(Court)
-        SimulationParams.objects.create(
-            simulation=self._simulation, type=ct, content_id=self._court.id
-        )
-
         self._init_aggrandisement_batch()
 
         return self._simulation
@@ -115,3 +115,13 @@ class SimulationBuilder(metaclass=ABCMeta):
                     remaining_indegree[target.id] -= 1
 
         return links
+
+    def _get_country(self) -> Country:
+        country = self._user_settings.default_country
+        assert country is not None
+        return country
+
+    def _get_timeline(self) -> VirtualTimeline:
+        timeline = self._user_settings.timelines.first()
+        assert timeline is not None
+        return timeline

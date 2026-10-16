@@ -3,13 +3,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from common.dto import SimulationStepResult, ExecutiveSubmodelResult, SubmodelType
-from common.models import Cabinet
 from simulator.tasks import executive_submodel
-
-
-@pytest.fixture
-def simulation(executive_simulation):
-    return executive_simulation
 
 
 @pytest.fixture
@@ -17,11 +11,6 @@ def simulation_input_param(simulation):
     return SimulationStepResult(
         step_no=0, simulation_id=simulation.id, results=[]
     ).model_dump()
-
-
-@pytest.fixture
-def cabinet(simulation, institution_params):
-    return institution_params(simulation, Cabinet)
 
 
 @pytest.mark.django_db
@@ -49,10 +38,8 @@ def test_response_has_expected_structure(cabinet, simulation_input_param):
 def test_extreme_adversity_to_aggrandisement(
     cabinet, simulation, simulation_input_param
 ):
-    cabinet.government_probability_for = 0.0
     simulation.office_retention_sensitivity = 450.0
     simulation.save()
-    cabinet.save()
 
     results = list(map(executive_submodel.delay(simulation_input_param).get, range(5)))
 
@@ -63,10 +50,8 @@ def test_extreme_adversity_to_aggrandisement(
 def test_extreme_favorability_towards_aggrandisement(
     cabinet, simulation, simulation_input_param
 ):
-    cabinet.government_probability_for = 1.0
     simulation.office_retention_sensitivity = 25.0
     simulation.save()
-    cabinet.save()
     cabinet.ministers.all().update(
         personal_opinion=1, appointing_group_opinion=1, supporting_group_opinion=1
     )
