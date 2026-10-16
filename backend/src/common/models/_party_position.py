@@ -4,10 +4,10 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q
 
-from common.models._institution import Institution
-from common.models._party import Party
-from common.models._settings import InstitutionBranch, VirtualTimeline
-from common.models._timeframe import (
+from ._institution import Institution
+from ._party import Party
+from ._settings import InstitutionBranch, VirtualTimeline
+from ._timeframe import (
     TimeFrameMixin,
     TimeFrameSubjectType,
     active_subjects,

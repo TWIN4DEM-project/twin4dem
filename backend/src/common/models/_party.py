@@ -3,11 +3,11 @@ from typing import TYPE_CHECKING
 from django.db import models
 from django.db.models import F, OuterRef, Subquery
 
-from common.models._settings import Country
-from common.models._timeframe import TimeFrame, TimeFrameSubjectType
+from ._settings import Country
+from ._timeframe import TimeFrame, TimeFrameSubjectType
 
 if TYPE_CHECKING:
-    from common.models._party_position import PartyPosition
+    from ._party_position import PartyPosition
 
 
 class Party(models.Model):

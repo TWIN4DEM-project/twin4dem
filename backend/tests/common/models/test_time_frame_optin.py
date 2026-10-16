@@ -2,7 +2,7 @@ import pytest
 from django.core.exceptions import ImproperlyConfigured
 
 from common.models import Institution, Party, PartyPosition
-from common.models import _timeframe
+from common.models import _timeframe  # noqa: TID251
 
 
 @pytest.fixture(autouse=True)

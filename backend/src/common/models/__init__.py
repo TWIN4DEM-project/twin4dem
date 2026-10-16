@@ -18,9 +18,12 @@ from ._institution import (
 from ._party import Party
 from ._party_position import PartyPositionType, PartyPosition, party_position_at
 from ._timeframe import (
+    FrameSpec,
     TimeFrame,
+    TimeFrameMixin,
     TimeFrameSubjectType,
     TimelineTimeFrame,
+    active_subjects,
     is_active,
 )
 from ._simulation import (
@@ -70,9 +73,12 @@ __all__ = (
     "Party",
     "PartyPosition",
     "PartyPositionType",
+    "FrameSpec",
     "TimeFrame",
+    "TimeFrameMixin",
     "TimeFrameSubjectType",
     "TimelineTimeFrame",
+    "active_subjects",
     "is_active",
     "party_position_at",
     "AggrandisementUnit",

@@ -1,8 +1,6 @@
 from django.contrib import admin
-from ..models import PartyPosition
-from ..models._institution import Institution
-from ..models._party import Party
-from ..models._settings import Country, InstitutionBranch
+
+from ..models import Country, InstitutionBranch, Institution, Party, PartyPosition
 
 
 class PartyPositionInline(admin.TabularInline):

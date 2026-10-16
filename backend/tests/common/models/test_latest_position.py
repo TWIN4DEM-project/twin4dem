@@ -94,7 +94,7 @@ def test_time_frames_lists_the_subjects_frames(renaissance, chamber):
     )
     frame = TimeFrame.objects.create_for(position, valid_from=_dt(2017))
 
-    assert list(position.time_frames) == [frame]
+    assert list(TimeFrame.objects.of(position)) == [frame]
 
 
 @pytest.mark.django_db

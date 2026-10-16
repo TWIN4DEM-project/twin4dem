@@ -1,10 +1,11 @@
 from django.db import models
 
 from common import fields
-from common.models._belief import BeliefModel
-from common.models._party import Party
-from common.models._settings import InstitutionBranch
-from common.models._simulation import SimulationInstitution, validate_membership
+
+from ._belief import BeliefModel
+from ._party import Party
+from ._settings import InstitutionBranch
+from ._simulation import SimulationInstitution, validate_membership
 
 
 class MemberOfParliament(BeliefModel):

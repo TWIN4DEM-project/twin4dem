@@ -11,7 +11,7 @@ from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.db import models, transaction
 from django.db.models import F, Q
 
-from common.models._settings import VirtualTimeline
+from ._settings import VirtualTimeline
 
 
 class TimeFrameSubjectType(models.TextChoices):
@@ -46,10 +46,6 @@ class TimeFrameMixin(models.Model):
     def time_frame_user_settings_id(self) -> int:
         """The global context whose timelines the subject's frames apply to."""
         raise NotImplementedError
-
-    @property
-    def time_frames(self) -> "TimeFrameQuerySet":
-        return TimeFrame.objects.of(self)
 
 
 @functools.cache

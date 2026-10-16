@@ -7,14 +7,14 @@ from django.utils import timezone
 from django_pydantic_field import SchemaField
 from pydantic import BaseModel
 
-from common.models._institution import Institution
-from common.models._settings import (
+from ._institution import Institution
+from ._settings import (
     Country,
     InstitutionBranch,
     UserSettings,
     VirtualTimeline,
 )
-from common.models._timeframe import is_active
+from ._timeframe import is_active
 
 
 _SEAT_WORD_BY_BRANCH = {
