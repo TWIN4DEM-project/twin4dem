@@ -61,7 +61,11 @@ extend-select = ["TID251"]
 "common.models._party_position".msg = "Import from the public common.models interface instead."
 "common.models._settings".msg = "Import from the public common.models interface instead."
 "common.models._simulation".msg = "Import from the public common.models interface instead."
-"common.models._timeframe".msg = "Import from the public common.models interface instead."
+"common.models.timeline._spec".msg = "Import from the public common.models.timeline interface instead."
+"common.models.timeline._subjects".msg = "Import from the public common.models.timeline interface instead."
+"common.models.timeline._timeframe".msg = "Import from the public common.models.timeline interface instead."
+"common.models.timeline._timeline".msg = "Import from the public common.models.timeline interface instead."
+"common.models.timeline._validation".msg = "Import from the public common.models.timeline interface instead."
 
 [tool.ruff.lint.per-file-ignores]
 "src/twin4dem/settings_dev.py" = ["F403", "F405"]

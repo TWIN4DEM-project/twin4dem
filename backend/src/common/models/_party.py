@@ -4,7 +4,7 @@ from django.db import models
 from django.db.models import F, OuterRef, Subquery
 
 from ._settings import Country
-from ._timeframe import TimeFrame, TimeFrameSubjectType
+from .timeline import TimeFrame, TimeFrameSubjectType
 
 if TYPE_CHECKING:
     from ._party_position import PartyPosition

@@ -6,10 +6,11 @@ from django.db.models import Q
 
 from ._institution import Institution
 from ._party import Party
-from ._settings import InstitutionBranch, VirtualTimeline
-from ._timeframe import (
+from ._settings import InstitutionBranch
+from .timeline import (
     TimeFrameMixin,
     TimeFrameSubjectType,
+    VirtualTimeline,
     active_subjects,
     frameless_sibling,
 )

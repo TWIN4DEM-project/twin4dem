@@ -3,7 +3,6 @@ from ._legislative import MemberOfParliament
 from ._judiciary import Judge, JudgeLink
 from ._settings import (
     UserSettings,
-    VirtualTimeline,
     Country,
     InstitutionBranch,
     InstitutionKind,
@@ -17,12 +16,13 @@ from ._institution import (
 )
 from ._party import Party
 from ._party_position import PartyPositionType, PartyPosition, party_position_at
-from ._timeframe import (
+from .timeline import (
     FrameSpec,
     TimeFrame,
     TimeFrameMixin,
     TimeFrameSubjectType,
     TimelineTimeFrame,
+    VirtualTimeline,
     active_subjects,
     is_active,
 )

@@ -12,9 +12,8 @@ from ._settings import (
     Country,
     InstitutionBranch,
     UserSettings,
-    VirtualTimeline,
 )
-from ._timeframe import is_active
+from .timeline import VirtualTimeline, is_active
 
 
 _SEAT_WORD_BY_BRANCH = {
