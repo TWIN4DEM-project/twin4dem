@@ -5,7 +5,7 @@ from django.db import models
 from django_pydantic_field import SchemaField
 from pydantic import BaseModel
 
-from ._simulation import Simulation
+from ..runtime import Simulation
 
 
 class AggrandisementPathType(models.TextChoices):

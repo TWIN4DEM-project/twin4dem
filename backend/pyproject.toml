@@ -50,7 +50,10 @@ include = '\.(pyi?|ipynb)$'
 extend-select = ["TID251"]
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
-"common.models._aggrandisement".msg = "Import from the public common.models interface instead."
+"common.models.activity._batch".msg = "Import from the public common.models.activity interface instead."
+"common.models.activity._beliefs".msg = "Import from the public common.models.activity interface instead."
+"common.models.activity._log".msg = "Import from the public common.models.activity interface instead."
+"common.models.activity._unit".msg = "Import from the public common.models.activity interface instead."
 "common.models.institution._branch".msg = "Import from the public common.models.institution interface instead."
 "common.models.institution._institution".msg = "Import from the public common.models.institution interface instead."
 "common.models.institution._kind".msg = "Import from the public common.models.institution interface instead."
@@ -61,7 +64,6 @@ extend-select = ["TID251"]
 "common.models.runtime._influence".msg = "Import from the public common.models.runtime interface instead."
 "common.models.runtime._judiciary".msg = "Import from the public common.models.runtime interface instead."
 "common.models.runtime._legislative".msg = "Import from the public common.models.runtime interface instead."
-"common.models.runtime._log".msg = "Import from the public common.models.runtime interface instead."
 "common.models.runtime._simulation".msg = "Import from the public common.models.runtime interface instead."
 "common.models.timeline._spec".msg = "Import from the public common.models.timeline interface instead."
 "common.models.timeline._subjects".msg = "Import from the public common.models.timeline interface instead."
