@@ -1,6 +1,6 @@
 from django.db import models
 
-from .._settings import UserSettings
+from ..world import UserSettings
 
 
 class VirtualTimeline(models.Model):

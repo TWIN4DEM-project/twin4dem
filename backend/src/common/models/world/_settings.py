@@ -1,6 +1,11 @@
-from django.db import models
+from typing import TYPE_CHECKING
+
 from django.conf import settings
+from django.db import models
 from django.db.models import Q
+
+if TYPE_CHECKING:
+    from ._country import Country
 
 
 class UserSettings(models.Model):
@@ -79,60 +84,5 @@ class UserSettings(models.Model):
                 name="ck_usersettings_social_influence_susceptibility",
                 condition=Q(social_influence_susceptibility__gte=0.0)
                 & Q(social_influence_susceptibility__lte=1.0),
-            ),
-        ]
-
-
-class Country(models.Model):
-    id = models.AutoField(primary_key=True)
-    user_settings = models.ForeignKey(
-        to=UserSettings, on_delete=models.CASCADE, related_name="countries"
-    )
-    name = models.CharField(max_length=100)
-
-    def __str__(self):
-        return self.name
-
-    class Meta:
-        verbose_name_plural = "Countries"
-        constraints = [
-            models.UniqueConstraint(
-                name="uq_country_user_settings_name",
-                fields=["user_settings", "name"],
-            )
-        ]
-
-
-class InstitutionBranch(models.TextChoices):
-    EXECUTIVE = "executive"
-    LEGISLATIVE = "legislative"
-    JUDICIARY = "judiciary"
-
-
-class InstitutionKind(models.Model):
-    """A kind of institution that a country supports (e.g. 'cabinet', 'senate')."""
-
-    id = models.AutoField(primary_key=True)
-
-    institution_name = models.CharField(max_length=100)
-    country = models.ForeignKey(
-        to=Country, on_delete=models.CASCADE, related_name="institution_kinds"
-    )
-
-    branch = models.CharField(choices=InstitutionBranch.choices)
-
-    def __str__(self):
-        return f"{self.country}: {self.institution_name} ({self.branch})"
-
-    class Meta:
-        verbose_name_plural = "Institution kinds"
-        constraints = [
-            models.UniqueConstraint(
-                name="uq_institutionkind_institution_name_per_country",
-                fields=["institution_name", "country"],
-            ),
-            models.CheckConstraint(
-                name="ck_institutiontaxonomy_branch",
-                condition=Q(branch__in=InstitutionBranch.values),
             ),
         ]

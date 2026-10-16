@@ -4,16 +4,15 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q
 
-from ._institution import Institution
-from ._party import Party
-from ._settings import InstitutionBranch
-from .timeline import (
+from ..institution import Institution, InstitutionBranch
+from ..timeline import (
     TimeFrameMixin,
     TimeFrameSubjectType,
     VirtualTimeline,
     active_subjects,
     frameless_sibling,
 )
+from ._party import Party
 
 
 class PartyPositionType(models.TextChoices):

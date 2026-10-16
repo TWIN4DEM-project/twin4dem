@@ -4,8 +4,8 @@ from common import fields
 
 from ._belief import BeliefModel
 from ._influence import InfluencerModel
-from ._party import Party
-from ._settings import InstitutionBranch
+from .institution import InstitutionBranch
+from .party import Party
 from ._simulation import SimulationInstitution, validate_membership
 
 

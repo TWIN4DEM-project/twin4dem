@@ -7,10 +7,9 @@ from django.utils import timezone
 from django_pydantic_field import SchemaField
 from pydantic import BaseModel
 
-from ._institution import Institution
-from ._settings import (
+from .institution import Institution, InstitutionBranch
+from .world import (
     Country,
-    InstitutionBranch,
     UserSettings,
 )
 from .timeline import VirtualTimeline, is_active

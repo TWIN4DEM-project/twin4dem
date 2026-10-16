@@ -3,8 +3,8 @@ from typing import TYPE_CHECKING
 from django.db import models
 from django.db.models import F, OuterRef, Subquery
 
-from ._settings import Country
-from .timeline import TimeFrame, TimeFrameSubjectType
+from ..timeline import TimeFrame, TimeFrameSubjectType
+from ..world import Country
 
 if TYPE_CHECKING:
     from ._party_position import PartyPosition
