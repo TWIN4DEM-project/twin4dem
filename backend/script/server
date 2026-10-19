@@ -1,11 +1,21 @@
 #!/bin/sh
 
-# shellcheck disable=SC3041
-set -eEux
-set -o pipefail
+# POSIX baseline
+set -eux
+
+# Optional shell extensions, enabled only if the shell supports them
+# shellcheck disable=SC3040 # pipefail is probed on the next line
+(set -o pipefail) 2>/dev/null && set -o pipefail
 
 CWD="$(pwd)"
-trap "cd ${CWD}"'&& echo >&2 "Error - exited with status $? at line $LINENO"' ERR
+
+# The ERR trap is non-POSIX; install it only where supported
+# shellcheck disable=SC3047 # ERR is only trapped if the probe succeeds
+if (trap 'exit 1' ERR) 2>/dev/null; then
+    # shellcheck disable=SC2064,SC3047 # CWD expands now, $?/$LINENO on signal
+    trap "cd ${CWD} && echo >&2 \"Error - exited with status \$? at line \$LINENO\"" ERR
+fi
+
 ROOT_DIR="$(cd "$(dirname "$0")/.." 2> /dev/null; pwd -P)"
 
 cd "${ROOT_DIR}"
