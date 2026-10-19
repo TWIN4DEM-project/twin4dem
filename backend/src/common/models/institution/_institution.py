@@ -5,8 +5,9 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from pydantic import BaseModel, ConfigDict, Field
 
-from common.models._settings import InstitutionBranch, InstitutionKind
-from common.models._timeframe import TimeFrameMixin, TimeFrameSubjectType
+from ..timeline import TimeFrameMixin, TimeFrameSubjectType
+from ._branch import InstitutionBranch
+from ._kind import InstitutionKind
 
 
 type Probability = Annotated[float, Field(ge=0.0, le=1.0)]
@@ -85,8 +86,8 @@ class Institution(TimeFrameMixin):
         errors = {}
 
         if self.pk is None and self.kind_id is not None:
-            # imported here: _timeframe depends on this module
-            from common.models._timeframe import frameless_sibling
+            # imported here: the timeline package is loaded after this module
+            from ..timeline import frameless_sibling
 
             sibling = frameless_sibling(self)
             if sibling is not None:

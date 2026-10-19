@@ -10,12 +10,13 @@ from api.viewsets._simulation import SimulationViewSet
 
 
 from common.dto import AggrandisementBatch
-from common.models import UserSettings
-from common.models._simulation import SubmodelType, Simulation
 from common.models import (
+    PathSubmodelInfo,
+    Simulation,
     SimulationLogEntry,
     SimulationSubmodelLogEntry,
-    PathSubmodelInfo,
+    SubmodelType,
+    UserSettings,
     VbarSubmodelInfo,
 )
 from django.core.files.uploadedfile import SimpleUploadedFile, TemporaryUploadedFile
