@@ -1,12 +1,16 @@
 VENV := .venv
 TIMESTAMP := $(VENV)/.last_sync
 PYTHON_VERSION := 3.13
+COMPOSE := docker compose -f ../docker-compose.dev.yaml
 
-.PHONY: .check-deps bootstrap clean format check test
+.PHONY: .check-deps .check-docker bootstrap clean db-up db-reset backend-su format check test
 
 .check-deps:
 	@command -v git >/dev/null 2>&1 || { echo "Error: 'git' is not installed or not in PATH." >&2; exit 1; }
 	@command -v uv >/dev/null 2>&1 || { echo "Error: 'uv' is not installed or not in PATH." >&2; exit 1; }
+
+.check-docker:
+	@command -v docker >/dev/null 2>&1 || { echo "Error: 'docker' is not installed or not in PATH." >&2; exit 1; }
 
 $(VENV): | .check-deps
 	@if [ ! -d "$(VENV)" ]; then \
@@ -33,21 +37,20 @@ clean:
 	@# Clean untracked files but keep .venv if present
 	git clean -fdx -e .venv
 
-setup-db: bootstrap
-	@if ! command -v psql; then echo "psql command missing" && exit 1; fi
-	@if ! command -v createdb; then echo "createdb command missing" && exit 1; fi
-	psql -h 127.0.0.1 -p 5432 -U twin4dem -tAc "SELECT 1 FROM pg_database WHERE datname='twin4dem'" | grep -q 1 \
-		|| createdb -h 127.0.0.1 -p 5432 -U twin4dem twin4dem
-
-migrations: setup-db
+migrations:
 	uv run python src/manage.py makemigrations
 
-db-from-scratch: migrations
-	uv run python src/manage.py migrate common "zero"
-	uv run python src/manage.py migrate common
+db-up: .check-docker
+	$(COMPOSE) up -d --wait db
 
-su: migrations
-	uv run python src/manage.py createsuperuser --username admin
+db-reset: .check-docker
+	$(COMPOSE) down --volumes --remove-orphans
+	$(COMPOSE) up -d --wait db
+	$(COMPOSE) run --rm --no-deps backend uv run python src/manage.py migrate
+	$(COMPOSE) run --rm --no-deps backend uv run python src/manage.py createsuperuser --username admin
+
+backend-su: db-up
+	$(COMPOSE) run --rm --no-deps backend uv run python src/manage.py createsuperuser --username admin
 
 format: bootstrap
 	uv run black --fast .
