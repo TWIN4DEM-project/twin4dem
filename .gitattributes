@@ -1,0 +1,7 @@
+# Force LF for shell-sensitive files; without this, Git for Windows checks
+# them out with CRLF (core.autocrlf=true) and POSIX sh in the container
+# chokes on the trailing \r (e.g. backend/script/server).
+*.sh                  text eol=lf
+backend/script/*      text eol=lf
+**/Dockerfile         text eol=lf
+docker-compose*.yaml  text eol=lf
