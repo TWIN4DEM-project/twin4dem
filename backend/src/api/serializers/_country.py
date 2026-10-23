@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from rest_framework.validators import UniqueTogetherValidator
 
 from common.models import Country, UserSettings
 
@@ -21,6 +22,13 @@ class CountrySerializer(LCCModelSerializer):
     class Meta:
         model = Country
         fields = ["id", "name", "user_settings"]
+        validators = [
+            UniqueTogetherValidator(
+                queryset=Country.objects.all(),
+                fields=["user_settings", "name"],
+                message="A country with this name already exists in these settings.",
+            )
+        ]
 
     def validate_user_settings(self, value):
         if self.instance is not None and value != self.instance.user_settings:

@@ -346,7 +346,9 @@ def test_create_duplicate_name_400(admin_client, test_settings):
 
     assert response.status_code == 400
     assert response.json() == {
-        "non_field_errors": ["The fields user_settings, name must make a unique set."]
+        "non_field_errors": [
+            "A country with this name already exists in these settings."
+        ]
     }
 
 
