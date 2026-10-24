@@ -2,7 +2,7 @@ from django.urls import path
 from rest_framework.urlpatterns import format_suffix_patterns
 
 from api import views
-from api.viewsets import simulation_router
+from api.viewsets import country_router, simulation_router
 
 
 urlpatterns = format_suffix_patterns(
@@ -14,6 +14,7 @@ urlpatterns = format_suffix_patterns(
             views.get_simulation_log,
             name="get-simulation-log",
         ),
+        *country_router.urls,
         *simulation_router.urls,
     ]
 )
