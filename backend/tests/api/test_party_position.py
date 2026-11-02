@@ -104,13 +104,6 @@ def default_timeline(test_settings) -> VirtualTimeline:
 
 
 @pytest.fixture
-def alternate_timeline(test_settings) -> VirtualTimeline:
-    return VirtualTimeline.objects.create(
-        user_settings=test_settings, label="alternate"
-    )
-
-
-@pytest.fixture
 def government() -> Institution:
     """Testland's executive institution."""
     return Institution.objects.get(pk=1)

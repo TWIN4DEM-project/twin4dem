@@ -1,7 +1,16 @@
+from datetime import UTC, datetime
+
 import pytest
 from django.contrib.auth.models import Permission
 
-from common.models import Country
+from common.models import (
+    Country,
+    Institution,
+    InstitutionBranch,
+    InstitutionKind,
+    TimeFrame,
+    VirtualTimeline,
+)
 
 
 @pytest.fixture
@@ -20,6 +29,35 @@ def user_client(request, client, test_user):
 @pytest.fixture
 def userland(test_user_settings) -> Country:
     return Country.objects.create(user_settings=test_user_settings, name="Userland")
+
+
+@pytest.fixture
+def user_kind(userland) -> InstitutionKind:
+    return InstitutionKind.objects.create(
+        country=userland,
+        branch=InstitutionBranch.EXECUTIVE,
+        institution_name="cabinet",
+    )
+
+
+@pytest.fixture
+def framed_senate() -> InstitutionKind:
+    """Testland's senate, with 'Senate 2020' from 2020-12-21 on all timelines."""
+    kind = InstitutionKind.objects.create(
+        country_id=1,
+        branch=InstitutionBranch.LEGISLATIVE,
+        institution_name="senate",
+    )
+    institution = Institution.objects.create(kind=kind, label="Senate 2020", size=136)
+    TimeFrame.objects.occupy(institution, valid_from=datetime(2020, 12, 21, tzinfo=UTC))
+    return kind
+
+
+@pytest.fixture
+def alternate_timeline(test_settings) -> VirtualTimeline:
+    return VirtualTimeline.objects.create(
+        user_settings=test_settings, label="alternate"
+    )
 
 
 @pytest.fixture(scope="session")

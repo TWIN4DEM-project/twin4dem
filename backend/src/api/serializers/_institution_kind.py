@@ -22,6 +22,7 @@ class KindInstitutionSerializer(InstitutionSerializer):
         fields = ["id", "label", "size", "payload", "time_frames"]
         validators = []
 
+
 class InstitutionKindSerializer(LCCModelSerializer):
     name = serializers.CharField(source="institution_name", max_length=100)
     country = AllowedCountryField()

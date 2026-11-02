@@ -1,10 +1,7 @@
-from datetime import UTC, datetime
-
 import pytest
 
 from common.models import (
     Institution,
-    InstitutionBranch,
     InstitutionKind,
     Simulation,
     TimeFrame,
@@ -59,27 +56,6 @@ def assert_senate_not_created():
     assert not InstitutionKind.objects.filter(institution_name="senate").exists()
     assert not Institution.objects.filter(label__startswith="Senate").exists()
     assert not TimeFrame.objects.exists()
-
-
-@pytest.fixture
-def user_kind(userland) -> InstitutionKind:
-    return InstitutionKind.objects.create(
-        country=userland,
-        branch=InstitutionBranch.EXECUTIVE,
-        institution_name="cabinet",
-    )
-
-
-@pytest.fixture
-def framed_senate() -> InstitutionKind:
-    kind = InstitutionKind.objects.create(
-        country_id=1,
-        branch=InstitutionBranch.LEGISLATIVE,
-        institution_name="senate",
-    )
-    institution = Institution.objects.create(kind=kind, label="Senate 2020", size=136)
-    TimeFrame.objects.occupy(institution, valid_from=datetime(2020, 12, 21, tzinfo=UTC))
-    return kind
 
 
 def test_list_success(admin_client):

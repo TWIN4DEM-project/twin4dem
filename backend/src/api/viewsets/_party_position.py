@@ -3,13 +3,15 @@ from rest_framework import permissions, routers, serializers, viewsets
 from api.serializers import PartyPositionSerializer
 from common.models import PartyPosition
 
+from ._batch import BatchCreateMixin
+
 
 class PartyPositionFilter(serializers.Serializer):
     party = serializers.IntegerField(required=False)
     chamber = serializers.IntegerField(required=False)
 
 
-class PartyPositionViewSet(viewsets.ModelViewSet):
+class PartyPositionViewSet(BatchCreateMixin, viewsets.ModelViewSet):
     serializer_class = PartyPositionSerializer
     permission_classes = [
         permissions.IsAuthenticated,
@@ -28,11 +30,6 @@ class PartyPositionViewSet(viewsets.ModelViewSet):
             filters.is_valid(raise_exception=True)
             positions = positions.filter(**filters.validated_data)
         return positions
-
-    def get_serializer(self, *args, **kwargs):
-        if self.action == "create" and isinstance(kwargs.get("data"), list):
-            kwargs.update(many=True, allow_empty=False)
-        return super().get_serializer(*args, **kwargs)
 
 
 router = routers.SimpleRouter()
