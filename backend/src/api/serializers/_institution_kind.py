@@ -16,10 +16,16 @@ class AllowedCountryField(serializers.PrimaryKeyRelatedField):
         return Country.objects.filter(user_settings__user=user)
 
 
+class KindInstitutionSerializer(InstitutionSerializer):
+
+    class Meta(InstitutionSerializer.Meta):
+        fields = ["id", "label", "size", "payload", "time_frames"]
+        validators = []
+
 class InstitutionKindSerializer(LCCModelSerializer):
     name = serializers.CharField(source="institution_name", max_length=100)
     country = AllowedCountryField()
-    institutions = InstitutionSerializer(many=True, required=False)
+    institutions = KindInstitutionSerializer(many=True, required=False)
 
     class Meta:
         model = InstitutionKind
@@ -64,11 +70,11 @@ class InstitutionKindSerializer(LCCModelSerializer):
     def create(self, validated_data):
         institutions = validated_data.pop("institutions", [])
         kind = super().create(validated_data)
-        institution_serializer = self.fields["institutions"].child
-        for index, data in enumerate(institutions):
-            try:
-                institution_serializer.create({**data, "kind": kind})
-            except serializers.ValidationError as e:
-                # raised inside the atomic block: the kind is rolled back too
-                raise serializers.ValidationError({"institutions": {index: e.detail}})
+        try:
+            self.fields["institutions"].create(
+                [{**data, "kind": kind} for data in institutions]
+            )
+        except serializers.ValidationError as e:
+            # raised inside the atomic block: the kind is rolled back too
+            raise serializers.ValidationError({"institutions": e.detail})
         return kind

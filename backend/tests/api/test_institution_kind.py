@@ -582,40 +582,94 @@ def test_create_with_overlapping_institutions_400(admin_client):
 
     assert response.status_code == 400
     assert response.json() == {
-        "institutions": {
-            "1": {
-                "time_frames": {
-                    "0": [
-                        "Overlaps with 'Senate 2016' [2016-12-21, 2020-12-21) on all timelines."
-                    ]
-                }
+        "institutions": [
+            {},
+            {
+                "time_frames": [
+                    {
+                        "non_field_errors": [
+                            "Overlaps with 'Senate 2016' [2016-12-21, 2020-12-21) "
+                            "on all timelines."
+                        ]
+                    }
+                ]
+            },
+        ]
+    }
+    assert_senate_not_created()
+
+
+def test_create_institution_with_two_time_frames_on_a_timeline_400(admin_client):
+    # at most one time frame per timeline, even without overlapping in time
+    senate = institution(
+        "Senate",
+        {"validFrom": "2016-12-21T00:00:00Z", "validTo": "2020-12-21T00:00:00Z"},
+        {"validFrom": "2024-01-01T00:00:00Z"},
+    )
+
+    response = admin_client.post(
+        KINDS, senate_body(institutions=[senate]), content_type=JSON
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "institutions": [
+            {
+                "time_frames": [
+                    {},
+                    {
+                        "non_field_errors": [
+                            "'Senate' already occupies the time frame "
+                            "[2016-12-21, 2020-12-21) on all timelines."
+                        ]
+                    },
+                ]
             }
-        }
+        ]
     }
     assert_senate_not_created()
 
 
 @pytest.mark.parametrize(
-    "institutions",
+    "institutions, error",
     [
-        [
-            institution("Senate 2020", {"validFrom": "2020-12-21T00:00:00Z"}),
-            institution("Senate"),
-        ],
-        [
-            institution("Senate"),
-            institution("Senate 2020", {"validFrom": "2020-12-21T00:00:00Z"}),
-        ],
+        (
+            [
+                institution("Senate 2020", {"validFrom": "2020-12-21T00:00:00Z"}),
+                institution("Senate"),
+            ],
+            {
+                "time_frames": [
+                    "Without time frames the institution is active at all times, "
+                    "so it would overlap the other institutions of the same kind."
+                ]
+            },
+        ),
+        (
+            [
+                institution("Senate"),
+                institution("Senate 2020", {"validFrom": "2020-12-21T00:00:00Z"}),
+            ],
+            {
+                "kind": [
+                    "'Senate' has no time frame, so it is active at all times on "
+                    "all timelines: no other institution of type 'senate' can be "
+                    "added."
+                ]
+            },
+        ),
     ],
     ids=["frameless-last", "frameless-first"],
 )
-def test_create_frameless_institution_with_siblings_400(admin_client, institutions):
+def test_create_frameless_institution_with_siblings_400(
+    admin_client, institutions, error
+):
     response = admin_client.post(
         KINDS, senate_body(institutions=institutions), content_type=JSON
     )
 
     assert response.status_code == 400
-    assert list(response.json()["institutions"]) == ["1"]
+    assert response.json() == {"institutions": [{}, error]}
     assert_senate_not_created()
 
 
@@ -630,13 +684,13 @@ def test_create_institution_with_invalid_payload_400(admin_client):
 
     assert response.status_code == 400
     assert response.json() == {
-        "institutions": {
-            "0": {
+        "institutions": [
+            {
                 "payload": [
                     "connectivity_degree: Input should be greater than or equal to 1"
                 ]
             }
-        }
+        ]
     }
     assert_senate_not_created()
 
@@ -655,7 +709,16 @@ def test_create_institutions_with_duplicate_label_400(admin_client):
     )
 
     assert response.status_code == 400
-    assert list(response.json()["institutions"]) == ["1"]
+    assert response.json() == {
+        "institutions": [
+            {},
+            {
+                "non_field_errors": [
+                    "Institution with this Kind and Label already exists."
+                ]
+            },
+        ]
+    }
     assert_senate_not_created()
 
 
@@ -672,7 +735,15 @@ def test_create_time_frame_ending_before_start_400(admin_client):
     )
 
     assert response.status_code == 400
-    assert list(response.json()["institutions"]["0"]["time_frames"]) == ["0"]
+    assert response.json() == {
+        "institutions": [
+            {
+                "time_frames": [
+                    {"valid_to": ["The time frame must end after it starts."]}
+                ]
+            }
+        ]
+    }
     assert_senate_not_created()
 
 
@@ -686,16 +757,18 @@ def test_create_on_timeline_of_other_settings_400(admin_client, test_user_settin
 
     assert response.status_code == 400
     assert response.json() == {
-        "institutions": {
-            "0": {
-                "time_frames": {
-                    "0": [
-                        "The timelines must belong to the same global context as "
-                        "the time frame's subject."
-                    ]
-                }
+        "institutions": [
+            {
+                "time_frames": [
+                    {
+                        "non_field_errors": [
+                            "The timelines must belong to the same global context "
+                            "as the time frame's subject."
+                        ]
+                    }
+                ]
             }
-        }
+        ]
     }
     assert_senate_not_created()
 
