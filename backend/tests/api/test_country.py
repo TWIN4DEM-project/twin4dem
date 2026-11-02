@@ -1,5 +1,4 @@
 import pytest
-from django.contrib.auth.models import Permission
 
 from common.models import Country, InstitutionBranch, InstitutionKind, UserSettings
 
@@ -15,24 +14,6 @@ NOT_PERMITTED = {"detail": "You do not have permission to perform this action."}
 
 def country_url(country: Country) -> str:
     return f"{COUNTRIES}{country.id}/"
-
-
-@pytest.fixture
-def user_client(request, client, test_user):
-    """Logged in as test_user, with the permission codenames given as param."""
-    test_user.user_permissions.add(
-        *Permission.objects.filter(
-            content_type__app_label="common",
-            codename__in=getattr(request, "param", []),
-        )
-    )
-    client.force_login(test_user)
-    return client
-
-
-@pytest.fixture
-def userland(test_user_settings) -> Country:
-    return Country.objects.create(user_settings=test_user_settings, name="Userland")
 
 
 @pytest.fixture
