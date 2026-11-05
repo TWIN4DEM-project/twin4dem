@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from datetime import UTC, datetime
 
 import pytest
@@ -50,14 +51,31 @@ def senate_kind() -> InstitutionKind:
     )
 
 
+def _midnight(date: str | None) -> datetime | None:
+    """Midnight UTC of `date` ('YYYY-MM-DD'), or None."""
+    return datetime.fromisoformat(date).replace(tzinfo=UTC) if date else None
+
+
 @pytest.fixture
-def senate_2020(senate_kind) -> Institution:
-    """Testland's 'Senate 2020', from 2020-12-21 on all timelines."""
-    institution = Institution.objects.create(
-        kind=senate_kind, label="Senate 2020", size=136
-    )
-    TimeFrame.objects.occupy(institution, valid_from=datetime(2020, 12, 21, tzinfo=UTC))
-    return institution
+def make_senate(senate_kind) -> Callable[..., Institution]:
+    """
+    Creates a senate of Testland. Given a bound ('YYYY-MM-DD'), it occupies one
+    time frame on all timelines; otherwise it is frameless.
+    """
+
+    def make(
+        label: str, valid_from: str | None = None, valid_to: str | None = None
+    ) -> Institution:
+        institution = Institution.objects.create(
+            kind=senate_kind, label=label, size=136
+        )
+        if valid_from or valid_to:
+            TimeFrame.objects.occupy(
+                institution, _midnight(valid_from), _midnight(valid_to)
+            )
+        return institution
+
+    return make
 
 
 @pytest.fixture

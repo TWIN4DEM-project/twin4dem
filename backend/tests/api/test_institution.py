@@ -98,18 +98,6 @@ def cabinet_body(kind: InstitutionKind, **fields) -> dict:
 
 
 @pytest.fixture
-def senate_2016(senate_kind) -> Institution:
-    """Testland's 'Senate 2016', until 2020-12-21 on all timelines."""
-    institution = Institution.objects.create(
-        kind=senate_kind, label="Senate 2016", size=136
-    )
-    TimeFrame.objects.occupy(
-        institution, valid_from=at("2016-12-21"), valid_to=at("2020-12-21")
-    )
-    return institution
-
-
-@pytest.fixture
 def user_institution(user_kind) -> Institution:
     return Institution.objects.create(
         kind=user_kind, label="Userland cabinet", size=10, payload=CABINET_PAYLOAD
@@ -135,8 +123,10 @@ def test_get_by_id_success(admin_client):
     assert response.json() == government_json()
 
 
-def test_get_by_id_with_time_frames_success(admin_client, senate_2020):
-    response = admin_client.get(institution_url(senate_2020))
+def test_get_by_id_with_time_frames_success(admin_client, make_senate):
+    senate = make_senate("Senate 2020", "2020-12-21")
+
+    response = admin_client.get(institution_url(senate))
 
     assert response.status_code == 200
     assert response.json()["timeFrames"] == [frame("2020-12-21")]
@@ -198,20 +188,22 @@ def test_create_batch_success(admin_client, senate_kind):
     ]
 
 
-def test_update_success(admin_client, senate_2020):
+def test_update_success(admin_client, senate_kind, make_senate):
+    senate = make_senate("Senate 2020", "2020-12-21")
+
     response = admin_client.put(
-        institution_url(senate_2020),
-        senate_body(senate_2020.kind, "Senate 2021", frame("2021-01-01"), size=140),
+        institution_url(senate),
+        senate_body(senate_kind, "Senate 2021", frame("2021-01-01"), size=140),
         content_type=JSON,
     )
 
     assert response.status_code == 200
     assert response.json() == senate_json(
-        senate_2020, frame("2021-01-01"), label="Senate 2021", size=140
+        senate, frame("2021-01-01"), label="Senate 2021", size=140
     )
-    senate_2020.refresh_from_db()
-    assert (senate_2020.label, senate_2020.size) == ("Senate 2021", 140)
-    assert frames_of(senate_2020) == [(at("2021-01-01"), None)]
+    senate.refresh_from_db()
+    assert (senate.label, senate.size) == ("Senate 2021", 140)
+    assert frames_of(senate) == [(at("2021-01-01"), None)]
 
 
 def test_update_keeping_label_success(admin_client):
@@ -221,12 +213,14 @@ def test_update_keeping_label_success(admin_client):
     assert response.json() == government_json()
 
 
-def test_delete_success(admin_client, senate_2020):
-    response = admin_client.delete(institution_url(senate_2020))
+def test_delete_success(admin_client, make_senate):
+    senate = make_senate("Senate 2020", "2020-12-21")
+
+    response = admin_client.delete(institution_url(senate))
 
     assert response.status_code == 204
     assert response.content == b""
-    assert not Institution.objects.filter(pk=senate_2020.pk).exists()
+    assert not Institution.objects.filter(pk=senate.pk).exists()
 
 
 def test_patch_not_allowed(admin_client):
@@ -530,10 +524,12 @@ def test_superuser_deletes_other_users_institution(admin_client, user_institutio
     assert not Institution.objects.filter(pk=user_institution.pk).exists()
 
 
-def test_create_duplicate_label_400(admin_client, senate_2020):
+def test_create_duplicate_label_400(admin_client, senate_kind, make_senate):
+    make_senate("Senate 2020", "2020-12-21")
+
     response = admin_client.post(
         INSTITUTIONS,
-        senate_body(senate_2020.kind, "Senate 2020", frame("2016-12-21", "2020-12-21")),
+        senate_body(senate_kind, "Senate 2020", frame("2016-12-21", "2020-12-21")),
         content_type=JSON,
     )
 
@@ -543,7 +539,7 @@ def test_create_duplicate_label_400(admin_client, senate_2020):
             "An institution with this label already exists for this kind."
         ]
     }
-    assert senate_2020.kind.institutions.count() == 1
+    assert senate_kind.institutions.count() == 1
 
 
 def test_create_same_label_in_other_kind_success(admin_client, user_kind):
@@ -575,11 +571,13 @@ def test_create_batch_with_duplicate_labels_400(admin_client, senate_kind):
     assert not senate_kind.institutions.exists()
 
 
-@pytest.mark.usefixtures("senate_2020")
-def test_update_duplicate_label_400(admin_client, senate_2016):
+def test_update_duplicate_label_400(admin_client, senate_kind, make_senate):
+    senate_2016 = make_senate("Senate 2016", "2016-12-21", "2020-12-21")
+    make_senate("Senate 2020", "2020-12-21")
+
     response = admin_client.put(
         institution_url(senate_2016),
-        senate_body(senate_2016.kind, "Senate 2020", frame("2016-12-21", "2020-12-21")),
+        senate_body(senate_kind, "Senate 2020", frame("2016-12-21", "2020-12-21")),
         content_type=JSON,
     )
 
@@ -675,21 +673,25 @@ def test_update_kind_400(admin_client):
     assert Institution.objects.get(pk=1).kind_id == 1
 
 
-def test_create_adjacent_time_frame_success(admin_client, senate_2020):
+def test_create_adjacent_time_frame_success(admin_client, senate_kind, make_senate):
+    make_senate("Senate 2020", "2020-12-21")
+
     # time frames end before their valid_to: 'Senate 2020' starts right after
     response = admin_client.post(
         INSTITUTIONS,
-        senate_body(senate_2020.kind, "Senate 2016", frame("2016-12-21", "2020-12-21")),
+        senate_body(senate_kind, "Senate 2016", frame("2016-12-21", "2020-12-21")),
         content_type=JSON,
     )
 
     assert response.status_code == 201
 
 
-def test_create_overlapping_sibling_400(admin_client, senate_2020):
+def test_create_overlapping_sibling_400(admin_client, senate_kind, make_senate):
+    make_senate("Senate 2020", "2020-12-21")
+
     response = admin_client.post(
         INSTITUTIONS,
-        senate_body(senate_2020.kind, "Senate 2016", frame("2016-12-21", "2021-01-01")),
+        senate_body(senate_kind, "Senate 2016", frame("2016-12-21", "2021-01-01")),
         content_type=JSON,
     )
 
@@ -826,10 +828,12 @@ def test_create_frameless_without_siblings_success(admin_client, senate_kind):
     assert not TimeFrame.objects.exists()
 
 
-def test_create_frameless_with_siblings_400(admin_client, senate_2020):
+def test_create_frameless_with_siblings_400(admin_client, senate_kind, make_senate):
+    make_senate("Senate 2020", "2020-12-21")
+
     response = admin_client.post(
         INSTITUTIONS,
-        {"kind": senate_2020.kind_id, "label": "Senate", "size": 136},
+        {"kind": senate_kind.id, "label": "Senate", "size": 136},
         content_type=JSON,
     )
 
@@ -840,7 +844,7 @@ def test_create_frameless_with_siblings_400(admin_client, senate_2020):
             "would overlap the other institutions of the same kind."
         ]
     }
-    assert senate_2020.kind.institutions.count() == 1
+    assert senate_kind.institutions.count() == 1
 
 
 def test_create_sibling_of_frameless_institution_400(admin_client):
@@ -904,33 +908,36 @@ def test_create_empty_batch_400(admin_client):
     assert response.json() == {"non_field_errors": ["This list may not be empty."]}
 
 
-def test_update_replaces_time_frames(admin_client, senate_2020, alternate_timeline):
+def test_update_replaces_time_frames(
+    admin_client, senate_kind, make_senate, alternate_timeline
+):
+    senate = make_senate("Senate 2020", "2020-12-21")
     time_frames = [
         frame("2020-12-21", timelines=[1]),
         frame("2022-01-01", timelines=[alternate_timeline.id]),
     ]
 
     response = admin_client.put(
-        institution_url(senate_2020),
-        senate_body(senate_2020.kind, "Senate 2020", *time_frames),
+        institution_url(senate),
+        senate_body(senate_kind, "Senate 2020", *time_frames),
         content_type=JSON,
     )
 
     assert response.status_code == 200
     assert response.json()["timeFrames"] == time_frames
-    assert frames_of(senate_2020) == [
+    assert frames_of(senate) == [
         (at("2020-12-21"), None),
         (at("2022-01-01"), None),
     ]
 
 
-@pytest.mark.usefixtures("senate_2020")
-def test_update_overlapping_sibling_400(admin_client, senate_2016):
+def test_update_overlapping_sibling_400(admin_client, senate_kind, make_senate):
+    senate_2016 = make_senate("Senate 2016", "2016-12-21", "2020-12-21")
+    make_senate("Senate 2020", "2020-12-21")
+
     response = admin_client.put(
         institution_url(senate_2016),
-        senate_body(
-            senate_2016.kind, "Senate 2016 bis", frame("2016-12-21", "2021-01-01")
-        ),
+        senate_body(senate_kind, "Senate 2016 bis", frame("2016-12-21", "2021-01-01")),
         content_type=JSON,
     )
 
@@ -950,10 +957,14 @@ def test_update_overlapping_sibling_400(admin_client, senate_2016):
     assert frames_of(senate_2016) == [(at("2016-12-21"), at("2020-12-21"))]
 
 
-def test_update_time_frame_ending_before_start_400(admin_client, senate_2020):
+def test_update_time_frame_ending_before_start_400(
+    admin_client, senate_kind, make_senate
+):
+    senate = make_senate("Senate 2020", "2020-12-21")
+
     response = admin_client.put(
-        institution_url(senate_2020),
-        senate_body(senate_2020.kind, "Senate 2020", frame("2020-12-21", "2016-12-21")),
+        institution_url(senate),
+        senate_body(senate_kind, "Senate 2020", frame("2020-12-21", "2016-12-21")),
         content_type=JSON,
     )
 
@@ -961,26 +972,34 @@ def test_update_time_frame_ending_before_start_400(admin_client, senate_2020):
     assert response.json() == {
         "time_frames": [{"valid_to": ["The time frame must end after it starts."]}]
     }
-    assert frames_of(senate_2020) == [(at("2020-12-21"), None)]
+    assert frames_of(senate) == [(at("2020-12-21"), None)]
 
 
-def test_update_without_time_frames_makes_frameless(admin_client, senate_2020):
+def test_update_without_time_frames_makes_frameless(
+    admin_client, senate_kind, make_senate
+):
+    senate = make_senate("Senate 2020", "2020-12-21")
+
     response = admin_client.put(
-        institution_url(senate_2020),
-        {"kind": senate_2020.kind_id, "label": "Senate 2020", "size": 136},
+        institution_url(senate),
+        {"kind": senate_kind.id, "label": "Senate 2020", "size": 136},
         content_type=JSON,
     )
 
     assert response.status_code == 200
     assert response.json()["timeFrames"] == []
-    assert frames_of(senate_2020) == []
+    assert frames_of(senate) == []
 
 
-@pytest.mark.usefixtures("senate_2020")
-def test_update_without_time_frames_with_siblings_400(admin_client, senate_2016):
+def test_update_without_time_frames_with_siblings_400(
+    admin_client, senate_kind, make_senate
+):
+    senate_2016 = make_senate("Senate 2016", "2016-12-21", "2020-12-21")
+    make_senate("Senate 2020", "2020-12-21")
+
     response = admin_client.put(
         institution_url(senate_2016),
-        {"kind": senate_2016.kind_id, "label": "Senate 2016", "size": 136},
+        {"kind": senate_kind.id, "label": "Senate 2016", "size": 136},
         content_type=JSON,
     )
 
@@ -1009,13 +1028,14 @@ def test_delete_simulated_institution_409(
     assert Institution.objects.filter(pk=1).exists()
 
 
-def test_delete_deletes_time_frames_and_party_positions(admin_client, senate_2020):
+def test_delete_deletes_time_frames_and_party_positions(admin_client, make_senate):
+    senate = make_senate("Senate 2020", "2020-12-21")
     PartyPosition.objects.create(
-        party_id=1, chamber=senate_2020, position=PartyPositionType.MAJORITY
+        party_id=1, chamber=senate, position=PartyPositionType.MAJORITY
     )
 
-    response = admin_client.delete(institution_url(senate_2020))
+    response = admin_client.delete(institution_url(senate))
 
     assert response.status_code == 204
     assert not TimeFrame.objects.exists()
-    assert not PartyPosition.objects.filter(chamber_id=senate_2020.id).exists()
+    assert not PartyPosition.objects.filter(chamber_id=senate.id).exists()
