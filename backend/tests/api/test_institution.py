@@ -869,12 +869,18 @@ def test_create_sibling_of_frameless_institution_400(admin_client):
     assert not Institution.objects.filter(label="Castex cabinet").exists()
 
 
-def test_create_batch_with_invalid_item_creates_nothing(admin_client, senate_kind):
-    # the second senate overlaps the first one, created earlier in the batch
+def test_create_batch_reports_all_errors_and_creates_nothing(admin_client, senate_kind):
+    # 'Senate 2020' overlaps 'Senate 2016', created earlier in the batch
     response = admin_client.post(
         INSTITUTIONS,
         [
             senate_body(senate_kind, "Senate 2016", frame("2016-12-21", "2021-01-01")),
+            senate_body(
+                senate_kind,
+                "Senate 2012",
+                frame("2012-12-21", "2016-12-21"),
+                payload={"connectivity_degree": 3},
+            ),
             senate_body(senate_kind, "Senate 2020", frame("2020-12-21")),
         ],
         content_type=JSON,
@@ -883,6 +889,7 @@ def test_create_batch_with_invalid_item_creates_nothing(admin_client, senate_kin
     assert response.status_code == 400
     assert response.json() == [
         {},
+        {"payload": ["connectivity_degree: Extra inputs are not permitted"]},
         {
             "time_frames": [
                 {

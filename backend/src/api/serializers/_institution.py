@@ -116,10 +116,13 @@ class InstitutionSerializer(LCCModelSerializer):
     def _occupy_time_frames(self, institution: Institution, frames: list[dict]):
         """Validate and create the time frames of the institution, one at a time."""
 
-        for index, frame in enumerate(frames):
+        errors = []
+        for frame in frames:
             try:
                 TimeFrame.objects.occupy(institution, **frame)
             except DjangoValidationError as e:
-                errors = [{} for _ in frames]
-                errors[index] = {api_settings.NON_FIELD_ERRORS_KEY: e.messages}
-                raise serializers.ValidationError({"time_frames": errors})
+                errors.append({api_settings.NON_FIELD_ERRORS_KEY: e.messages})
+            else:
+                errors.append({})
+        if any(errors):
+            raise serializers.ValidationError({"time_frames": errors})
