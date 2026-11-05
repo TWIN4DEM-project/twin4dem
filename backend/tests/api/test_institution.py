@@ -511,13 +511,19 @@ def test_superuser_gets_other_users_institution(admin_client, user_institution, 
     assert response.status_code == 200
 
 
-def test_superuser_creates_in_other_users_kind(admin_client, user_kind):
+def test_superuser_creates_in_the_country_of_the_kind(admin_client, user_kind):
+    # the body has no country: the institution's country is its kind's, so
+    # Userland's kind cannot be used in Testland
     response = admin_client.post(
-        INSTITUTIONS, cabinet_body(user_kind), content_type=JSON
+        INSTITUTIONS, cabinet_body(user_kind, country=1), content_type=JSON
     )
 
     assert response.status_code == 201
-    assert user_kind.institutions.get().label == "Userland cabinet"
+    institution = user_kind.institutions.get()
+    assert institution.kind.country_id == user_kind.country_id
+    assert not Institution.objects.filter(
+        kind__country_id=1, label="Userland cabinet"
+    ).exists()
 
 
 def test_superuser_updates_other_users_institution(admin_client, user_institution):
