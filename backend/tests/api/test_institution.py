@@ -98,25 +98,10 @@ def cabinet_body(kind: InstitutionKind, **fields) -> dict:
 
 
 @pytest.fixture
-def senate_kind() -> InstitutionKind:
-    """Testland's senate, without institutions."""
-    return InstitutionKind.objects.create(
-        country_id=1,
-        branch=InstitutionBranch.LEGISLATIVE,
-        institution_name="senate",
-    )
-
-
-@pytest.fixture
-def senate_2020(framed_senate) -> Institution:
-    return framed_senate.institutions.get()
-
-
-@pytest.fixture
-def senate_2016(framed_senate) -> Institution:
-    """The predecessor of 'Senate 2020', until 2020-12-21 on all timelines."""
+def senate_2016(senate_kind) -> Institution:
+    """Testland's 'Senate 2016', until 2020-12-21 on all timelines."""
     institution = Institution.objects.create(
-        kind=framed_senate, label="Senate 2016", size=136
+        kind=senate_kind, label="Senate 2016", size=136
     )
     TimeFrame.objects.occupy(
         institution, valid_from=at("2016-12-21"), valid_to=at("2020-12-21")
@@ -545,10 +530,10 @@ def test_superuser_deletes_other_users_institution(admin_client, user_institutio
     assert not Institution.objects.filter(pk=user_institution.pk).exists()
 
 
-def test_create_duplicate_label_400(admin_client, framed_senate):
+def test_create_duplicate_label_400(admin_client, senate_2020):
     response = admin_client.post(
         INSTITUTIONS,
-        senate_body(framed_senate, "Senate 2020", frame("2016-12-21", "2020-12-21")),
+        senate_body(senate_2020.kind, "Senate 2020", frame("2016-12-21", "2020-12-21")),
         content_type=JSON,
     )
 
@@ -558,7 +543,7 @@ def test_create_duplicate_label_400(admin_client, framed_senate):
             "An institution with this label already exists for this kind."
         ]
     }
-    assert framed_senate.institutions.count() == 1
+    assert senate_2020.kind.institutions.count() == 1
 
 
 def test_create_same_label_in_other_kind_success(admin_client, user_kind):
@@ -590,6 +575,7 @@ def test_create_batch_with_duplicate_labels_400(admin_client, senate_kind):
     assert not senate_kind.institutions.exists()
 
 
+@pytest.mark.usefixtures("senate_2020")
 def test_update_duplicate_label_400(admin_client, senate_2016):
     response = admin_client.put(
         institution_url(senate_2016),
@@ -689,21 +675,21 @@ def test_update_kind_400(admin_client):
     assert Institution.objects.get(pk=1).kind_id == 1
 
 
-def test_create_adjacent_time_frame_success(admin_client, framed_senate):
+def test_create_adjacent_time_frame_success(admin_client, senate_2020):
     # time frames end before their valid_to: 'Senate 2020' starts right after
     response = admin_client.post(
         INSTITUTIONS,
-        senate_body(framed_senate, "Senate 2016", frame("2016-12-21", "2020-12-21")),
+        senate_body(senate_2020.kind, "Senate 2016", frame("2016-12-21", "2020-12-21")),
         content_type=JSON,
     )
 
     assert response.status_code == 201
 
 
-def test_create_overlapping_sibling_400(admin_client, framed_senate):
+def test_create_overlapping_sibling_400(admin_client, senate_2020):
     response = admin_client.post(
         INSTITUTIONS,
-        senate_body(framed_senate, "Senate 2016", frame("2016-12-21", "2021-01-01")),
+        senate_body(senate_2020.kind, "Senate 2016", frame("2016-12-21", "2021-01-01")),
         content_type=JSON,
     )
 
@@ -840,10 +826,10 @@ def test_create_frameless_without_siblings_success(admin_client, senate_kind):
     assert not TimeFrame.objects.exists()
 
 
-def test_create_frameless_with_siblings_400(admin_client, framed_senate):
+def test_create_frameless_with_siblings_400(admin_client, senate_2020):
     response = admin_client.post(
         INSTITUTIONS,
-        {"kind": framed_senate.id, "label": "Senate", "size": 136},
+        {"kind": senate_2020.kind_id, "label": "Senate", "size": 136},
         content_type=JSON,
     )
 
@@ -854,7 +840,7 @@ def test_create_frameless_with_siblings_400(admin_client, framed_senate):
             "would overlap the other institutions of the same kind."
         ]
     }
-    assert framed_senate.institutions.count() == 1
+    assert senate_2020.kind.institutions.count() == 1
 
 
 def test_create_sibling_of_frameless_institution_400(admin_client):
@@ -938,6 +924,7 @@ def test_update_replaces_time_frames(admin_client, senate_2020, alternate_timeli
     ]
 
 
+@pytest.mark.usefixtures("senate_2020")
 def test_update_overlapping_sibling_400(admin_client, senate_2016):
     response = admin_client.put(
         institution_url(senate_2016),
@@ -989,6 +976,7 @@ def test_update_without_time_frames_makes_frameless(admin_client, senate_2020):
     assert frames_of(senate_2020) == []
 
 
+@pytest.mark.usefixtures("senate_2020")
 def test_update_without_time_frames_with_siblings_400(admin_client, senate_2016):
     response = admin_client.put(
         institution_url(senate_2016),

@@ -16,7 +16,7 @@ class AllowedCountryField(serializers.PrimaryKeyRelatedField):
         return Country.objects.filter(user_settings__user=user)
 
 
-class KindInstitutionSerializer(InstitutionSerializer):
+class InstitutionListSerializer(InstitutionSerializer):
 
     class Meta(InstitutionSerializer.Meta):
         fields = ["id", "label", "size", "payload", "time_frames"]
@@ -26,7 +26,7 @@ class KindInstitutionSerializer(InstitutionSerializer):
 class InstitutionKindSerializer(LCCModelSerializer):
     name = serializers.CharField(source="institution_name", max_length=100)
     country = AllowedCountryField()
-    institutions = KindInstitutionSerializer(many=True, required=False)
+    institutions = InstitutionListSerializer(many=True, required=False)
 
     class Meta:
         model = InstitutionKind

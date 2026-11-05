@@ -134,12 +134,11 @@ def psd() -> Party:
 
 
 @pytest.fixture
-def senate() -> Institution:
+def senate(senate_kind) -> Institution:
     """A second Testland chamber, without positions."""
-    kind = InstitutionKind.objects.create(
-        country_id=1, branch=InstitutionBranch.LEGISLATIVE, institution_name="senate"
+    return Institution.objects.create(
+        kind=senate_kind, label="Testland senate", size=136
     )
-    return Institution.objects.create(kind=kind, label="Testland senate", size=136)
 
 
 @pytest.fixture

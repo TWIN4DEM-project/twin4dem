@@ -798,11 +798,11 @@ def test_update_duplicate_name_400(admin_client):
     assert InstitutionKind.objects.get(pk=1).institution_name == "government"
 
 
-def test_delete_deletes_institutions_and_time_frames(admin_client, framed_senate):
-    response = admin_client.delete(kind_url(framed_senate))
+def test_delete_deletes_institutions_and_time_frames(admin_client, senate_2020):
+    response = admin_client.delete(kind_url(senate_2020.kind))
 
     assert response.status_code == 204
-    assert not Institution.objects.filter(kind_id=framed_senate.id).exists()
+    assert not Institution.objects.filter(kind_id=senate_2020.kind_id).exists()
     assert not TimeFrame.objects.exists()
 
 

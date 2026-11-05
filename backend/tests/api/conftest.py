@@ -41,16 +41,23 @@ def user_kind(userland) -> InstitutionKind:
 
 
 @pytest.fixture
-def framed_senate() -> InstitutionKind:
-    """Testland's senate, with 'Senate 2020' from 2020-12-21 on all timelines."""
-    kind = InstitutionKind.objects.create(
+def senate_kind() -> InstitutionKind:
+    """Testland's senate, without institutions."""
+    return InstitutionKind.objects.create(
         country_id=1,
         branch=InstitutionBranch.LEGISLATIVE,
         institution_name="senate",
     )
-    institution = Institution.objects.create(kind=kind, label="Senate 2020", size=136)
+
+
+@pytest.fixture
+def senate_2020(senate_kind) -> Institution:
+    """Testland's 'Senate 2020', from 2020-12-21 on all timelines."""
+    institution = Institution.objects.create(
+        kind=senate_kind, label="Senate 2020", size=136
+    )
     TimeFrame.objects.occupy(institution, valid_from=datetime(2020, 12, 21, tzinfo=UTC))
-    return kind
+    return institution
 
 
 @pytest.fixture
