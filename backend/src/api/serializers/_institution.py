@@ -80,35 +80,18 @@ class TimeFrameSerializer(LCCModelSerializer):
         return attrs
 
 
-class InstitutionSerializer(LCCModelSerializer):
-    country = InstitutionCountryField()
-    kind = AllowedInstitutionKindField()
+class BaseInstitutionSerializer(LCCModelSerializer):
     payload = serializers.JSONField(default=dict)
     time_frames = TimeFrameSerializer(many=True, required=False)
 
     class Meta:
         model = Institution
-        fields = ["id", "country", "kind", "label", "size", "payload", "time_frames"]
+        fields = ["id", "label", "size", "payload", "time_frames"]
         list_serializer_class = BatchListSerializer
-        validators = [
-            UniqueTogetherValidator(
-                queryset=Institution.objects.all(),
-                fields=["kind", "label"],
-                message="An institution with this label already exists for this kind.",
-            )
-        ]
-
-    def validate_kind(self, value):
-        if self.instance is not None and value != self.instance.kind:
-            raise serializers.ValidationError(
-                "The kind of an institution cannot be changed."
-            )
-        return value
 
     @transaction.atomic
     def create(self, validated_data):
         frames = validated_data.pop("time_frames", [])
-        validated_data.pop("country", None)
         institution = Institution(**validated_data)
         self._clean(institution, frames)
         institution.save()
@@ -118,7 +101,6 @@ class InstitutionSerializer(LCCModelSerializer):
     @transaction.atomic
     def update(self, instance, validated_data):
         frames = validated_data.pop("time_frames", [])
-        validated_data.pop("country", None)
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         self._clean(instance, frames)
@@ -160,3 +142,32 @@ class InstitutionSerializer(LCCModelSerializer):
                 errors.append({})
         if any(errors):
             raise serializers.ValidationError({"time_frames": errors})
+
+class InstitutionSerializer(BaseInstitutionSerializer):
+    country = InstitutionCountryField()
+    kind = AllowedInstitutionKindField()
+
+    class Meta(BaseInstitutionSerializer.Meta):
+        fields = ["id", "country", "kind", "label", "size", "payload", "time_frames"]
+        validators = [
+            UniqueTogetherValidator(
+                queryset=Institution.objects.all(),
+                fields=["kind", "label"],
+                message="An institution with this label already exists for this kind.",
+            )
+        ]
+
+    def validate_kind(self, value):
+        if self.instance is not None and value != self.instance.kind:
+            raise serializers.ValidationError(
+                "The kind of an institution cannot be changed."
+            )
+        return value
+
+    def create(self, validated_data):
+        validated_data.pop("country")
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        validated_data.pop("country")
+        return super().update(instance, validated_data)

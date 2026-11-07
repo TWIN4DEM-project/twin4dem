@@ -5,20 +5,13 @@ from rest_framework.validators import UniqueTogetherValidator
 from common.models import InstitutionKind
 
 from ._base import LCCModelSerializer
-from ._institution import AllowedCountryField, InstitutionSerializer
-
-
-class InstitutionListSerializer(InstitutionSerializer):
-
-    class Meta(InstitutionSerializer.Meta):
-        fields = ["id", "label", "size", "payload", "time_frames"]
-        validators = []
+from ._institution import AllowedCountryField, BaseInstitutionSerializer
 
 
 class InstitutionKindSerializer(LCCModelSerializer):
     name = serializers.CharField(source="institution_name", max_length=100)
     country = AllowedCountryField()
-    institutions = InstitutionListSerializer(many=True, required=False)
+    institutions = BaseInstitutionSerializer(many=True, required=False)
 
     class Meta:
         model = InstitutionKind
