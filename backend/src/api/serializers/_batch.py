@@ -3,6 +3,10 @@ from rest_framework import serializers
 
 
 class BatchListSerializer(serializers.ListSerializer):
+    def run_child_validation(self, data):
+        self.child.initial_data = data
+        return super().run_child_validation(data)
+
     @transaction.atomic
     def create(self, validated_data):
         items, errors = [], []

@@ -25,12 +25,29 @@ class AllowedCountryField(serializers.PrimaryKeyRelatedField):
         return Country.objects.filter(user_settings__user=user)
 
 
+class InstitutionCountryField(AllowedCountryField):
+    def get_attribute(self, instance):
+        return instance.kind.country
+
+
 class AllowedInstitutionKindField(serializers.PrimaryKeyRelatedField):
+    """
+    The kinds supported by the `country` given next to the kind, for superusers
+    too. The country goes through its own field, which limits it to the user's
+    countries.
+    """
+
+    default_error_messages = {
+        "does_not_exist": "The institution's country does not support this kind.",
+    }
+
     def get_queryset(self):
-        user = self.context["request"].user
-        if user.is_superuser:
-            return InstitutionKind.objects.all()
-        return InstitutionKind.objects.filter(country__user_settings__user=user)
+        data = getattr(self.parent, "initial_data", {})
+        try:
+            country = self.parent.fields["country"].run_validation(data.get("country"))
+        except serializers.ValidationError:
+            return InstitutionKind.objects.none()
+        return InstitutionKind.objects.filter(country=country)
 
 
 class AllowedTimelineField(serializers.PrimaryKeyRelatedField):
@@ -64,7 +81,7 @@ class TimeFrameSerializer(LCCModelSerializer):
 
 
 class InstitutionSerializer(LCCModelSerializer):
-    country = AllowedCountryField()
+    country = InstitutionCountryField()
     kind = AllowedInstitutionKindField()
     payload = serializers.JSONField(default=dict)
     time_frames = TimeFrameSerializer(many=True, required=False)
@@ -87,16 +104,6 @@ class InstitutionSerializer(LCCModelSerializer):
                 "The kind of an institution cannot be changed."
             )
         return value
-
-    def validate(self, attrs):
-        kind, country = attrs.get("kind"), attrs.get("country")
-        if kind is not None and country is not None and kind.country_id != country.id:
-            raise serializers.ValidationError(
-                {
-                    "kind": "The institution kind must belong to the institution's country."
-                }
-            )
-        return attrs
 
     @transaction.atomic
     def create(self, validated_data):

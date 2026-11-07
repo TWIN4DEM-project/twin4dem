@@ -454,7 +454,7 @@ def test_create_in_other_users_kind_400(user_client):
     assert response.status_code == 400
     assert response.json() == {
         "country": ['Invalid pk "1" - object does not exist.'],
-        "kind": ['Invalid pk "1" - object does not exist.'],
+        "kind": ["The institution's country does not support this kind."],
     }
     assert not Institution.objects.filter(label="Castex cabinet").exists()
 
@@ -487,7 +487,7 @@ def test_create_batch_with_other_users_kind_400(user_client, user_kind):
         {},
         {
             "country": ['Invalid pk "1" - object does not exist.'],
-            "kind": ['Invalid pk "1" - object does not exist.'],
+            "kind": ["The institution's country does not support this kind."],
         },
     ]
     assert not user_kind.institutions.exists()
@@ -523,7 +523,7 @@ def test_superuser_creates_with_kind_of_other_country_400(admin_client, user_kin
 
     assert response.status_code == 400
     assert response.json() == {
-        "kind": ["The institution kind must belong to the institution's country."]
+        "kind": ["The institution's country does not support this kind."]
     }
     assert not Institution.objects.filter(label="Castex cabinet").exists()
 
