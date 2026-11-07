@@ -6,6 +6,7 @@ from django.db import models
 from pydantic import BaseModel, ConfigDict, Field
 
 from ..timeline import TimeFrameMixin, TimeFrameSubjectType
+from ..world import Country
 from ._branch import InstitutionBranch
 from ._kind import InstitutionKind
 
@@ -55,6 +56,10 @@ class Institution(TimeFrameMixin):
 
     def __str__(self):
         return f"{self.label}(id={self.id},kind={self.kind.institution_name})"
+
+    @property
+    def country(self) -> Country:
+        return self.kind.country
 
     @property
     def payload_schema(self) -> type[InstitutionPayload] | None:

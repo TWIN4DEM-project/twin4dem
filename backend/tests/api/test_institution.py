@@ -52,7 +52,13 @@ def frames_of(institution: Institution) -> list[tuple]:
 
 def government_body(**fields) -> dict:
     """The body of Testland's government, as in the fixture."""
-    return {"kind": 1, "label": "Testland government", "size": 15, **fields}
+    return {
+        "country": 1,
+        "kind": 1,
+        "label": "Testland government",
+        "size": 15,
+        **fields,
+    }
 
 
 def government_json(**fields) -> dict:
@@ -71,6 +77,7 @@ def senate_body(
 ) -> dict:
     """The body of a senate of `kind`, frameless when no time frame is given."""
     return {
+        "country": kind.country_id,
         "kind": kind.id,
         "label": label,
         "size": 136,
@@ -83,6 +90,7 @@ def senate_json(institution: Institution, *time_frames: dict, **fields) -> dict:
     """A senate as returned by the API."""
     return {
         "id": institution.id,
+        "country": institution.kind.country_id,
         "kind": institution.kind_id,
         "label": institution.label,
         "size": 136,
@@ -94,7 +102,13 @@ def senate_json(institution: Institution, *time_frames: dict, **fields) -> dict:
 
 def cabinet_body(kind: InstitutionKind, **fields) -> dict:
     """The body of a frameless cabinet of `kind`."""
-    return {"kind": kind.id, "label": "Userland cabinet", "size": 10, **fields}
+    return {
+        "country": kind.country_id,
+        "kind": kind.id,
+        "label": "Userland cabinet",
+        "size": 10,
+        **fields,
+    }
 
 
 @pytest.fixture
@@ -164,6 +178,7 @@ def test_create_without_data_400(admin_client):
 
     assert response.status_code == 400
     assert response.json() == {
+        "country": ["This field is required."],
         "kind": ["This field is required."],
         "label": ["This field is required."],
         "size": ["This field is required."],
@@ -323,6 +338,7 @@ def test_list_without_permissions_shows_own_institutions(user_client, user_insti
     assert response.json() == [
         {
             "id": user_institution.id,
+            "country": user_institution.kind.country_id,
             "kind": user_institution.kind_id,
             "label": "Userland cabinet",
             "size": 10,
@@ -436,7 +452,10 @@ def test_create_in_other_users_kind_400(user_client):
     )
 
     assert response.status_code == 400
-    assert response.json() == {"kind": ['Invalid pk "1" - object does not exist.']}
+    assert response.json() == {
+        "country": ['Invalid pk "1" - object does not exist.'],
+        "kind": ['Invalid pk "1" - object does not exist.'],
+    }
     assert not Institution.objects.filter(label="Castex cabinet").exists()
 
 
@@ -466,7 +485,10 @@ def test_create_batch_with_other_users_kind_400(user_client, user_kind):
     assert response.status_code == 400
     assert response.json() == [
         {},
-        {"kind": ['Invalid pk "1" - object does not exist.']},
+        {
+            "country": ['Invalid pk "1" - object does not exist.'],
+            "kind": ['Invalid pk "1" - object does not exist.'],
+        },
     ]
     assert not user_kind.institutions.exists()
 
@@ -490,19 +512,20 @@ def test_superuser_gets_other_users_institution(admin_client, user_institution, 
     assert response.status_code == 200
 
 
-def test_superuser_creates_in_the_country_of_the_kind(admin_client, user_kind):
-    # the body has no country: the institution's country is its kind's, so
-    # Userland's kind cannot be used in Testland
+def test_superuser_creates_with_kind_of_other_country_400(admin_client, user_kind):
+    # Testland has the 'government' kind, Userland the 'cabinet' kind: an
+    # institution of Userland with Testland's 'government' kind
     response = admin_client.post(
-        INSTITUTIONS, cabinet_body(user_kind, country=1), content_type=JSON
+        INSTITUTIONS,
+        government_body(label="Castex cabinet", country=user_kind.country_id),
+        content_type=JSON,
     )
 
-    assert response.status_code == 201
-    institution = user_kind.institutions.get()
-    assert institution.kind.country_id == user_kind.country_id
-    assert not Institution.objects.filter(
-        kind__country_id=1, label="Userland cabinet"
-    ).exists()
+    assert response.status_code == 400
+    assert response.json() == {
+        "kind": ["The institution kind must belong to the institution's country."]
+    }
+    assert not Institution.objects.filter(label="Castex cabinet").exists()
 
 
 def test_superuser_updates_other_users_institution(admin_client, user_institution):
@@ -605,7 +628,9 @@ def test_create_fills_payload_defaults_of_branch(admin_client, branch, payload):
     )
 
     response = admin_client.post(
-        INSTITUTIONS, {"kind": kind.id, "label": "New", "size": 1}, content_type=JSON
+        INSTITUTIONS,
+        {"country": 1, "kind": kind.id, "label": "New", "size": 1},
+        content_type=JSON,
     )
 
     assert response.status_code == 201
@@ -833,7 +858,12 @@ def test_create_frameless_with_siblings_400(admin_client, senate_kind, make_sena
 
     response = admin_client.post(
         INSTITUTIONS,
-        {"kind": senate_kind.id, "label": "Senate", "size": 136},
+        {
+            "country": senate_kind.country_id,
+            "kind": senate_kind.id,
+            "label": "Senate",
+            "size": 136,
+        },
         content_type=JSON,
     )
 
@@ -982,7 +1012,12 @@ def test_update_without_time_frames_makes_frameless(
 
     response = admin_client.put(
         institution_url(senate),
-        {"kind": senate_kind.id, "label": "Senate 2020", "size": 136},
+        {
+            "country": senate_kind.country_id,
+            "kind": senate_kind.id,
+            "label": "Senate 2020",
+            "size": 136,
+        },
         content_type=JSON,
     )
 
@@ -999,7 +1034,12 @@ def test_update_without_time_frames_with_siblings_400(
 
     response = admin_client.put(
         institution_url(senate_2016),
-        {"kind": senate_kind.id, "label": "Senate 2016", "size": 136},
+        {
+            "country": senate_kind.country_id,
+            "kind": senate_kind.id,
+            "label": "Senate 2016",
+            "size": 136,
+        },
         content_type=JSON,
     )
 

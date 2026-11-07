@@ -5,10 +5,24 @@ from rest_framework import serializers
 from rest_framework.settings import api_settings
 from rest_framework.validators import UniqueTogetherValidator
 
-from common.models import Institution, InstitutionKind, TimeFrame, VirtualTimeline
+from common.models import (
+    Country,
+    Institution,
+    InstitutionKind,
+    TimeFrame,
+    VirtualTimeline,
+)
 
 from ._base import LCCModelSerializer
 from ._batch import BatchListSerializer
+
+
+class AllowedCountryField(serializers.PrimaryKeyRelatedField):
+    def get_queryset(self):
+        user = self.context["request"].user
+        if user.is_superuser:
+            return Country.objects.all()
+        return Country.objects.filter(user_settings__user=user)
 
 
 class AllowedInstitutionKindField(serializers.PrimaryKeyRelatedField):
@@ -50,13 +64,14 @@ class TimeFrameSerializer(LCCModelSerializer):
 
 
 class InstitutionSerializer(LCCModelSerializer):
+    country = AllowedCountryField()
     kind = AllowedInstitutionKindField()
     payload = serializers.JSONField(default=dict)
     time_frames = TimeFrameSerializer(many=True, required=False)
 
     class Meta:
         model = Institution
-        fields = ["id", "kind", "label", "size", "payload", "time_frames"]
+        fields = ["id", "country", "kind", "label", "size", "payload", "time_frames"]
         list_serializer_class = BatchListSerializer
         validators = [
             UniqueTogetherValidator(
@@ -73,9 +88,20 @@ class InstitutionSerializer(LCCModelSerializer):
             )
         return value
 
+    def validate(self, attrs):
+        kind, country = attrs.get("kind"), attrs.get("country")
+        if kind is not None and country is not None and kind.country_id != country.id:
+            raise serializers.ValidationError(
+                {
+                    "kind": "The institution kind must belong to the institution's country."
+                }
+            )
+        return attrs
+
     @transaction.atomic
     def create(self, validated_data):
         frames = validated_data.pop("time_frames", [])
+        validated_data.pop("country", None)
         institution = Institution(**validated_data)
         self._clean(institution, frames)
         institution.save()
@@ -85,6 +111,7 @@ class InstitutionSerializer(LCCModelSerializer):
     @transaction.atomic
     def update(self, instance, validated_data):
         frames = validated_data.pop("time_frames", [])
+        validated_data.pop("country", None)
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         self._clean(instance, frames)

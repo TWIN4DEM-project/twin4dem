@@ -2,18 +2,10 @@ from django.db import transaction
 from rest_framework import serializers
 from rest_framework.validators import UniqueTogetherValidator
 
-from common.models import Country, InstitutionKind
+from common.models import InstitutionKind
 
 from ._base import LCCModelSerializer
-from ._institution import InstitutionSerializer
-
-
-class AllowedCountryField(serializers.PrimaryKeyRelatedField):
-    def get_queryset(self):
-        user = self.context["request"].user
-        if user.is_superuser:
-            return Country.objects.all()
-        return Country.objects.filter(user_settings__user=user)
+from ._institution import AllowedCountryField, InstitutionSerializer
 
 
 class InstitutionListSerializer(InstitutionSerializer):
