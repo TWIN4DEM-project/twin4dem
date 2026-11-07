@@ -6,6 +6,7 @@ from rest_framework.settings import api_settings
 from common.models import Institution, Party, PartyPosition, TimeFrame
 
 from ._base import LCCModelSerializer
+from ._batch import BatchListSerializer
 from ._institution import AllowedTimelineField
 
 
@@ -23,21 +24,6 @@ class AllowedChamberField(serializers.PrimaryKeyRelatedField):
         if user.is_superuser:
             return Institution.objects.all()
         return Institution.objects.filter(kind__country__user_settings__user=user)
-
-
-class PartyPositionListSerializer(serializers.ListSerializer):
-    @transaction.atomic
-    def create(self, validated_data):
-
-        positions = []
-        for index, attrs in enumerate(validated_data):
-            try:
-                positions.append(self.child.create(attrs))
-            except serializers.ValidationError as e:
-                errors = [{} for _ in validated_data]
-                errors[index] = e.detail
-                raise serializers.ValidationError(errors)
-        return positions
 
 
 class PartyPositionSerializer(LCCModelSerializer):
@@ -60,7 +46,7 @@ class PartyPositionSerializer(LCCModelSerializer):
             "valid_from",
             "valid_to",
         ]
-        list_serializer_class = PartyPositionListSerializer
+        list_serializer_class = BatchListSerializer
 
     def validate_party(self, value):
         if self.instance is not None and value != self.instance.party:

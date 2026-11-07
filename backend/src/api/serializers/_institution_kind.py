@@ -2,24 +2,16 @@ from django.db import transaction
 from rest_framework import serializers
 from rest_framework.validators import UniqueTogetherValidator
 
-from common.models import Country, InstitutionKind
+from common.models import InstitutionKind
 
 from ._base import LCCModelSerializer
-from ._institution import InstitutionSerializer
-
-
-class AllowedCountryField(serializers.PrimaryKeyRelatedField):
-    def get_queryset(self):
-        user = self.context["request"].user
-        if user.is_superuser:
-            return Country.objects.all()
-        return Country.objects.filter(user_settings__user=user)
+from ._institution import AllowedCountryField, BaseInstitutionSerializer
 
 
 class InstitutionKindSerializer(LCCModelSerializer):
     name = serializers.CharField(source="institution_name", max_length=100)
     country = AllowedCountryField()
-    institutions = InstitutionSerializer(many=True, required=False)
+    institutions = BaseInstitutionSerializer(many=True, required=False)
 
     class Meta:
         model = InstitutionKind
@@ -64,11 +56,11 @@ class InstitutionKindSerializer(LCCModelSerializer):
     def create(self, validated_data):
         institutions = validated_data.pop("institutions", [])
         kind = super().create(validated_data)
-        institution_serializer = self.fields["institutions"].child
-        for index, data in enumerate(institutions):
-            try:
-                institution_serializer.create({**data, "kind": kind})
-            except serializers.ValidationError as e:
-                # raised inside the atomic block: the kind is rolled back too
-                raise serializers.ValidationError({"institutions": {index: e.detail}})
+        try:
+            self.fields["institutions"].create(
+                [{**data, "kind": kind} for data in institutions]
+            )
+        except serializers.ValidationError as e:
+            # raised inside the atomic block: the kind is rolled back too
+            raise serializers.ValidationError({"institutions": e.detail})
         return kind
