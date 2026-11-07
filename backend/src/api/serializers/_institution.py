@@ -143,6 +143,7 @@ class BaseInstitutionSerializer(LCCModelSerializer):
         if any(errors):
             raise serializers.ValidationError({"time_frames": errors})
 
+
 class InstitutionSerializer(BaseInstitutionSerializer):
     country = InstitutionCountryField()
     kind = AllowedInstitutionKindField()
