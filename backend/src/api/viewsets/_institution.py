@@ -31,7 +31,9 @@ class InstitutionViewSet(BatchCreateMixin, viewsets.ModelViewSet):
     http_method_names = ["get", "head", "post", "put", "delete"]
 
     def get_queryset(self):
-        institutions = Institution.objects.order_by("id")
+        institutions = Institution.objects.select_related("kind__country").order_by(
+            "id"
+        )
         if not self.request.user.is_superuser:
             institutions = institutions.filter(
                 kind__country__user_settings__user=self.request.user
