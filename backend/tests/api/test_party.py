@@ -7,12 +7,17 @@ from django.urls import reverse
 from rest_framework.exceptions import NotAuthenticated, PermissionDenied
 
 from common.models import (
+    Country,
     Institution,
+    InstitutionBranch,
+    InstitutionKind,
     Party,
     PartyPosition,
     PartyPositionType,
     Simulation,
     TimeFrame,
+    VirtualTimeline,
+    is_active,
 )
 
 pytestmark = pytest.mark.django_db
@@ -37,6 +42,29 @@ def put(client, pk: int, data):
 def at(year: int) -> datetime:
     """The start of `year`, as stored in a time frame."""
     return datetime(year, 1, 1, tzinfo=UTC)
+
+
+def dt(year: int) -> str:
+    """The start of `year`, as sent to the API."""
+    return at(year).isoformat().replace("+00:00", "Z")
+
+
+def position_body(position: str = PartyPositionType.MAJORITY, **fields) -> dict:
+    """A nested position, frameless when no time frame is given."""
+    return {"position": position, **fields}
+
+
+def frames_of(position: PartyPosition) -> list[tuple]:
+    return list(TimeFrame.objects.of(position).values_list("valid_from", "valid_to"))
+
+
+def overlap(position: str, interval: str) -> dict:
+    """The error of a time frame overlapping a `position` of PSD."""
+    return {
+        "non_field_errors": [
+            f"Overlaps with 'PSD' ({position}) {interval} on all timelines."
+        ]
+    }
 
 
 def party_json(
@@ -81,6 +109,29 @@ def majority_party() -> Party:
 def parliament() -> Institution:
     """Testland's chamber, holding the frameless positions of its parties."""
     return Institution.objects.get(pk=2)
+
+
+@pytest.fixture
+def government() -> Institution:
+    """Testland's executive institution."""
+    return Institution.objects.get(pk=1)
+
+
+@pytest.fixture
+def foreign_chamber(test_settings) -> Institution:
+    """A chamber of another country in the same settings as Testland."""
+    otherland = Country.objects.create(user_settings=test_settings, name="Otherland")
+    kind = InstitutionKind.objects.create(
+        country=otherland,
+        branch=InstitutionBranch.LEGISLATIVE,
+        institution_name="parliament",
+    )
+    return Institution.objects.create(kind=kind, label="Otherland parliament", size=50)
+
+
+@pytest.fixture
+def default_timeline(test_settings) -> VirtualTimeline:
+    return test_settings.timelines.get(label=VirtualTimeline.DEFAULT_LABEL)
 
 
 @pytest.fixture
@@ -233,6 +284,142 @@ def test_create_batch_400(admin_client):
     assert not Party.objects.filter(label="PNL").exists()
 
 
+def test_create_with_positions_success(admin_client, parliament):
+    response = post(
+        admin_client,
+        {
+            "country": 1,
+            "label": "PSD",
+            "positions": [
+                position_body(
+                    chamber=parliament.id, validFrom=dt(2020), validTo=dt(2099)
+                ),
+                position_body("opposition", chamber=parliament.id, validFrom=dt(2099)),
+            ],
+        },
+    )
+
+    assert response.status_code == 201
+    party = Party.objects.get(label="PSD")
+    assert response.json() == party_json(
+        party.id, 1, "PSD", latest="opposition", active="majority"
+    )
+    majority, opposition = party.positions.order_by("id")
+    assert (majority.position, majority.chamber) == ("majority", parliament)
+    assert frames_of(majority) == [(at(2020), at(2099))]
+    assert (opposition.position, opposition.chamber) == ("opposition", parliament)
+    assert frames_of(opposition) == [(at(2099), None)]
+
+
+def test_create_with_position_on_a_timeline(
+    admin_client, default_timeline, alternate_timeline
+):
+    response = post(
+        admin_client,
+        {
+            "country": 1,
+            "label": "PSD",
+            "positions": [
+                position_body(timeline=alternate_timeline.id, validFrom=dt(2020))
+            ],
+        },
+    )
+
+    assert response.status_code == 201
+    position = Party.objects.get(label="PSD").positions.get()
+    assert not is_active(position, default_timeline, at(2021))
+    assert is_active(position, alternate_timeline, at(2021))
+
+
+def test_create_with_empty_positions_success(admin_client):
+    response = post(admin_client, {"country": 1, "label": "PSD", "positions": []})
+
+    assert response.status_code == 201
+    assert not Party.objects.get(label="PSD").positions.exists()
+
+
+def test_create_with_invalid_position_400_creates_nothing(admin_client):
+    response = post(
+        admin_client,
+        {
+            "country": 1,
+            "label": "PSD",
+            "positions": [position_body(), position_body("leader")],
+        },
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "positions": [{}, {"position": ['"leader" is not a valid choice.']}]
+    }
+    assert not Party.objects.filter(label="PSD").exists()
+
+
+def test_create_with_overlapping_positions_400_creates_nothing(admin_client):
+    response = post(
+        admin_client,
+        {
+            "country": 1,
+            "label": "PSD",
+            "positions": [
+                position_body(validFrom=dt(2020)),
+                position_body("opposition", validFrom=dt(2024)),
+            ],
+        },
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "positions": [{}, overlap("majority", "[2020-01-01, +inf)")]
+    }
+    assert not Party.objects.filter(label="PSD").exists()
+    assert not PartyPosition.objects.filter(party__label="PSD").exists()
+    assert not TimeFrame.objects.exists()
+
+
+@pytest.mark.parametrize(
+    "institution, message",
+    [
+        ("government", "Party positions can only be held in a chamber."),
+        ("foreign_chamber", "The chamber must belong to the party's country."),
+    ],
+)
+def test_create_with_position_outside_the_party_chambers_400(
+    request, admin_client, institution, message
+):
+    chamber = request.getfixturevalue(institution)
+
+    response = post(
+        admin_client,
+        {
+            "country": 1,
+            "label": "PSD",
+            "positions": [position_body(chamber=chamber.id)],
+        },
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {"positions": [{"chamber": [message]}]}
+    assert not Party.objects.filter(label="PSD").exists()
+
+
+def test_create_with_time_frame_ending_before_start_400(admin_client):
+    response = post(
+        admin_client,
+        {
+            "country": 1,
+            "label": "PSD",
+            "positions": [position_body(validFrom=dt(2024), validTo=dt(2020))],
+        },
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "positions": [{"valid_to": ["The time frame must end after it starts."]}]
+    }
+    assert not Party.objects.filter(label="PSD").exists()
+
+
 def test_update_label_success(admin_client, majority_party):
     response = put(admin_client, majority_party.id, {"country": 1, "label": "PSD"})
 
@@ -284,6 +471,19 @@ def test_update_to_duplicate_label_400(admin_client, majority_party):
     }
     majority_party.refresh_from_db()
     assert majority_party.label == "majority"
+
+
+def test_update_with_positions_400(admin_client, majority_party):
+    response = put(
+        admin_client,
+        majority_party.id,
+        {"country": 1, "label": "majority", "positions": []},
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "positions": ["Positions can only be created together with their party."]
+    }
 
 
 def test_patch_not_allowed(admin_client, majority_party):
@@ -422,6 +622,69 @@ def test_create_in_other_users_country_400(user_client):
 
     assert response.status_code == 400
     assert response.json() == {"country": ['Invalid pk "1" - object does not exist.']}
+    assert not Party.objects.filter(label="PNL").exists()
+
+
+@pytest.mark.parametrize(
+    "user_client, positions, status",
+    [
+        (["add_party"], [], 201),
+        (["add_party"], [position_body()], 403),
+        (["add_partyposition"], [], 403),
+        (["add_partyposition"], [position_body()], 403),
+        (["add_party", "add_partyposition"], [position_body()], 201),
+    ],
+    indirect=["user_client"],
+)
+def test_create_with_positions_requires_both_add_permissions(
+    user_client, userland, positions, status
+):
+    response = post(
+        user_client, {"country": userland.id, "label": "PNL", "positions": positions}
+    )
+
+    assert response.status_code == status
+    created = Party.objects.filter(label="PNL").exists()
+    assert created == (status == 201)
+
+
+@pytest.mark.parametrize("user_client", [["add_party"]], indirect=True)
+def test_create_with_positions_without_add_partyposition_forbidden(
+    user_client, userland
+):
+    response = post(
+        user_client,
+        {"country": userland.id, "label": "PNL", "positions": [position_body()]},
+    )
+
+    assert response.status_code == 403
+    assert response.json() == {
+        "detail": "Creating positions also requires the permission to add party "
+        "positions."
+    }
+
+
+@pytest.mark.parametrize(
+    "user_client", [["add_party", "add_partyposition"]], indirect=True
+)
+def test_create_with_position_in_other_users_chamber_400(
+    user_client, userland, parliament
+):
+    response = post(
+        user_client,
+        {
+            "country": userland.id,
+            "label": "PNL",
+            "positions": [position_body(chamber=parliament.id)],
+        },
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "positions": [
+            {"chamber": [f'Invalid pk "{parliament.id}" - object does not exist.']}
+        ]
+    }
     assert not Party.objects.filter(label="PNL").exists()
 
 

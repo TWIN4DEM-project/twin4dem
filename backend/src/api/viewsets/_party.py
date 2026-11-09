@@ -12,11 +12,23 @@ class PartyInUse(APIException):
     default_detail = "The party has agents in simulations and cannot be deleted."
 
 
+class CanAddNestedPositions(permissions.BasePermission):
+    message = "Creating positions also requires the permission to add party positions."
+
+    def has_permission(self, request, view):
+        if request.method != "POST" or not isinstance(request.data, dict):
+            return True
+        if not request.data.get("positions"):
+            return True
+        return request.user.has_perm("common.add_partyposition")
+
+
 class PartyViewSet(viewsets.ModelViewSet):
     serializer_class = PartySerializer
     permission_classes = [
         permissions.IsAuthenticated,
         permissions.DjangoModelPermissions,
+        CanAddNestedPositions,
     ]
     http_method_names = ["get", "head", "post", "put", "delete"]
 

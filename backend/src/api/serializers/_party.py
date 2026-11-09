@@ -3,7 +3,7 @@ from collections.abc import Sequence
 from datetime import datetime
 from typing import NamedTuple
 
-from django.db import models
+from django.db import models, transaction
 from django.utils import timezone
 from rest_framework import serializers
 from rest_framework.validators import UniqueTogetherValidator
@@ -12,6 +12,7 @@ from common.models import Party, PartyPosition, TimeFrame, TimeFrameSubjectType
 
 from ._base import LCCModelSerializer
 from ._institution import AllowedCountryField
+from ._party_position import BasePartyPositionSerializer
 
 
 class PositionSummary(NamedTuple):
@@ -81,10 +82,11 @@ class PartyListSerializer(serializers.ListSerializer):
 
 class PartySerializer(LCCModelSerializer):
     country = AllowedCountryField()
+    positions = BasePartyPositionSerializer(many=True, required=False, write_only=True)
 
     class Meta:
         model = Party
-        fields = ["id", "country", "label"]
+        fields = ["id", "country", "label", "positions"]
         list_serializer_class = PartyListSerializer
         validators = [
             UniqueTogetherValidator(
@@ -100,6 +102,30 @@ class PartySerializer(LCCModelSerializer):
                 "A party cannot be moved to another country."
             )
         return value
+
+    def validate(self, attrs):
+        if self.instance is not None and "positions" in attrs:
+            raise serializers.ValidationError(
+                {
+                    "positions": (
+                        "Positions can only be created together with their party."
+                    )
+                }
+            )
+        return attrs
+
+    @transaction.atomic
+    def create(self, validated_data):
+        positions = validated_data.pop("positions", [])
+        party = super().create(validated_data)
+        try:
+            self.fields["positions"].create(
+                [{**data, "party": party} for data in positions]
+            )
+        except serializers.ValidationError as e:
+            # raised inside the atomic block: the party is rolled back too
+            raise serializers.ValidationError({"positions": e.detail})
+        return party
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
