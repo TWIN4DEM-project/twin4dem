@@ -3,7 +3,15 @@ from collections.abc import Sequence
 from datetime import datetime
 from typing import NamedTuple
 
+from django.db import models
+from django.utils import timezone
+from rest_framework import serializers
+from rest_framework.validators import UniqueTogetherValidator
+
 from common.models import Party, PartyPosition, TimeFrame, TimeFrameSubjectType
+
+from ._base import LCCModelSerializer
+from ._institution import AllowedCountryField
 
 
 class PositionSummary(NamedTuple):
@@ -59,3 +67,46 @@ def position_summaries(
             latest=_newest(own, ends), active=_newest(active, covering_ends)
         )
     return summaries
+
+
+class PartyListSerializer(serializers.ListSerializer):
+    def to_representation(self, data):
+        """Find the positions of all the parties at once, for their children."""
+        parties = list(
+            data.all() if isinstance(data, models.manager.BaseManager) else data
+        )
+        self.summaries = position_summaries(parties, timezone.now())
+        return super().to_representation(parties)
+
+
+class PartySerializer(LCCModelSerializer):
+    country = AllowedCountryField()
+
+    class Meta:
+        model = Party
+        fields = ["id", "country", "label"]
+        list_serializer_class = PartyListSerializer
+        validators = [
+            UniqueTogetherValidator(
+                queryset=Party.objects.all(),
+                fields=["country", "label"],
+                message="A party with this label already exists in this country.",
+            )
+        ]
+
+    def validate_country(self, value):
+        if self.instance is not None and value != self.instance.country:
+            raise serializers.ValidationError(
+                "A party cannot be moved to another country."
+            )
+        return value
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        summaries = getattr(self.parent, "summaries", None)
+        if summaries is None:
+            summaries = position_summaries([instance], timezone.now())
+        latest, active = summaries[instance.pk]
+        data["latestPosition"] = latest.position if latest else None
+        data["activePosition"] = active.position if active else None
+        return data
