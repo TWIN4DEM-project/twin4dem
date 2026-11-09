@@ -107,6 +107,7 @@ class BasePartyPositionSerializer(LCCModelSerializer):
                 {api_settings.NON_FIELD_ERRORS_KEY: e.messages}
             )
 
+
 class PartyPositionSerializer(BasePartyPositionSerializer):
     party = AllowedPartyField()
 
