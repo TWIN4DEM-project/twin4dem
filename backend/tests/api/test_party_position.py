@@ -104,13 +104,6 @@ def default_timeline(test_settings) -> VirtualTimeline:
 
 
 @pytest.fixture
-def alternate_timeline(test_settings) -> VirtualTimeline:
-    return VirtualTimeline.objects.create(
-        user_settings=test_settings, label="alternate"
-    )
-
-
-@pytest.fixture
 def government() -> Institution:
     """Testland's executive institution."""
     return Institution.objects.get(pk=1)
@@ -141,12 +134,9 @@ def psd() -> Party:
 
 
 @pytest.fixture
-def senate() -> Institution:
+def senate(make_senate) -> Institution:
     """A second Testland chamber, without positions."""
-    kind = InstitutionKind.objects.create(
-        country_id=1, branch=InstitutionBranch.LEGISLATIVE, institution_name="senate"
-    )
-    return Institution.objects.create(kind=kind, label="Testland senate", size=136)
+    return make_senate("Testland senate")
 
 
 @pytest.fixture
