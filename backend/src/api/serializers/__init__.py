@@ -1,7 +1,7 @@
 from api.serializers._country import CountrySerializer
 from api.serializers._institution import InstitutionSerializer
 from api.serializers._institution_kind import InstitutionKindSerializer
-from api.serializers._party import PartySerializer
+from api.serializers._party import PartySerializer, position_summaries
 from api.serializers._party_position import PartyPositionSerializer
 from api.serializers._simulation import (
     SimulationSerializer,
@@ -22,6 +22,7 @@ __all__ = [
     "PartySerializer",
     "PartyPositionSerializer",
     "UserSettingsSerializer",
+    "position_summaries",
     "SimulationSerializer",
     "SimulationListSerializer",
     "SimulationPatchSerializer",

@@ -203,22 +203,111 @@ def test_list_shows_the_positions_of_each_party(admin_client, psd, parliament):
     assert response.json()[2] == party_json(psd.id, 1, "PSD", latest="opposition")
 
 
+@pytest.mark.parametrize(
+    "filters, listed", [({}, 6), ({"activePosition": "majority"}, 5)]
+)
 def test_list_queries_are_flat_and_do_not_grow_with_the_parties(
-    admin_client, parliament
+    admin_client, parliament, filters, listed
 ):
     with CaptureQueriesContext(connection) as two_parties:
-        admin_client.get(list_url())
+        admin_client.get(list_url(), filters)
     for i in range(4):
         party = Party.objects.create(country_id=1, label=f"party {i}")
-        framed_position(party, PartyPositionType.MAJORITY, parliament, at(2099))
+        framed_position(
+            party, PartyPositionType.MAJORITY, parliament, at(2020), at(2099)
+        )
 
     with CaptureQueriesContext(connection) as six_parties:
-        response = admin_client.get(list_url())
+        response = admin_client.get(list_url(), filters)
 
-    assert len(response.json()) == 6
+    assert len(response.json()) == listed
     assert len(six_parties) == len(two_parties)
     for query in six_parties.captured_queries:
         assert query["sql"].count("SELECT") == 1, query["sql"]
+
+
+def test_list_filtered_by_country(admin_client, user_party):
+    response = admin_client.get(list_url(), {"country": user_party.country_id})
+
+    assert response.status_code == 200
+    assert [p["id"] for p in response.json()] == [user_party.id]
+
+
+def test_list_filtered_by_unknown_country_empty(admin_client):
+    response = admin_client.get(list_url(), {"country": 0})
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+@pytest.mark.parametrize(
+    "position, labels",
+    [
+        ("majority", ["majority", "PSD"]),
+        ("opposition", ["opposition"]),
+        ("independent", []),
+    ],
+)
+def test_list_filtered_by_active_position(
+    admin_client, psd, parliament, position, labels
+):
+    # PSD is majority now and plans to be in opposition: only the former counts
+    framed_position(psd, PartyPositionType.MAJORITY, parliament, at(2020), at(2099))
+    framed_position(psd, PartyPositionType.OPPOSITION, parliament, at(2099))
+
+    response = admin_client.get(list_url(), {"activePosition": position})
+
+    assert response.status_code == 200
+    assert [p["label"] for p in response.json()] == labels
+
+
+def test_list_filtered_by_active_position_skips_parties_without_one(
+    admin_client, psd, parliament
+):
+    ended = Party.objects.create(country_id=1, label="ended")
+    framed_position(ended, PartyPositionType.MAJORITY, parliament, at(2016), at(2020))
+
+    response = admin_client.get(list_url(), {"activePosition": "majority"})
+
+    assert response.status_code == 200
+    assert [p["id"] for p in response.json()] == [1]
+
+
+def test_list_filtered_by_country_and_active_position(
+    admin_client, user_party, userland
+):
+    response = admin_client.get(
+        list_url(), {"country": userland.id, "activePosition": "majority"}
+    )
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+@pytest.mark.parametrize(
+    "filters, errors",
+    [
+        ({"country": "Testland"}, {"country": ["A valid integer is required."]}),
+        (
+            {"activePosition": "leader"},
+            {"active_position": ['"leader" is not a valid choice.']},
+        ),
+    ],
+)
+def test_list_invalid_filter_400(admin_client, filters, errors):
+    response = admin_client.get(list_url(), filters)
+
+    assert response.status_code == 400
+    assert response.json() == errors
+
+
+def test_get_by_id_ignores_filters(admin_client, majority_party):
+    response = admin_client.get(
+        detail_url(majority_party.id), {"activePosition": "opposition"}
+    )
+
+    assert response.status_code == 200
+    assert response.json()["activePosition"] == "majority"
 
 
 def test_head_success_without_body(admin_client, majority_party):
@@ -572,6 +661,13 @@ def test_list_without_permissions_shows_own_parties(user_client, user_party):
     assert response.json() == [
         party_json(user_party.id, user_party.country_id, "Userland party")
     ]
+
+
+def test_list_filtered_by_other_users_country_empty(user_client, user_party):
+    response = user_client.get(list_url(), {"country": 1})
+
+    assert response.status_code == 200
+    assert response.json() == []
 
 
 @pytest.mark.parametrize("method", ["get", "head"])

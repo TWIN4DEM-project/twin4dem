@@ -1,9 +1,11 @@
+from caseswitcher import to_snake
 from django.db.models import RestrictedError
-from rest_framework import permissions, routers, status, viewsets
+from django.utils import timezone
+from rest_framework import permissions, routers, serializers, status, viewsets
 from rest_framework.exceptions import APIException
 
-from api.serializers import PartySerializer
-from common.models import Party
+from api.serializers import PartySerializer, position_summaries
+from common.models import Party, PartyPositionType
 
 
 class PartyInUse(APIException):
@@ -23,6 +25,13 @@ class CanAddNestedPositions(permissions.BasePermission):
         return request.user.has_perm("common.add_partyposition")
 
 
+class PartyFilter(serializers.Serializer):
+    country = serializers.IntegerField(required=False)
+    active_position = serializers.ChoiceField(
+        choices=PartyPositionType.choices, required=False
+    )
+
+
 class PartyViewSet(viewsets.ModelViewSet):
     serializer_class = PartySerializer
     permission_classes = [
@@ -37,6 +46,29 @@ class PartyViewSet(viewsets.ModelViewSet):
         if self.request.user.is_superuser:
             return parties
         return parties.filter(country__user_settings__user=self.request.user)
+
+    def filter_queryset(self, queryset):
+        parties = super().filter_queryset(queryset)
+        if self.action != "list":
+            return parties
+        filters = PartyFilter(
+            data={to_snake(k): v for k, v in self.request.query_params.items()}
+        )
+        filters.is_valid(raise_exception=True)
+        criteria = dict(filters.validated_data)
+        active_position = criteria.pop("active_position", None)
+        parties = parties.filter(**criteria)
+        if active_position is not None:
+            summaries = position_summaries(list(parties), timezone.now())
+            parties = parties.filter(
+                pk__in=[
+                    pk
+                    for pk, summary in summaries.items()
+                    if summary.active is not None
+                    and summary.active.position == active_position
+                ]
+            )
+        return parties
 
     def perform_destroy(self, instance):
         try:
