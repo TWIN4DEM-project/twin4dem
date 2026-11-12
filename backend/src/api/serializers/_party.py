@@ -24,7 +24,7 @@ from ._party_position import BasePartyPositionSerializer
 
 
 class PositionSummary(NamedTuple):
-    latest: PartyPosition | None
+    latest: PartyPosition
     active: PartyPosition | None
 
 
@@ -101,19 +101,27 @@ def position_summaries(
         if spec.contains(timeline_id, at):
             covering_ends[subject_id].append(valid_to)
 
-    by_party = defaultdict(list)
+    positions.sort(key=lambda p: (p.chamber_id is None, p.chamber_id or 0))
+    by_chamber = defaultdict(dict)
     for position in positions:
-        by_party[position.party_id].append(position)
+        by_chamber[position.party_id].setdefault(position.chamber_id, []).append(
+            position
+        )
 
     summaries = {}
     for party in parties:
-        on_timeline = [
-            p for p in by_party[party.pk] if p.pk not in framed or ends[p.pk]
-        ]
-        active = [p for p in on_timeline if p.pk not in framed or covering_ends[p.pk]]
-        summaries[party.pk] = PositionSummary(
-            latest=_newest(on_timeline, ends), active=_newest(active, covering_ends)
-        )
+        summaries[party.pk] = {}
+        for chamber_id, own in by_chamber[party.pk].items():
+            on_timeline = [p for p in own if p.pk not in framed or ends[p.pk]]
+            if not on_timeline:
+                continue
+            active = [
+                p for p in on_timeline if p.pk not in framed or covering_ends[p.pk]
+            ]
+            summaries[party.pk][chamber_id] = PositionSummary(
+                latest=_newest(on_timeline, ends),
+                active=_newest(active, covering_ends),
+            )
     return summaries
 
 
@@ -183,7 +191,14 @@ class PartySerializer(LCCModelSerializer):
             summaries = position_summaries(
                 [instance], timezone.now(), self.context.get("timeline")
             )
-        latest, active = summaries[instance.pk]
-        data["latestPosition"] = latest.position if latest else None
-        data["activePosition"] = active.position if active else None
+        chambers = summaries[instance.pk].items()
+        data["latestPositions"] = [
+            {"chamber": chamber_id, "position": summary.latest.position}
+            for chamber_id, summary in chambers
+        ]
+        data["activePositions"] = [
+            {"chamber": chamber_id, "position": summary.active.position}
+            for chamber_id, summary in chambers
+            if summary.active is not None
+        ]
         return data

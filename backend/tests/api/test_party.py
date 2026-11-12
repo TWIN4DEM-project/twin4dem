@@ -73,14 +73,19 @@ def party_json(
     label: str,
     latest: str | None = None,
     active: str | None = None,
+    chamber: int | None = 2,
 ) -> dict:
-    """A party as returned by the API."""
+    """A party as returned by the API, with positions in a single chamber."""
     return {
         "id": pk,
         "country": country,
         "label": label,
-        "latestPosition": latest,
-        "activePosition": active,
+        "latestPositions": (
+            [{"chamber": chamber, "position": latest}] if latest else []
+        ),
+        "activePositions": (
+            [{"chamber": chamber, "position": active}] if active else []
+        ),
     }
 
 
@@ -337,7 +342,54 @@ def test_get_by_id_ignores_filters(admin_client, majority_party):
     )
 
     assert response.status_code == 200
-    assert response.json()["activePosition"] == "majority"
+    assert response.json()["activePositions"] == [
+        {"chamber": 2, "position": "majority"}
+    ]
+
+
+# positions per chamber
+
+
+@pytest.fixture
+def senate(make_senate) -> Institution:
+    return make_senate("Senate")
+
+
+def test_get_reports_the_positions_of_each_chamber(
+    admin_client, psd, parliament, senate
+):
+    # majority in one chamber and opposition in the other, at the same time
+    framed_position(psd, PartyPositionType.MAJORITY, senate, at(2020))
+    framed_position(psd, PartyPositionType.OPPOSITION, parliament, at(2020))
+
+    response = admin_client.get(detail_url(psd.id))
+
+    both = [
+        {"chamber": parliament.id, "position": "opposition"},
+        {"chamber": senate.id, "position": "majority"},
+    ]
+    assert response.json() == {
+        "id": psd.id,
+        "country": 1,
+        "label": "PSD",
+        "latestPositions": both,
+        "activePositions": both,
+    }
+
+
+@pytest.mark.parametrize(
+    "position, labels",
+    [("majority", ["majority", "PSD"]), ("opposition", ["opposition", "PSD"])],
+)
+def test_list_filtered_by_a_position_held_in_one_of_the_chambers(
+    admin_client, psd, parliament, senate, position, labels
+):
+    framed_position(psd, PartyPositionType.MAJORITY, senate, at(2020))
+    framed_position(psd, PartyPositionType.OPPOSITION, parliament, at(2020))
+
+    response = admin_client.get(list_url(), {"activePosition": position})
+
+    assert [p["label"] for p in response.json()] == labels
 
 
 # positions on a timeline: ?timeline, or the default timeline
@@ -536,11 +588,13 @@ def test_create_with_position_on_a_timeline(
     assert is_active(position, alternate_timeline, at(2021))
     # the API agrees: nothing on the default timeline, majority on the other
     on_default = admin_client.get(detail_url(party.id))
-    assert on_default.json()["activePosition"] is None
+    assert on_default.json()["activePositions"] == []
     on_alternate = admin_client.get(
         detail_url(party.id), {"timeline": alternate_timeline.id}
     )
-    assert on_alternate.json()["activePosition"] == "majority"
+    assert on_alternate.json()["activePositions"] == [
+        {"chamber": None, "position": "majority"}
+    ]
 
 
 def test_create_with_empty_positions_success(admin_client):

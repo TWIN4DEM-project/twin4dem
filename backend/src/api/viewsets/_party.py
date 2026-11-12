@@ -74,9 +74,12 @@ class PartyViewSet(viewsets.ModelViewSet):
             parties = parties.filter(
                 pk__in=[
                     pk
-                    for pk, summary in summaries.items()
-                    if summary.active is not None
-                    and summary.active.position == active_position
+                    for pk, chambers in summaries.items()
+                    if any(
+                        summary.active is not None
+                        and summary.active.position == active_position
+                        for summary in chambers.values()
+                    )
                 ]
             )
         return parties
