@@ -137,7 +137,7 @@ USE_TZ = True
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR.parent.parent / "assets"
 FRONTEND_ROOT = STATIC_ROOT / "frontend"
-STATICFILES_DIRS = [FRONTEND_ROOT, STATIC_ROOT / "scss"]
+STATICFILES_DIRS = [FRONTEND_ROOT, STATIC_ROOT / "scss", STATIC_ROOT / "css"]
 STATICFILES_FINDERS = [
     "django.contrib.staticfiles.finders.FileSystemFinder",
     "django.contrib.staticfiles.finders.AppDirectoriesFinder",
