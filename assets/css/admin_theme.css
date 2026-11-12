@@ -1,0 +1,36 @@
+
+:root,
+html[data-theme="light"],
+html[data-theme="dark"],
+html[data-theme="auto"] {
+    --primary: var(--twin-primary);
+    --secondary: var(--twin-card-bg);
+    --accent: var(--twin-primary-soft);
+
+    --body-bg: var(--twin-dashboard-bg);
+    --body-fg: var(--twin-text);
+
+    --header-bg: var(--twin-card-bg);
+    --header-color: var(--twin-text);
+    --header-link-color: var(--twin-text);
+
+    --breadcrumbs-bg: var(--twin-card-bg);
+    --breadcrumbs-fg: var(--twin-text);
+    --breadcrumbs-link-fg: var(--twin-primary-soft);
+
+    --link-fg: var(--twin-primary-soft);
+    --link-hover-color: var(--twin-primary);
+    --link-selected-fg: var(--twin-primary);
+
+    --hairline-color: var(--twin-border-subtle);
+    --border-color: var(--twin-border-subtle);
+
+    --darkened-bg: var(--twin-card-bg);
+    --selected-bg: var(--twin-card-bg);
+    --selected-row: var(--twin-dashboard-bg);
+
+    --button-bg: var(--twin-primary);
+    --button-hover-bg: var(--twin-primary-soft);
+    --default-button-bg: var(--twin-primary);
+    --default-button-hover-bg: var(--twin-primary-soft);
+}
