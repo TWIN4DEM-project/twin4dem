@@ -1,0 +1,23 @@
+
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrastyle %}
+    {{ block.super }}
+    <link rel="stylesheet" href="{% static 'variables.css' %}">
+    <link rel="stylesheet" href="{% static 'admin_theme.css' %}">
+{% endblock %}
+
+{% block branding %}
+<div style="display: flex; align-items: center; gap: 24px;">
+    <a href="/" style="
+        color: white;
+        font-size: 14px;
+        text-decoration: none;
+        white-space: nowrap;
+    ">
+        ← Back to site
+    </a>
+    {{ block.super }}
+</div>
+{% endblock %}
