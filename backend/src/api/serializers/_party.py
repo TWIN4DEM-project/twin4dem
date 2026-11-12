@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import NamedTuple
 
 from django.db import models, transaction
-from django.db.models import F, FilteredRelation, Q
+from django.db.models import F, FilteredRelation, Q, Value
 from django.utils import timezone
 from rest_framework import serializers
 from rest_framework.validators import UniqueTogetherValidator
@@ -28,34 +28,40 @@ class PositionSummary(NamedTuple):
     active: PartyPosition | None
 
 
-def _newest(
-    positions: list[PartyPosition], ends: dict[int, list[datetime | None]]
-) -> PartyPosition | None:
-    """
-    Takes a list of positions and returns the one that ends last.
-    """
-
-    def rank(position: PartyPosition) -> tuple:
-        own_ends = ends[position.pk]
-        end = None if not own_ends or None in own_ends else max(own_ends)
-        return end is None, end, position.pk
-
-    return max(positions, key=rank, default=None)
-
-
 def position_summaries(
     parties: Sequence[Party],
     at: datetime,
     timeline: VirtualTimeline | None = None,
-) -> dict[int, PositionSummary]:
+) -> dict[int, dict[int | None, PositionSummary]]:
     """
-    Find the latest and the active position of each party.
+    Find the latest and the active position of each party in each chamber, on a
+    timeline.
+    """
+    positions = _positions_with_timeline(parties, timeline)
+    frames = _frames_by_position(positions)
+    summaries = {party.pk: {} for party in parties}
+    for (party_id, chamber_id), chamber_positions in _by_chamber(positions).items():
+        summary = _summarize(chamber_positions, frames, at)
+        if summary is not None:
+            summaries[party_id][chamber_id] = summary
+    return summaries
+
+
+def _positions_with_timeline(
+    parties: Sequence[Party], timeline: VirtualTimeline | None
+) -> list[PartyPosition]:
+    """
+    The positions of the parties, each annotated with `reported_timeline_id`:
+    the given timeline, or else the default timeline of the party's global
+    context (None if the context has none).
     """
     positions = PartyPosition.objects.filter(
         party_id__in=[party.pk for party in parties]
     )
-    if timeline is None:
-        positions = positions.annotate(
+    if timeline is not None:
+        return list(positions.annotate(reported_timeline_id=Value(timeline.pk)))
+    return list(
+        positions.annotate(
             context_default=FilteredRelation(
                 "party__country__user_settings__timelines",
                 condition=Q(
@@ -64,17 +70,14 @@ def position_summaries(
                     )
                 ),
             ),
-            default_timeline_id=F("context_default__id"),
+            reported_timeline_id=F("context_default__id"),
         )
-    positions = list(positions)
-    timeline_ids = {
-        p.pk: timeline.pk if timeline is not None else p.default_timeline_id
-        for p in positions
-    }
+    )
 
-    frames = {}
-    links = defaultdict(set)
-    for frame_id, subject_id, valid_from, valid_to, link in TimeFrame.objects.filter(
+
+def _frames_by_position(positions: list[PartyPosition]) -> dict[int, list[FrameSpec]]:
+    """The time frames of the positions, with their timelines, by position id."""
+    rows = TimeFrame.objects.filter(
         subject_type=TimeFrameSubjectType.PARTY_POSITION,
         subject_id__in=[position.pk for position in positions],
     ).values_list(
@@ -83,46 +86,91 @@ def position_summaries(
         "valid_from",
         "valid_to",
         "timeline_links__virtual_timeline_id",
-    ):
+    )
+    frames = {}
+    links = defaultdict(set)
+    for frame_id, subject_id, valid_from, valid_to, link in rows:
         frames[frame_id] = subject_id, valid_from, valid_to
         if link is not None:
             links[frame_id].add(link)
 
-    framed = set()
-    ends = defaultdict(list)
-    covering_ends = defaultdict(list)
+    by_position = defaultdict(list)
     for frame_id, (subject_id, valid_from, valid_to) in frames.items():
-        framed.add(subject_id)
-        spec = FrameSpec(valid_from, valid_to, frozenset(links[frame_id]) or None)
-        timeline_id = timeline_ids[subject_id]
-        if spec.timeline_ids is not None and timeline_id not in spec.timeline_ids:
-            continue
-        ends[subject_id].append(valid_to)
-        if spec.contains(timeline_id, at):
-            covering_ends[subject_id].append(valid_to)
-
-    positions.sort(key=lambda p: (p.chamber_id is None, p.chamber_id or 0))
-    by_chamber = defaultdict(dict)
-    for position in positions:
-        by_chamber[position.party_id].setdefault(position.chamber_id, []).append(
-            position
+        by_position[subject_id].append(
+            FrameSpec(valid_from, valid_to, frozenset(links[frame_id]) or None)
         )
+    return by_position
 
-    summaries = {}
-    for party in parties:
-        summaries[party.pk] = {}
-        for chamber_id, own in by_chamber[party.pk].items():
-            on_timeline = [p for p in own if p.pk not in framed or ends[p.pk]]
-            if not on_timeline:
-                continue
-            active = [
-                p for p in on_timeline if p.pk not in framed or covering_ends[p.pk]
-            ]
-            summaries[party.pk][chamber_id] = PositionSummary(
-                latest=_newest(on_timeline, ends),
-                active=_newest(active, covering_ends),
-            )
-    return summaries
+
+def _by_chamber(
+    positions: list[PartyPosition],
+) -> dict[tuple[int, int | None], list[PartyPosition]]:
+    """
+    The positions grouped by party and chamber: the chambers in id order, the
+    positions without a chamber last.
+    """
+    groups = defaultdict(list)
+    for position in sorted(
+        positions, key=lambda p: (p.chamber_id is None, p.chamber_id or 0)
+    ):
+        groups[position.party_id, position.chamber_id].append(position)
+    return groups
+
+
+def _summarize(
+    positions: list[PartyPosition], frames: dict[int, list[FrameSpec]], at: datetime
+) -> PositionSummary | None:
+    """
+    The latest and the active of the positions of one chamber, or None if none
+    of them exists on its timeline.
+    """
+    on_timeline = {}
+    covering = {}
+    for position in positions:
+        own = _frames_on_timeline(position, frames)
+        if own:
+            on_timeline[position] = own
+            timeline_id = position.reported_timeline_id
+            covering[position] = [f for f in own if f.contains(timeline_id, at)]
+    if not on_timeline:
+        return None
+    return PositionSummary(
+        latest=_newest(on_timeline),
+        active=_newest({p: f for p, f in covering.items() if f}),
+    )
+
+
+def _frames_on_timeline(
+    position: PartyPosition, frames: dict[int, list[FrameSpec]]
+) -> list[FrameSpec]:
+    """
+    The frames of the position that count on its timeline: those without
+    timeline links (all timelines) or with a link to it, the rule of
+    `is_active`. A position without time frames is always there.
+    """
+    always = FrameSpec(valid_from=None, valid_to=None, timeline_ids=None)
+    timeline_id = position.reported_timeline_id
+    return [
+        frame
+        for frame in frames.get(position.pk) or [always]
+        if frame.timeline_ids is None or timeline_id in frame.timeline_ids
+    ]
+
+
+def _newest(
+    frames: dict[PartyPosition, list[FrameSpec]],
+) -> PartyPosition | None:
+    """
+    Takes a list of positions and returns the one that ends last.
+    """
+
+    def rank(position: PartyPosition) -> tuple:
+        ends = [frame.valid_to for frame in frames[position]]
+        if None in ends:
+            return True, None, position.pk
+        return False, max(ends), position.pk
+
+    return max(frames, key=rank, default=None)
 
 
 class PartyListSerializer(serializers.ListSerializer):
