@@ -3,6 +3,7 @@ from api.serializers._institution import InstitutionSerializer
 from api.serializers._institution_kind import InstitutionKindSerializer
 from api.serializers._party import PartySerializer, position_summaries
 from api.serializers._party_position import PartyPositionSerializer
+from api.serializers._institution import AllowedTimelineField
 from api.serializers._simulation import (
     SimulationSerializer,
     SimulationListSerializer,
@@ -16,6 +17,7 @@ from api.serializers._simulation_log import (
 from api.serializers._user_settings import UserSettingsSerializer
 
 __all__ = [
+    "AllowedTimelineField",
     "CountrySerializer",
     "InstitutionKindSerializer",
     "InstitutionSerializer",

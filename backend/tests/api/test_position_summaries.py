@@ -9,6 +9,8 @@ from common.models import (
     PartyPosition,
     PartyPositionType,
     TimeFrame,
+    VirtualTimeline,
+    is_active,
 )
 
 pytestmark = pytest.mark.django_db
@@ -38,8 +40,18 @@ def position(
     return party_position
 
 
-def summary(party: Party) -> PositionSummary:
-    return position_summaries([party], NOW)[party.pk]
+def summary(party: Party, timeline: VirtualTimeline | None = None) -> PositionSummary:
+    return position_summaries([party], NOW, timeline)[party.pk]
+
+
+def on_timelines(
+    party_position: PartyPosition,
+    *timelines: VirtualTimeline,
+    valid_from: datetime | None = at(2020),
+    valid_to: datetime | None = None,
+) -> None:
+    """Add a validated time frame, restricted to the given timelines."""
+    TimeFrame.objects.occupy(party_position, valid_from, valid_to, timelines)
 
 
 @pytest.fixture
@@ -55,6 +67,11 @@ def parliament() -> Institution:
 @pytest.fixture
 def senate(make_senate) -> Institution:
     return make_senate("Senate")
+
+
+@pytest.fixture
+def default_timeline(test_settings) -> VirtualTimeline:
+    return test_settings.timelines.get(label=VirtualTimeline.DEFAULT_LABEL)
 
 
 # latest position: the same as Party.latest_position
@@ -199,13 +216,97 @@ def test_frames_cover_from_their_start_until_before_their_end(
     assert summary(psd).active == (party_position if is_active else None)
 
 
-def test_frame_on_a_single_timeline_counts_as_active(
-    psd, parliament, alternate_timeline
+# timelines: the rule of is_active
+
+
+def test_frame_on_another_timeline_does_not_count(
+    psd, parliament, default_timeline, alternate_timeline
 ):
     party_position = position(psd, PartyPositionType.MAJORITY, parliament)
-    TimeFrame.objects.occupy(party_position, at(2020), at(2030), [alternate_timeline])
+    on_timelines(party_position, alternate_timeline, valid_to=at(2030))
 
-    assert summary(psd).active == party_position
+    assert summary(psd) == PositionSummary(latest=None, active=None)
+    assert not is_active(party_position, default_timeline, NOW)
+    assert summary(psd, alternate_timeline) == PositionSummary(
+        latest=party_position, active=party_position
+    )
+    assert is_active(party_position, alternate_timeline, NOW)
+
+
+def test_frame_without_timeline_links_counts_on_every_timeline(
+    psd, parliament, alternate_timeline
+):
+    party_position = position(
+        psd, PartyPositionType.MAJORITY, parliament, (at(2020), at(2030))
+    )
+    expected = PositionSummary(latest=party_position, active=party_position)
+
+    assert summary(psd) == expected
+    assert summary(psd, alternate_timeline) == expected
+
+
+def test_each_timeline_reports_its_own_position(
+    test_settings, psd, parliament, alternate_timeline
+):
+    other_timeline = VirtualTimeline.objects.create(
+        user_settings=test_settings, label="other"
+    )
+    majority = position(psd, PartyPositionType.MAJORITY, parliament)
+    on_timelines(majority, alternate_timeline)
+    opposition = position(psd, PartyPositionType.OPPOSITION, parliament)
+    on_timelines(opposition, other_timeline)
+
+    assert summary(psd) == PositionSummary(latest=None, active=None)
+    assert summary(psd, alternate_timeline) == PositionSummary(
+        latest=majority, active=majority
+    )
+    assert summary(psd, other_timeline) == PositionSummary(
+        latest=opposition, active=opposition
+    )
+
+
+def test_latest_ignores_frames_on_other_timelines(
+    psd, parliament, senate, alternate_timeline
+):
+    everywhere = position(
+        psd, PartyPositionType.MAJORITY, parliament, (at(2017), at(2099))
+    )
+    open_ended = position(psd, PartyPositionType.OPPOSITION, senate)
+    on_timelines(open_ended, alternate_timeline, valid_from=at(2017))
+
+    assert summary(psd).latest == everywhere
+    assert summary(psd, alternate_timeline).latest == open_ended
+
+
+def test_default_timeline_is_the_one_of_each_party_context(
+    psd, parliament, default_timeline, userland, test_user_settings
+):
+    own = position(psd, PartyPositionType.MAJORITY, parliament)
+    on_timelines(own, default_timeline)
+    user_party = Party.objects.create(country=userland, label="Userland party")
+    theirs = position(user_party, PartyPositionType.OPPOSITION, None)
+    on_timelines(
+        theirs, test_user_settings.timelines.get(label=VirtualTimeline.DEFAULT_LABEL)
+    )
+
+    assert position_summaries([psd, user_party], NOW) == {
+        psd.pk: PositionSummary(latest=own, active=own),
+        user_party.pk: PositionSummary(latest=theirs, active=theirs),
+    }
+
+
+def test_without_default_timeline_only_frames_on_all_timelines_count(
+    psd, parliament, senate, default_timeline
+):
+    everywhere = position(
+        psd, PartyPositionType.MAJORITY, parliament, (at(2020), at(2030))
+    )
+    restricted = position(psd, PartyPositionType.OPPOSITION, senate)
+    on_timelines(restricted, default_timeline)
+    default_timeline.label = "renamed"
+    default_timeline.save()
+
+    assert summary(psd) == PositionSummary(latest=everywhere, active=everywhere)
 
 
 def test_summaries_are_per_party(psd, parliament):
@@ -218,9 +319,15 @@ def test_summaries_are_per_party(psd, parliament):
     }
 
 
+@pytest.mark.parametrize("on_alternate_timeline", [False, True])
 @pytest.mark.parametrize("party_count", [1, 6])
 def test_two_flat_queries_whatever_the_number_of_parties(
-    django_assert_num_queries, parliament, senate, party_count
+    django_assert_num_queries,
+    parliament,
+    senate,
+    alternate_timeline,
+    party_count,
+    on_alternate_timeline,
 ):
     parties = [
         Party.objects.create(country_id=1, label=f"party {i}")
@@ -230,8 +337,10 @@ def test_two_flat_queries_whatever_the_number_of_parties(
         position(party, PartyPositionType.MAJORITY, parliament, (at(2020), at(2030)))
         position(party, PartyPositionType.OPPOSITION, senate, (at(2030), None))
 
+    timeline = alternate_timeline if on_alternate_timeline else None
+
     with django_assert_num_queries(2) as captured:
-        position_summaries(parties, NOW)
+        position_summaries(parties, NOW, timeline)
 
     for query in captured.captured_queries:
         assert query["sql"].count("SELECT") == 1, query["sql"]

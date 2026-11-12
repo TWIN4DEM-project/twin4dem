@@ -4,7 +4,7 @@ from django.utils import timezone
 from rest_framework import permissions, routers, serializers, status, viewsets
 from rest_framework.exceptions import APIException
 
-from api.serializers import PartySerializer, position_summaries
+from api.serializers import AllowedTimelineField, PartySerializer, position_summaries
 from common.models import Party, PartyPositionType
 
 
@@ -25,7 +25,11 @@ class CanAddNestedPositions(permissions.BasePermission):
         return request.user.has_perm("common.add_partyposition")
 
 
-class PartyFilter(serializers.Serializer):
+class TimelineFilter(serializers.Serializer):
+    timeline = AllowedTimelineField(required=False)
+
+
+class PartyFilter(TimelineFilter):
     country = serializers.IntegerField(required=False)
     active_position = serializers.ChoiceField(
         choices=PartyPositionType.choices, required=False
@@ -40,6 +44,7 @@ class PartyViewSet(viewsets.ModelViewSet):
         CanAddNestedPositions,
     ]
     http_method_names = ["get", "head", "post", "put", "delete"]
+    timeline = None
 
     def get_queryset(self):
         parties = Party.objects.order_by("id")
@@ -49,17 +54,23 @@ class PartyViewSet(viewsets.ModelViewSet):
 
     def filter_queryset(self, queryset):
         parties = super().filter_queryset(queryset)
-        if self.action != "list":
+        if self.action not in ("list", "retrieve"):
             return parties
-        filters = PartyFilter(
-            data={to_snake(k): v for k, v in self.request.query_params.items()}
+        filters = (PartyFilter if self.action == "list" else TimelineFilter)(
+            data={to_snake(k): v for k, v in self.request.query_params.items()},
+            context={"request": self.request},
         )
         filters.is_valid(raise_exception=True)
         criteria = dict(filters.validated_data)
+        self.timeline = criteria.pop("timeline", None)
+        if self.timeline is not None:
+            parties = parties.filter(
+                country__user_settings_id=self.timeline.user_settings_id
+            )
         active_position = criteria.pop("active_position", None)
         parties = parties.filter(**criteria)
         if active_position is not None:
-            summaries = position_summaries(list(parties), timezone.now())
+            summaries = position_summaries(list(parties), timezone.now(), self.timeline)
             parties = parties.filter(
                 pk__in=[
                     pk
@@ -69,6 +80,9 @@ class PartyViewSet(viewsets.ModelViewSet):
                 ]
             )
         return parties
+
+    def get_serializer_context(self):
+        return {**super().get_serializer_context(), "timeline": self.timeline}
 
     def perform_destroy(self, instance):
         try:

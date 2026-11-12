@@ -99,6 +99,20 @@ def framed_position(
     return party_position
 
 
+def position_on(
+    party: Party,
+    position: PartyPositionType,
+    chamber: Institution,
+    *timelines: VirtualTimeline,
+) -> PartyPosition:
+    """A validated position from 2020 on, restricted to the given timelines."""
+    party_position = PartyPosition(party=party, chamber=chamber, position=position)
+    party_position.full_clean()
+    party_position.save()
+    TimeFrame.objects.occupy(party_position, at(2020), None, timelines)
+    return party_position
+
+
 @pytest.fixture
 def majority_party() -> Party:
     """The Testland party labelled 'majority', frameless in the parliament."""
@@ -132,6 +146,11 @@ def foreign_chamber(test_settings) -> Institution:
 @pytest.fixture
 def default_timeline(test_settings) -> VirtualTimeline:
     return test_settings.timelines.get(label=VirtualTimeline.DEFAULT_LABEL)
+
+
+@pytest.fixture
+def other_timeline(test_settings) -> VirtualTimeline:
+    return VirtualTimeline.objects.create(user_settings=test_settings, label="other")
 
 
 @pytest.fixture
@@ -204,11 +223,18 @@ def test_list_shows_the_positions_of_each_party(admin_client, psd, parliament):
 
 
 @pytest.mark.parametrize(
-    "filters, listed", [({}, 6), ({"activePosition": "majority"}, 5)]
+    "filters, listed",
+    [
+        ({}, 6),
+        ({"activePosition": "majority"}, 5),
+        ({"activePosition": "majority", "timeline": "alternate"}, 5),
+    ],
 )
 def test_list_queries_are_flat_and_do_not_grow_with_the_parties(
-    admin_client, parliament, filters, listed
+    admin_client, parliament, alternate_timeline, filters, listed
 ):
+    if "timeline" in filters:
+        filters = {**filters, "timeline": alternate_timeline.id}
     with CaptureQueriesContext(connection) as two_parties:
         admin_client.get(list_url(), filters)
     for i in range(4):
@@ -292,6 +318,10 @@ def test_list_filtered_by_country_and_active_position(
             {"activePosition": "leader"},
             {"active_position": ['"leader" is not a valid choice.']},
         ),
+        (
+            {"timeline": 9999},
+            {"timeline": ['Invalid pk "9999" - object does not exist.']},
+        ),
     ],
 )
 def test_list_invalid_filter_400(admin_client, filters, errors):
@@ -308,6 +338,91 @@ def test_get_by_id_ignores_filters(admin_client, majority_party):
 
     assert response.status_code == 200
     assert response.json()["activePosition"] == "majority"
+
+
+# positions on a timeline: ?timeline, or the default timeline
+
+
+def test_get_reports_the_position_on_the_requested_timeline(
+    admin_client, psd, parliament, alternate_timeline, other_timeline
+):
+    # two experiments on the same party and chamber at the same time
+    position_on(psd, PartyPositionType.MAJORITY, parliament, alternate_timeline)
+    position_on(psd, PartyPositionType.OPPOSITION, parliament, other_timeline)
+
+    def get_on(**params) -> dict:
+        response = admin_client.get(detail_url(psd.id), params)
+        assert response.status_code == 200
+        return response.json()
+
+    assert get_on() == party_json(psd.id, 1, "PSD")
+    assert get_on(timeline=alternate_timeline.id) == party_json(
+        psd.id, 1, "PSD", latest="majority", active="majority"
+    )
+    assert get_on(timeline=other_timeline.id) == party_json(
+        psd.id, 1, "PSD", latest="opposition", active="opposition"
+    )
+
+
+def test_list_reports_the_positions_on_the_requested_timeline(
+    admin_client, psd, parliament, alternate_timeline
+):
+    position_on(psd, PartyPositionType.OPPOSITION, parliament, alternate_timeline)
+
+    default = admin_client.get(list_url())
+    alternate = admin_client.get(list_url(), {"timeline": alternate_timeline.id})
+
+    assert default.json()[2] == party_json(psd.id, 1, "PSD")
+    assert alternate.json()[2] == party_json(
+        psd.id, 1, "PSD", latest="opposition", active="opposition"
+    )
+
+
+def test_list_filtered_by_active_position_on_a_timeline(
+    admin_client, psd, parliament, alternate_timeline
+):
+    position_on(psd, PartyPositionType.MAJORITY, parliament, alternate_timeline)
+
+    default = admin_client.get(list_url(), {"activePosition": "majority"})
+    alternate = admin_client.get(
+        list_url(), {"activePosition": "majority", "timeline": alternate_timeline.id}
+    )
+
+    assert [p["label"] for p in default.json()] == ["majority"]
+    assert [p["label"] for p in alternate.json()] == ["majority", "PSD"]
+
+
+def test_list_on_a_timeline_shows_the_parties_of_its_global_context(
+    admin_client, default_timeline, user_party, test_user_settings
+):
+    user_timeline = test_user_settings.timelines.get(
+        label=VirtualTimeline.DEFAULT_LABEL
+    )
+
+    own = admin_client.get(list_url(), {"timeline": default_timeline.id})
+    users = admin_client.get(list_url(), {"timeline": user_timeline.id})
+
+    assert [p["id"] for p in own.json()] == [1, 2]
+    assert [p["id"] for p in users.json()] == [user_party.id]
+
+
+def test_get_on_a_timeline_of_another_global_context_404(
+    admin_client, default_timeline, user_party
+):
+    response = admin_client.get(
+        detail_url(user_party.id), {"timeline": default_timeline.id}
+    )
+
+    assert response.status_code == 404
+
+
+def test_get_on_an_unknown_timeline_400(admin_client, majority_party):
+    response = admin_client.get(detail_url(majority_party.id), {"timeline": 9999})
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "timeline": ['Invalid pk "9999" - object does not exist.']
+    }
 
 
 def test_head_success_without_body(admin_client, majority_party):
@@ -415,9 +530,17 @@ def test_create_with_position_on_a_timeline(
     )
 
     assert response.status_code == 201
-    position = Party.objects.get(label="PSD").positions.get()
+    party = Party.objects.get(label="PSD")
+    position = party.positions.get()
     assert not is_active(position, default_timeline, at(2021))
     assert is_active(position, alternate_timeline, at(2021))
+    # the API agrees: nothing on the default timeline, majority on the other
+    on_default = admin_client.get(detail_url(party.id))
+    assert on_default.json()["activePosition"] is None
+    on_alternate = admin_client.get(
+        detail_url(party.id), {"timeline": alternate_timeline.id}
+    )
+    assert on_alternate.json()["activePosition"] == "majority"
 
 
 def test_create_with_empty_positions_success(admin_client):
@@ -661,6 +784,23 @@ def test_list_without_permissions_shows_own_parties(user_client, user_party):
     assert response.json() == [
         party_json(user_party.id, user_party.country_id, "Userland party")
     ]
+
+
+def test_list_on_other_users_timeline_400(user_client, user_party, default_timeline):
+    response = user_client.get(list_url(), {"timeline": default_timeline.id})
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "timeline": [f'Invalid pk "{default_timeline.id}" - object does not exist.']
+    }
+
+
+def test_get_on_own_timeline_success(user_client, user_party, test_user_settings):
+    timeline = test_user_settings.timelines.get(label=VirtualTimeline.DEFAULT_LABEL)
+
+    response = user_client.get(detail_url(user_party.id), {"timeline": timeline.id})
+
+    assert response.status_code == 200
 
 
 def test_list_filtered_by_other_users_country_empty(user_client, user_party):
