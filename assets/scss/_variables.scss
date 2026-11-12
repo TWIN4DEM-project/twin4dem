@@ -5,19 +5,20 @@ $font-family:
   "SF Pro Text",
   "Segoe UI",
   sans-serif;
-$bg: #050217;
-$primary: #df1698;
-$primary-soft: #ff7fd1;
-$approve: #5463ff;
-$reject: #ec4646;
-$accent: #276bff;
-$text: #f5f5f7;
-$muted: #b7b8d0;
-$dashboard-bg: #3c3b44;
-$dashboard-card-bg: #050217;
-$surface: rgba(9, 7, 30, 0.92);
-$border: #f5f5f7;
-$border-subtle: rgba(255, 255, 255, 0.12);
+
+$bg: var(--twin-bg);
+$primary: var(--twin-primary);
+$primary-soft: var(--twin-primary-soft);
+$approve: var(--twin-approved);
+$reject: var(--twin-reject);
+$accent: var(--twin-accent);
+$text: var(--twin-text);
+$muted: var(--twin-muted);
+$dashboard-bg: var(--twin-dashboard-bg);
+$dashboard-card-bg: var(--twin-card-bg);
+$surface: var(--twin-surface);
+$border: var(--twin-border);
+$border-subtle: var(--twin-border-subtle);
 $radius-lg: 24px;
 $radius-md: 16px;
 $radius-sm: 8px;
