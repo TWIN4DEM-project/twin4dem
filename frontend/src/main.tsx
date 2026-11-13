@@ -4,7 +4,6 @@ import { createRoot } from "react-dom/client";
 import { App } from "./app";
 import "../../assets/css/variables.css";
 
-
 axios.defaults.xsrfCookieName = "csrftoken";
 axios.defaults.xsrfHeaderName = "X-CSRFToken";
 axios.defaults.withCredentials = true;
