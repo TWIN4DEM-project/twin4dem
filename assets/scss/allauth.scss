@@ -58,7 +58,7 @@ textarea {
     outline: none;
     border-color: $primary;
     box-shadow: 0 0 3px #{'rgb(from var(--twin-primary) r g b / 35%)'};
-    background: rgba($surface, 0.95);
+    background: #{'rgb(from var(--twin-surface) r g b / 95%)'};
   }
 
   &:disabled {
