@@ -26,8 +26,7 @@ class AllowedChamberField(serializers.PrimaryKeyRelatedField):
         return Institution.objects.filter(kind__country__user_settings__user=user)
 
 
-class PartyPositionSerializer(LCCModelSerializer):
-    party = AllowedPartyField()
+class BasePartyPositionSerializer(LCCModelSerializer):
     chamber = AllowedChamberField(allow_null=True, default=None)
     timeline = AllowedTimelineField(allow_null=True, default=None, write_only=True)
     valid_from = serializers.DateTimeField(
@@ -37,23 +36,8 @@ class PartyPositionSerializer(LCCModelSerializer):
 
     class Meta:
         model = PartyPosition
-        fields = [
-            "id",
-            "party",
-            "position",
-            "chamber",
-            "timeline",
-            "valid_from",
-            "valid_to",
-        ]
+        fields = ["id", "position", "chamber", "timeline", "valid_from", "valid_to"]
         list_serializer_class = BatchListSerializer
-
-    def validate_party(self, value):
-        if self.instance is not None and value != self.instance.party:
-            raise serializers.ValidationError(
-                "A party position cannot be moved to another party."
-            )
-        return value
 
     def validate(self, attrs):
         valid_from, valid_to = attrs.get("valid_from"), attrs.get("valid_to")
@@ -122,3 +106,25 @@ class PartyPositionSerializer(LCCModelSerializer):
             raise serializers.ValidationError(
                 {api_settings.NON_FIELD_ERRORS_KEY: e.messages}
             )
+
+
+class PartyPositionSerializer(BasePartyPositionSerializer):
+    party = AllowedPartyField()
+
+    class Meta(BasePartyPositionSerializer.Meta):
+        fields = [
+            "id",
+            "party",
+            "position",
+            "chamber",
+            "timeline",
+            "valid_from",
+            "valid_to",
+        ]
+
+    def validate_party(self, value):
+        if self.instance is not None and value != self.instance.party:
+            raise serializers.ValidationError(
+                "A party position cannot be moved to another party."
+            )
+        return value
