@@ -1,7 +1,6 @@
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
-from django.urls import reverse
 
 from ..institution import Institution, InstitutionBranch
 from ..timeline import VirtualTimeline, is_active
@@ -129,9 +128,6 @@ class SimulationInstitution(models.Model):
                     )
                 }
             )
-
-    def get_absolute_url(self):
-        return f"/simulations/{self.pk}"
 
     class Meta:
         constraints = [
