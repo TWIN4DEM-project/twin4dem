@@ -1,4 +1,5 @@
 data/
+!backend/tests/data/
 .python-version
 .Python
 [Bb]in
