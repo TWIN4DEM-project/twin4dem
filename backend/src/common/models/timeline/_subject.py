@@ -1,14 +1,11 @@
 from datetime import datetime
 from functools import cached_property
-from typing import TYPE_CHECKING, NamedTuple
+from typing import NamedTuple
 
 from django.db import models
 from django.db.models import Q
 
 from ._timeline import VirtualTimeline
-
-if TYPE_CHECKING:
-    from ._timeframe import TimeFrameModel
 
 
 class TimeFrameSubjectSiblings(NamedTuple):
@@ -50,10 +47,12 @@ class TimeFrameSubjectQuerySet(models.QuerySet):
 class TimeFrameSubject(models.Model):
     """A model that can occupy time frames.
 
-    Concrete subclasses expose their frames through the ``time_frames``
-    reverse relation supplied by their frame model, declare the axes that make
-    two subjects conflict, and provide the user settings for their global context.
-    They add no timeframe fields and require no timeframe migration.
+    Concrete subclasses declare in ``sibling_fields`` which axes make two
+    subjects conflict, implement ``sibling_time_frames`` with the manager of a
+    frame model defined next to them, and provide the user settings for their
+    global context. The frame models supply the ``time_frames`` reverse
+    relation, so subjects add no timeframe fields and require no timeframe
+    migration.
     """
 
     objects = TimeFrameSubjectQuerySet.as_manager()
@@ -68,11 +67,6 @@ class TimeFrameSubject(models.Model):
         """The subject's time frames, supplied by the concrete frame model."""
         raise NotImplementedError
 
-    @property
-    def time_frame_model(self) -> type["TimeFrameModel"]:
-        """The concrete time frame model that points to this subject."""
-        return self.time_frames.model
-
     @cached_property
     def sibling_values(self) -> TimeFrameSubjectSiblings:
         """The values that determine which subjects conflict with this one."""
@@ -85,7 +79,7 @@ class TimeFrameSubject(models.Model):
                 values.append(getattr(self, name))
         return TimeFrameSubjectSiblings(type(self), self.sibling_fields, tuple(values))
 
-    def time_frame_siblings(self) -> models.QuerySet:
+    def siblings(self) -> models.QuerySet:
         """The subjects that may not be active at the same time as self."""
         if not self.sibling_fields:
             return type(self).objects.none()
@@ -100,12 +94,17 @@ class TimeFrameSubject(models.Model):
         """The global context whose timelines the subject's frames apply to."""
         raise NotImplementedError
 
+    def sibling_time_frames(self) -> models.QuerySet:
+        """The time frames of this subject's siblings.
+
+        Concrete subjects implement it with their frame model's manager.
+        """
+        raise NotImplementedError
+
     def frameless_sibling(self) -> "TimeFrameSubject | None":
         """A sibling without frames, which is active at all times."""
-        siblings = self.time_frame_siblings()
-        with_frames = self.time_frame_model.objects.filter(subject__in=siblings).values(
-            "subject_id"
-        )
+        siblings = self.siblings()
+        with_frames = self.sibling_time_frames().values("subject_id")
         return siblings.exclude(pk__in=with_frames).first()
 
     def is_active(self, timeline: VirtualTimeline, at: datetime) -> bool:

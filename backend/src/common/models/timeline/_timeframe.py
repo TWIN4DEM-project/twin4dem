@@ -124,12 +124,10 @@ class TimeFrameModel(models.Model):
                     f"{_format_timelines(candidate.shared_timelines(other.spec), user_timeline_labels)}."
                 )
 
-        siblings = list(self.subject.time_frame_siblings())
+        siblings = list(self.subject.siblings())
         sibling_frames = defaultdict(list)
-        for sibling_frame in (
-            type(self)
-            .objects.filter(subject__in=siblings)
-            .prefetch_related("timelines")
+        for sibling_frame in self.subject.sibling_time_frames().prefetch_related(
+            "timelines"
         ):
             sibling_frames[sibling_frame.subject_id].append(sibling_frame.spec)
 

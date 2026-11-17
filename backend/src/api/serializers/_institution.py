@@ -119,7 +119,7 @@ class BaseInstitutionSerializer(LCCModelSerializer):
                 errors[api_settings.NON_FIELD_ERRORS_KEY] = errors.pop(NON_FIELD_ERRORS)
             raise serializers.ValidationError(errors)
 
-        if not frames and institution.time_frame_siblings().exists():
+        if not frames and institution.siblings().exists():
             raise serializers.ValidationError(
                 {
                     "time_frames": [

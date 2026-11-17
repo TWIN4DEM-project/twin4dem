@@ -16,6 +16,10 @@ class StubSubject(TimeFrameSubject):
         """The global context whose timelines the subject's frames apply to."""
         return self.country.user_settings_id
 
+    def sibling_time_frames(self) -> models.QuerySet:
+        """The time frames of this subject's siblings."""
+        return StubTimeFrame.objects.filter(subject__in=self.siblings())
+
 
 class StubTimeFrame(TimeFrameModel):
     subject = models.ForeignKey(

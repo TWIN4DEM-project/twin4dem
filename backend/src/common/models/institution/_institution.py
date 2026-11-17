@@ -5,7 +5,7 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from pydantic import BaseModel, ConfigDict, Field
 
-from ..timeline import TimeFrameSubject
+from ..timeline import TimeFrameModel, TimeFrameSubject
 from ._branch import InstitutionBranch
 from ._kind import InstitutionKind
 
@@ -69,6 +69,10 @@ class Institution(TimeFrameSubject):
         """The global context whose timelines the subject's frames apply to."""
         return self.country.user_settings_id
 
+    def sibling_time_frames(self) -> models.QuerySet:
+        """The time frames of this subject's siblings."""
+        return InstitutionTimeFrame.objects.filter(subject__in=self.siblings())
+
     def get_payload(self) -> InstitutionPayload:
         """Return the payload as an instance of its typed schema."""
         schema = self.payload_schema
@@ -118,3 +122,11 @@ class Institution(TimeFrameSubject):
                 fields=["kind", "label"],
             ),
         ]
+
+
+class InstitutionTimeFrame(TimeFrameModel):
+    """A time frame in which an institution is active."""
+
+    subject = models.ForeignKey(
+        to=Institution, on_delete=models.CASCADE, related_name="time_frames"
+    )

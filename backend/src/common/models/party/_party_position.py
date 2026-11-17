@@ -5,7 +5,7 @@ from django.db import models
 from django.db.models import Q
 
 from ..institution import Institution, InstitutionBranch
-from ..timeline import TimeFrameSubject, VirtualTimeline
+from ..timeline import TimeFrameModel, TimeFrameSubject, VirtualTimeline
 from ._party import Party
 
 
@@ -48,6 +48,10 @@ class PartyPosition(TimeFrameSubject):
         """The global context whose timelines the subject's frames apply to."""
         return self.country.user_settings_id
 
+    def sibling_time_frames(self) -> models.QuerySet:
+        """The time frames of this subject's siblings."""
+        return PartyPositionTimeFrame.objects.filter(subject__in=self.siblings())
+
     def time_frame_label(self) -> str:
         return f"'{self.party.label}' ({self.position})"
 
@@ -79,6 +83,14 @@ class PartyPosition(TimeFrameSubject):
                 condition=Q(position__in=PartyPositionType.values),
             )
         ]
+
+
+class PartyPositionTimeFrame(TimeFrameModel):
+    """A time frame in which a party holds a position in a chamber."""
+
+    subject = models.ForeignKey(
+        to=PartyPosition, on_delete=models.CASCADE, related_name="time_frames"
+    )
 
 
 def party_position_at(

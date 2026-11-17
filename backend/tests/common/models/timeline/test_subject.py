@@ -20,8 +20,8 @@ def test_sibling_axes_come_from_the_subject_declaration(make_stub_subject):
     same_group = make_stub_subject("same", group="a")
     other_group = make_stub_subject("other", group="b")
 
-    assert set(subject.time_frame_siblings()) == {same_group}
-    assert other_group not in subject.time_frame_siblings()
+    assert set(subject.siblings()) == {same_group}
+    assert other_group not in subject.siblings()
 
 
 @pytest.mark.parametrize("sibling_has_frame", [False, True])

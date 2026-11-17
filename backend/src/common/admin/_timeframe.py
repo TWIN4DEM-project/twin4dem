@@ -214,12 +214,12 @@ class TimeFrameInlineFormSet(forms.BaseInlineFormSet):
                 for candidate in group
                 if candidate.subject.pk is not None
             }
-            siblings = subject.time_frame_siblings().exclude(
-                pk__in=candidate_subject_ids
-            )
+            siblings = subject.siblings().exclude(pk__in=candidate_subject_ids)
             frames_by_subject: dict[int, list[FrameSpec]] = defaultdict(list)
-            time_frames = subject.time_frame_model.objects
-            for frame in time_frames.filter(subject__in=siblings):
+            sibling_frames = subject.sibling_time_frames().exclude(
+                subject_id__in=candidate_subject_ids
+            )
+            for frame in sibling_frames:
                 frames_by_subject[frame.subject_id].append(frame.spec)
             for sibling in siblings:
                 for candidate in group:

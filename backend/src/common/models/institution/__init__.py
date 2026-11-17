@@ -5,9 +5,9 @@ from ._institution import (
     CourtPayload,
     Institution,
     InstitutionPayload,
+    InstitutionTimeFrame,
 )
 from ._kind import InstitutionKind
-from ._time_frame import InstitutionTimeFrame
 
 
 __all__ = (
