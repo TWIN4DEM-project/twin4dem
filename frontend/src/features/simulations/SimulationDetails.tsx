@@ -8,6 +8,7 @@ import { fetchSettings, useSimulation } from "@/features/simulations/hooks.ts";
 import { useWebSocketStream } from "@/hooks/websocket.ts";
 import type { UserSettings } from "@/types/settings.ts";
 import { type SimulationState, SimulationStateSchema } from "@/types/state.ts";
+import { logger } from "@/utils/logger";
 
 import "./SimulationDetails.scss";
 import SimulationTabbedContainer from "@/features/simulations/SimulationTabbedContainer.tsx";
@@ -92,7 +93,11 @@ export function SimulationDetails({ updateSimulationStep }: SimulationDetailsPar
   }, []);
 
   useEffect(() => {
-    loadSettings().catch(console.error);
+    loadSettings().catch((error: unknown) => {
+      logger.withMetadata({
+        errorType: error instanceof Error ? error.name : "UnknownError",
+      }).error("Failed to load simulation settings");
+    });
   }, [loadSettings]);
 
   // initial data loading
