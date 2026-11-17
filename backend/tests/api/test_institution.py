@@ -9,7 +9,7 @@ from common.models import (
     PartyPosition,
     PartyPositionType,
     Simulation,
-    TimeFrame,
+    InstitutionTimeFrame,
     VirtualTimeline,
 )
 
@@ -46,7 +46,7 @@ def frame(
 
 def frames_of(institution: Institution) -> list[tuple]:
     """The stored bounds of the institution's time frames."""
-    frames = TimeFrame.objects.of(institution).order_by("id")
+    frames = InstitutionTimeFrame.objects.of(institution).order_by("id")
     return list(frames.values_list("valid_from", "valid_to"))
 
 
@@ -778,7 +778,7 @@ def test_create_two_time_frames_on_a_timeline_400(admin_client, senate_kind):
         ]
     }
     assert not senate_kind.institutions.exists()
-    assert not TimeFrame.objects.exists()
+    assert not InstitutionTimeFrame.objects.exists()
 
 
 def test_create_time_frames_on_different_timelines_success(
@@ -850,7 +850,7 @@ def test_create_frameless_without_siblings_success(admin_client, senate_kind):
 
     assert response.status_code == 201
     assert response.json()["timeFrames"] == []
-    assert not TimeFrame.objects.exists()
+    assert not InstitutionTimeFrame.objects.exists()
 
 
 def test_create_frameless_with_siblings_400(admin_client, senate_kind, make_senate):
@@ -928,7 +928,7 @@ def test_create_batch_reports_all_errors_and_creates_nothing(admin_client, senat
         },
     ]
     assert not senate_kind.institutions.exists()
-    assert not TimeFrame.objects.exists()
+    assert not InstitutionTimeFrame.objects.exists()
 
 
 def test_create_empty_batch_400(admin_client):
@@ -1077,5 +1077,5 @@ def test_delete_deletes_time_frames_and_party_positions(admin_client, make_senat
     response = admin_client.delete(institution_url(senate))
 
     assert response.status_code == 204
-    assert not TimeFrame.objects.exists()
+    assert not InstitutionTimeFrame.objects.exists()
     assert not PartyPosition.objects.filter(chamber_id=senate.id).exists()

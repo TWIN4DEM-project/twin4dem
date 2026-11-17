@@ -15,9 +15,8 @@ from common.models import (
     PartyPosition,
     PartyPositionType,
     Simulation,
-    TimeFrame,
+    PartyPositionTimeFrame,
     VirtualTimeline,
-    is_active,
 )
 
 pytestmark = pytest.mark.django_db
@@ -55,7 +54,11 @@ def position_body(position: str = PartyPositionType.MAJORITY, **fields) -> dict:
 
 
 def frames_of(position: PartyPosition) -> list[tuple]:
-    return list(TimeFrame.objects.of(position).values_list("valid_from", "valid_to"))
+    return list(
+        PartyPositionTimeFrame.objects.of(position).values_list(
+            "valid_from", "valid_to"
+        )
+    )
 
 
 def overlap(position: str, interval: str) -> dict:
@@ -100,7 +103,7 @@ def framed_position(
     party_position = PartyPosition(party=party, chamber=chamber, position=position)
     party_position.full_clean()
     party_position.save()
-    TimeFrame.objects.occupy(party_position, valid_from, valid_to)
+    PartyPositionTimeFrame.objects.occupy(party_position, valid_from, valid_to)
     return party_position
 
 
@@ -114,7 +117,7 @@ def position_on(
     party_position = PartyPosition(party=party, chamber=chamber, position=position)
     party_position.full_clean()
     party_position.save()
-    TimeFrame.objects.occupy(party_position, at(2020), None, timelines)
+    PartyPositionTimeFrame.objects.occupy(party_position, at(2020), None, timelines)
     return party_position
 
 
@@ -584,8 +587,8 @@ def test_create_with_position_on_a_timeline(
     assert response.status_code == 201
     party = Party.objects.get(label="PSD")
     position = party.positions.get()
-    assert not is_active(position, default_timeline, at(2021))
-    assert is_active(position, alternate_timeline, at(2021))
+    assert not position.is_active(default_timeline, at(2021))
+    assert position.is_active(alternate_timeline, at(2021))
     # the API agrees: nothing on the default timeline, majority on the other
     on_default = admin_client.get(detail_url(party.id))
     assert on_default.json()["activePositions"] == []
@@ -640,7 +643,7 @@ def test_create_with_overlapping_positions_400_creates_nothing(admin_client):
     }
     assert not Party.objects.filter(label="PSD").exists()
     assert not PartyPosition.objects.filter(party__label="PSD").exists()
-    assert not TimeFrame.objects.exists()
+    assert not PartyPositionTimeFrame.objects.exists()
 
 
 @pytest.mark.parametrize(
@@ -771,7 +774,7 @@ def test_delete_deletes_positions_and_time_frames(admin_client, psd, parliament)
     assert response.content == b""
     assert not Party.objects.filter(pk=psd.pk).exists()
     assert not PartyPosition.objects.filter(pk=position.pk).exists()
-    assert not TimeFrame.objects.of(position).exists()
+    assert not PartyPositionTimeFrame.objects.of(position).exists()
 
 
 @pytest.mark.parametrize(

@@ -9,7 +9,7 @@ from common.models import (
     Country,
     Institution,
     InstitutionKind,
-    TimeFrame,
+    InstitutionTimeFrame,
     VirtualTimeline,
 )
 
@@ -60,14 +60,14 @@ class AllowedTimelineField(serializers.PrimaryKeyRelatedField):
 
 class TimeFrameListSerializer(serializers.ListSerializer):
     def get_attribute(self, instance):
-        return TimeFrame.objects.of(instance).order_by("id")
+        return instance.time_frames.order_by("id")
 
 
 class TimeFrameSerializer(LCCModelSerializer):
     timelines = AllowedTimelineField(many=True, required=False)
 
     class Meta:
-        model = TimeFrame
+        model = InstitutionTimeFrame
         fields = ["valid_from", "valid_to", "timelines"]
         list_serializer_class = TimeFrameListSerializer
 
@@ -105,7 +105,7 @@ class BaseInstitutionSerializer(LCCModelSerializer):
             setattr(instance, attr, value)
         self._clean(instance, frames)
         instance.save()
-        TimeFrame.objects.of(instance).delete()
+        instance.time_frames.all().delete()
         self._occupy_time_frames(instance, frames)
         return instance
 
@@ -135,7 +135,7 @@ class BaseInstitutionSerializer(LCCModelSerializer):
         errors = []
         for frame in frames:
             try:
-                TimeFrame.objects.occupy(institution, **frame)
+                InstitutionTimeFrame.objects.occupy(institution, **frame)
             except DjangoValidationError as e:
                 errors.append({api_settings.NON_FIELD_ERRORS_KEY: e.messages})
             else:

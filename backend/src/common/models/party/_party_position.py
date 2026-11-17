@@ -5,13 +5,7 @@ from django.db import models
 from django.db.models import Q
 
 from ..institution import Institution, InstitutionBranch
-from ..timeline import (
-    TimeFrameMixin,
-    TimeFrameSubjectType,
-    VirtualTimeline,
-    active_subjects,
-    frameless_sibling,
-)
+from ..timeline import TimeFrameSubject, VirtualTimeline
 from ._party import Party
 
 
@@ -21,10 +15,10 @@ class PartyPositionType(models.TextChoices):
     INDEPENDENT = "independent"
 
 
-class PartyPosition(TimeFrameMixin):
+class PartyPosition(TimeFrameSubject):
     """The position a party holds in a parliamentary chamber."""
 
-    time_frame_subject_type = TimeFrameSubjectType.PARTY_POSITION
+    sibling_fields = ("party", "chamber")
 
     id = models.AutoField(primary_key=True)
     party = models.ForeignKey(
@@ -46,18 +40,16 @@ class PartyPosition(TimeFrameMixin):
             else f"{self.party} ({self.position})"
         )
 
-    def time_frame_siblings(self) -> models.QuerySet:
-        """The other positions of the same party in the same chamber."""
-        siblings = PartyPosition.objects.filter(
-            party_id=self.party_id, chamber_id=self.chamber_id
-        ).select_related("party")
-        return siblings.exclude(pk=self.pk) if self.pk is not None else siblings
+    @property
+    def country(self):
+        return self.party.country
+
+    def time_frame_user_settings_id(self) -> int:
+        """The global context whose timelines the subject's frames apply to."""
+        return self.country.user_settings_id
 
     def time_frame_label(self) -> str:
         return f"'{self.party.label}' ({self.position})"
-
-    def time_frame_user_settings_id(self) -> int:
-        return self.party.country.user_settings_id
 
     def clean(self) -> None:
         super().clean()
@@ -69,7 +61,7 @@ class PartyPosition(TimeFrameMixin):
         elif self.party.country_id != self.chamber.kind.country_id:
             errors["chamber"] = "The chamber must belong to the party's country."
         elif self.pk is None:
-            sibling = frameless_sibling(self)
+            sibling = self.frameless_sibling()
             if sibling is not None:
                 errors["chamber"] = (
                     f"'{sibling.party.label}' holds the {sibling.position} "
@@ -93,7 +85,9 @@ def party_position_at(
     party: Party | int, chamber: Institution, timeline: VirtualTimeline, at: datetime
 ) -> PartyPosition | None:
     """The position `party` holds in `chamber` on `timeline` at `at`, if any."""
-    positions = active_subjects(
-        PartyPosition.objects.filter(party=party, chamber=chamber), timeline, at
+    return (
+        PartyPosition.objects.filter(party=party, chamber=chamber)
+        .active_on(timeline, at)
+        .order_by("pk")
+        .first()
     )
-    return positions[0] if positions else None

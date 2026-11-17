@@ -13,8 +13,6 @@ from common.models import (
     FrameSpec,
     Party,
     PartyPosition,
-    TimeFrame,
-    TimeFrameSubjectType,
     VirtualTimeline,
 )
 
@@ -77,15 +75,16 @@ def _positions_with_timeline(
 
 def _frames_by_position(positions: list[PartyPosition]) -> dict[int, list[FrameSpec]]:
     """The time frames of the positions, with their timelines, by position id."""
-    rows = TimeFrame.objects.filter(
-        subject_type=TimeFrameSubjectType.PARTY_POSITION,
-        subject_id__in=[position.pk for position in positions],
+    from common.models import PartyPositionTimeFrame
+
+    rows = PartyPositionTimeFrame.objects.filter(
+        subject_id__in=[position.pk for position in positions]
     ).values_list(
         "id",
         "subject_id",
         "valid_from",
         "valid_to",
-        "timeline_links__virtual_timeline_id",
+        "timelines__id",
     )
     frames = {}
     links = defaultdict(set)

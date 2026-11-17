@@ -46,6 +46,14 @@ class FrameSpec:
         not_ended = self.valid_to is None or at < self.valid_to
         return on_timeline and started and not_ended
 
+    def format_interval(self) -> str:
+        """The frame's interval in error messages, e.g. ``[2020, 2022)``."""
+        return _format_interval(self)
+
+    def format_timelines(self, other: "FrameSpec", labels: dict) -> str:
+        """The timelines two frames share, in error messages."""
+        return _format_timelines(self.shared_timelines(other), labels)
+
 
 # a subject without time frames is active at all times, on all timelines
 ALWAYS = FrameSpec(valid_from=None, valid_to=None, timeline_ids=None)

@@ -8,9 +8,8 @@ from common.models import (
     Party,
     PartyPosition,
     PartyPositionType,
-    TimeFrame,
+    PartyPositionTimeFrame,
     VirtualTimeline,
-    is_active,
 )
 
 pytestmark = pytest.mark.django_db
@@ -34,7 +33,7 @@ def position(
         party=party, chamber=chamber, position=kind
     )
     for valid_from, valid_to in frames:
-        TimeFrame.objects.create_for(
+        PartyPositionTimeFrame.objects.create_for(
             party_position, valid_from=valid_from, valid_to=valid_to
         )
     return party_position
@@ -54,7 +53,9 @@ def on_timelines(
     valid_to: datetime | None = None,
 ) -> None:
     """Add a validated time frame, restricted to the given timelines."""
-    TimeFrame.objects.occupy(party_position, valid_from, valid_to, timelines)
+    PartyPositionTimeFrame.objects.occupy(
+        party_position, valid_from, valid_to, timelines
+    )
 
 
 @pytest.fixture
@@ -273,11 +274,11 @@ def test_frame_on_another_timeline_does_not_count(
     on_timelines(party_position, alternate_timeline, valid_to=at(2030))
 
     assert summary(psd) == {}
-    assert not is_active(party_position, default_timeline, NOW)
+    assert not party_position.is_active(default_timeline, NOW)
     assert summary(psd, alternate_timeline) == {
         parliament.pk: PositionSummary(latest=party_position, active=party_position)
     }
-    assert is_active(party_position, alternate_timeline, NOW)
+    assert party_position.is_active(alternate_timeline, NOW)
 
 
 def test_frame_without_timeline_links_counts_on_every_timeline(

@@ -3,7 +3,12 @@ from django.db import transaction
 from rest_framework import serializers
 from rest_framework.settings import api_settings
 
-from common.models import Institution, Party, PartyPosition, TimeFrame
+from common.models import (
+    Institution,
+    Party,
+    PartyPosition,
+    PartyPositionTimeFrame,
+)
 
 from ._base import LCCModelSerializer
 from ._batch import BatchListSerializer
@@ -61,19 +66,17 @@ class BasePartyPositionSerializer(LCCModelSerializer):
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         self._clean_and_save(instance)
-        TimeFrame.objects.of(instance).delete()
+        instance.time_frames.all().delete()
         self._occupy(instance, frame)
         return instance
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
-        frame = TimeFrame.objects.of(instance).order_by("id").first()
+        frame = instance.time_frames.order_by("id").first()
         timeline_id = valid_from = valid_to = None
         if frame is not None:
             timeline_id = (
-                frame.timeline_links.order_by("id")
-                .values_list("virtual_timeline_id", flat=True)
-                .first()
+                frame.timelines.order_by("id").values_list("id", flat=True).first()
             )
             valid_from, valid_to = frame.valid_from, frame.valid_to
         data["timeline"] = timeline_id
@@ -101,7 +104,7 @@ class BasePartyPositionSerializer(LCCModelSerializer):
     @staticmethod
     def _occupy(position: PartyPosition, frame: dict):
         try:
-            TimeFrame.objects.occupy(position, **frame)
+            PartyPositionTimeFrame.objects.occupy(position, **frame)
         except DjangoValidationError as e:
             raise serializers.ValidationError(
                 {api_settings.NON_FIELD_ERRORS_KEY: e.messages}

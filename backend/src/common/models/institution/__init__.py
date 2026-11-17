@@ -7,6 +7,7 @@ from ._institution import (
     InstitutionPayload,
 )
 from ._kind import InstitutionKind
+from ._time_frame import InstitutionTimeFrame
 
 
 __all__ = (
@@ -17,4 +18,5 @@ __all__ = (
     "InstitutionBranch",
     "InstitutionKind",
     "InstitutionPayload",
+    "InstitutionTimeFrame",
 )

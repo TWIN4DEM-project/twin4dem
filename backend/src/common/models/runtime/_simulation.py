@@ -3,7 +3,7 @@ from django.db import models
 from django.utils import timezone
 
 from ..institution import Institution, InstitutionBranch
-from ..timeline import VirtualTimeline, is_active
+from ..timeline import VirtualTimeline
 from ..world import (
     Country,
     UserSettings,
@@ -119,7 +119,7 @@ class SimulationInstitution(models.Model):
                 }
             )
 
-        if not is_active(institution, simulation.timeline, simulation.valid_at):
+        if not institution.is_active(simulation.timeline, simulation.valid_at):
             raise ValidationError(
                 {
                     "institution": (

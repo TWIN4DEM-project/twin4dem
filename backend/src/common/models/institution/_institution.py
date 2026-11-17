@@ -5,7 +5,7 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from pydantic import BaseModel, ConfigDict, Field
 
-from ..timeline import TimeFrameMixin, TimeFrameSubjectType
+from ..timeline import TimeFrameSubject
 from ._branch import InstitutionBranch
 from ._kind import InstitutionKind
 
@@ -34,10 +34,10 @@ class CourtPayload(InstitutionPayload):
     probability_for: Optional[Probability] = None
 
 
-class Institution(TimeFrameMixin):
+class Institution(TimeFrameSubject):
     """An instance of an institution type, e.g. the 'Castex' cabinet."""
 
-    time_frame_subject_type = TimeFrameSubjectType.INSTITUTION
+    sibling_fields = ("kind",)
 
     _BRANCH_TO_PAYLOAD = {
         InstitutionBranch.EXECUTIVE.value: CabinetPayload,
@@ -61,6 +61,14 @@ class Institution(TimeFrameMixin):
         """The payload schema expected by the institution's branch."""
         return self._BRANCH_TO_PAYLOAD.get(self.kind.branch)
 
+    @property
+    def country(self):
+        return self.kind.country
+
+    def time_frame_user_settings_id(self) -> int:
+        """The global context whose timelines the subject's frames apply to."""
+        return self.country.user_settings_id
+
     def get_payload(self) -> InstitutionPayload:
         """Return the payload as an instance of its typed schema."""
         schema = self.payload_schema
@@ -70,26 +78,12 @@ class Institution(TimeFrameMixin):
             )
         return schema.model_validate(self.payload)
 
-    def time_frame_siblings(self) -> models.QuerySet:
-        """The other institutions of the same kind."""
-        siblings = Institution.objects.filter(kind_id=self.kind_id)
-        return siblings.exclude(pk=self.pk) if self.pk is not None else siblings
-
-    def time_frame_label(self) -> str:
-        return f"'{self.label}'"
-
-    def time_frame_user_settings_id(self) -> int:
-        return self.kind.country.user_settings_id
-
     def clean(self) -> None:
         super().clean()
         errors = {}
 
         if self.pk is None and self.kind_id is not None:
-            # imported here: the timeline package is loaded after this module
-            from ..timeline import frameless_sibling
-
-            sibling = frameless_sibling(self)
+            sibling = self.frameless_sibling()
             if sibling is not None:
                 errors["kind"] = (
                     f"'{sibling.label}' has no time frame, so it is active at "
