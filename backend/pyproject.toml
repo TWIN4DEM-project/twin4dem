@@ -17,7 +17,7 @@ dependencies = [
     "django-vite>=3.1.0",
     "djangorestframework>=3.16.1",
     "psycopg2>=2.9.11",
-    "pydantic>=2.12.5",
+    "pydantic>=2.13.4,<2.14",
     "requests>=2.32.5",
 ]
 
@@ -26,6 +26,9 @@ package = true
 
 [tool.uv.build-backend]
 namespace = true
+
+[tool.uv.sources]
+twin4dem-data-contracts = { git = "https://github.com/TWIN4DEM-project/twin4dem-data-contracts.git", rev = "v0.1.0" }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -72,10 +75,13 @@ extend-select = ["TID251"]
 "common.models.timeline._validation".msg = "Import from the public common.models.timeline interface instead."
 "common.models.world._country".msg = "Import from the public common.models.world interface instead."
 "common.models.world._settings".msg = "Import from the public common.models.world interface instead."
+"common.importing._errors".msg = "Import from the public common.importing interface instead."
+"common.importing._source".msg = "Import from the public common.importing interface instead."
 
 [tool.ruff.lint.per-file-ignores]
 "src/twin4dem/settings_dev.py" = ["F403", "F405"]
 "src/common/models/**" = ["TID251"]
+"src/common/importing/**" = ["TID251"]
 "src/common/migrations/**" = ["TID251"]
 
 [dependency-groups]
@@ -91,6 +97,7 @@ dev = [
     "pytest-cov>=7.0.0",
     "pytest-django>=4.11.1",
     "ruff>=0.14.9",
+    "twin4dem-data-contracts",
     "types-channels>=4.3.0.20250822",
 ]
 prod = []
