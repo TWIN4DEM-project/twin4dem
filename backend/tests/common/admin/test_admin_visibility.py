@@ -6,18 +6,20 @@ from common.admin import (
     CountryAdmin,
     InstitutionAdmin,
     PartyAdmin,
-    TimeFrameAdmin,
     UserSettingsAdmin,
 )
+from common.admin._institution import (
+    InstitutionTimeFrameInline,
+    InstitutionTimeFrameInlineForm,
+)
 from common.admin._party import PartyPositionInline
-from common.admin._timeframe import TimeFrameAdminForm
 from common.models import (
     Country,
     Institution,
     InstitutionBranch,
+    InstitutionTimeFrame,
     Party,
     PartyPosition,
-    TimeFrame,
     UserSettings,
     VirtualTimeline,
 )
@@ -44,7 +46,6 @@ def make_request(user):
         (CountryAdmin, Country, 0),
         (InstitutionAdmin, Institution, 0),
         (PartyAdmin, Party, 0),
-        (TimeFrameAdmin, TimeFrame, 0),
     ],
 )
 def test_non_superuser_sees_only_their_own_rows(
@@ -108,25 +109,38 @@ def test_chamber_choices_are_restricted_to_the_owning_user(
     )
 
 
+def _timeline_field(formset):
+    return formset.form.base_fields["timeline_selection"]
+
+
 @pytest.mark.django_db
-def test_superuser_form_leaves_all_timeline_choices(django_user_model):
+def test_superuser_inline_leaves_all_timeline_choices(django_user_model):
     admin_user = django_user_model.objects.get(username="test_admin")
-    view = TimeFrameAdmin(TimeFrame, site)
+    inline = InstitutionTimeFrameInline(Institution, site)
 
-    form = view.get_form(make_request(admin_user))()
+    formset = inline.get_formset(make_request(admin_user))
 
-    assert form.fields["timeline_selection"].queryset.count() == (
-        VirtualTimeline.objects.count()
+    assert _timeline_field(formset).queryset.count() == VirtualTimeline.objects.count()
+
+
+@pytest.mark.django_db
+def test_staff_inline_restricts_timeline_choices(staff_user):
+    inline = InstitutionTimeFrameInline(Institution, site)
+
+    formset = inline.get_formset(make_request(staff_user))
+
+    assert list(_timeline_field(formset).queryset) == list(
+        VirtualTimeline.objects.filter(user_settings__user=staff_user)
     )
 
 
 @pytest.mark.django_db
-def test_staff_form_restricts_timeline_choices(staff_user):
-    view = TimeFrameAdmin(TimeFrame, site)
+def test_party_inline_restricts_timeline_choices(staff_user):
+    inline = PartyPositionInline(Party, site)
 
-    form = view.get_form(make_request(staff_user))()
+    formset = inline.get_formset(make_request(staff_user))
 
-    assert list(form.fields["timeline_selection"].queryset) == list(
+    assert list(_timeline_field(formset).queryset) == list(
         VirtualTimeline.objects.filter(user_settings__user=staff_user)
     )
 
@@ -135,17 +149,17 @@ def test_staff_form_restricts_timeline_choices(staff_user):
 def test_form_prefills_timelines_of_a_saved_frame(cabinet, alternate_timeline):
     from datetime import UTC, datetime
 
-    frame = TimeFrame.objects.create_for(
+    frame = InstitutionTimeFrame.objects.create_for(
         cabinet, valid_from=datetime(2020, 1, 1, tzinfo=UTC)
     )
     frame.timelines.add(alternate_timeline)
 
-    form = TimeFrameAdminForm(instance=frame)
+    form = InstitutionTimeFrameInlineForm(instance=frame)
 
     assert list(form.initial["timeline_selection"]) == [alternate_timeline]
 
 
 def test_form_leaves_timelines_blank_for_a_new_frame():
-    form = TimeFrameAdminForm(instance=TimeFrame())
+    form = InstitutionTimeFrameInlineForm(instance=InstitutionTimeFrame())
 
     assert "timeline_selection" not in form.initial

@@ -1,11 +1,83 @@
+from django import forms
 from django.contrib import admin
 
-from ..models import Country, InstitutionBranch, Institution, Party, PartyPosition
+from ..models import (
+    Country,
+    Institution,
+    InstitutionBranch,
+    Party,
+    PartyPosition,
+    PartyPositionTimeFrame,
+)
+from ._timeframe import (
+    TimeFrameInlineAdminMixin,
+    TimeFrameInlineFormSet,
+    TimelineQuerysetInlineMixin,
+    TimelineSelectionFormMixin,
+    timeline_selection_field,
+)
 
 
-class PartyPositionInline(admin.TabularInline):
+FRAME_FIELDS = ("valid_from", "valid_to", "timeline_selection")
+
+
+class PartyPositionInlineForm(TimelineSelectionFormMixin, forms.ModelForm):
+    timeline_selection = timeline_selection_field()
+    valid_from = forms.DateTimeField(
+        required=False,
+        label="Valid from",
+        help_text="Leave both bounds empty for an open-ended time frame.",
+    )
+    valid_to = forms.DateTimeField(required=False, label="Valid to")
+
+    class Meta:
+        model = PartyPosition
+        fields = ("position", "chamber", "valid_from", "valid_to")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.is_new = self.instance.pk is None
+        frame = self.frame_to_edit()
+        if frame is not None and frame.pk is not None:
+            self.initial.setdefault("valid_from", frame.valid_from)
+            self.initial.setdefault("valid_to", frame.valid_to)
+
+    def frame_to_edit(self):
+        if self.instance.pk is None:
+            return None
+        return self.instance.time_frames.order_by("id").first()
+
+    def frame_changed(self) -> bool:
+        return self.is_new or any(name in self.changed_data for name in FRAME_FIELDS)
+
+    def time_frame_subject(self) -> PartyPosition:
+        return PartyPosition(
+            pk=self.instance.pk,
+            party_id=self.instance.party_id,
+            chamber=self.cleaned_data.get("chamber"),
+            position=self.cleaned_data.get("position"),
+        )
+
+    def save_time_frame(self):
+        if self.cleaned_data.get("DELETE") or not self.instance.pk:
+            return
+        if not self.frame_changed():
+            return
+        self.instance.time_frames.all().delete()
+        frame = PartyPositionTimeFrame.objects.create_for(
+            self.instance,
+            valid_from=self.cleaned_data.get("valid_from"),
+            valid_to=self.cleaned_data.get("valid_to"),
+        )
+        frame.timelines.set(self.selected_timelines())
+
+
+class PartyPositionInline(TimelineQuerysetInlineMixin, admin.TabularInline):
     model = PartyPosition
+    form = PartyPositionInlineForm
+    formset = TimeFrameInlineFormSet
     extra = 0
+    fields = ("position", "chamber", "valid_from", "valid_to", "timeline_selection")
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if db_field.name == "chamber":
@@ -21,7 +93,7 @@ class PartyPositionInline(admin.TabularInline):
 
 
 @admin.register(Party)
-class PartyAdmin(admin.ModelAdmin):
+class PartyAdmin(TimeFrameInlineAdminMixin, admin.ModelAdmin):
     list_display = ("id", "label", "country")
     search_fields = ("label", "country__name")
     inlines = [PartyPositionInline]
