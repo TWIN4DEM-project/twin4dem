@@ -117,3 +117,84 @@ def test_is_active_uses_one_joined_query(
 
     with django_assert_num_queries(1):
         assert stub_subject.is_active(default_timeline, _dt(2021))
+
+
+def test_most_recent_per_timeline_groups_by_timeline(
+    make_stub_subject, default_timeline, alternate_timeline
+):
+    make_stub_subject("frameless", group="b")
+    everywhere = make_stub_subject("everywhere", group="a")
+    on_default = make_stub_subject("on_default", group="c")
+    on_alternate = make_stub_subject("on_alternate", group="d")
+    StubTimeFrame.objects.occupy(everywhere, _dt(2020), _dt(2022))
+    StubTimeFrame.objects.occupy(on_default, _dt(2023), None, [default_timeline])
+    StubTimeFrame.objects.occupy(on_alternate, _dt(2024), None, [alternate_timeline])
+
+    def timeline_of(subject) -> int | None:
+        return next(
+            (
+                frame.timelines.values_list("id", flat=True).first()
+                for frame in subject.time_frames.all()
+            ),
+            None,
+        )
+
+    ranked = StubSubject.objects.most_recent(per_timeline=True)
+    assert {(s.label, timeline_of(s)) for s in ranked} == {
+        ("frameless", None),
+        ("everywhere", None),
+        ("on_default", default_timeline.pk),
+        ("on_alternate", alternate_timeline.pk),
+    }
+
+
+def test_most_recent_per_timeline_keeps_the_latest_within_each_timeline(
+    make_stub_subject, default_timeline, alternate_timeline
+):
+    subject_old_default = make_stub_subject("old", group="a")
+    subject_new = make_stub_subject("new", group="c")
+    subject_old_alternate = make_stub_subject("old-alt", group="b")
+    StubTimeFrame.objects.occupy(
+        subject_old_default, _dt(2020), _dt(2022), [default_timeline]
+    )
+    StubTimeFrame.objects.occupy(subject_new, _dt(2023), _dt(2025), [default_timeline])
+    StubTimeFrame.objects.occupy(
+        subject_old_alternate, _dt(2026), None, [alternate_timeline]
+    )
+
+    ranked = StubSubject.objects.most_recent(per_timeline=True)
+    assert {
+        (s.label, frozenset(s.time_frames.values_list("timelines__id", flat=True)))
+        for s in ranked
+    } == {
+        ("new", frozenset({default_timeline.pk})),
+        ("old-alt", frozenset({alternate_timeline.pk})),
+        ("old", frozenset({default_timeline.pk})),
+    }
+
+
+def test_most_recent_per_timeline_with_a_timeline_filter(
+    make_stub_subject, default_timeline, alternate_timeline
+):
+    subject = make_stub_subject("subject", group="a")
+    everywhere = make_stub_subject("everywhere", group="b")
+    on_alternate = make_stub_subject("on_alternate", group="c")
+    StubTimeFrame.objects.occupy(everywhere, _dt(2020), _dt(2022))
+    StubTimeFrame.objects.occupy(subject, _dt(2023), None, [default_timeline])
+    StubTimeFrame.objects.occupy(on_alternate, _dt(2024), None, [alternate_timeline])
+
+    ranked = StubSubject.objects.most_recent(default_timeline, per_timeline=True)
+    assert {s.label for s in ranked} == {"everywhere", "subject"}
+
+
+def test_most_recent_per_timeline_is_one_flat_query(
+    make_stub_subject, django_assert_num_queries
+):
+    for i in range(5):
+        subject = make_stub_subject(f"subject {i}", group=f"group {i}")
+        StubTimeFrame.objects.occupy(subject, _dt(2020), _dt(2022))
+
+    with django_assert_num_queries(1):
+        ranked = list(StubSubject.objects.most_recent(per_timeline=True))
+
+    assert len(ranked) == 5

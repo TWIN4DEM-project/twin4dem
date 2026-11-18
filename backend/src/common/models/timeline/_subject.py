@@ -1,9 +1,10 @@
 from datetime import datetime
 from functools import cached_property
-from typing import NamedTuple
+from typing import NamedTuple, Self
 
 from django.db import models
-from django.db.models import Q
+from django.db.models import Q, OuterRef, Subquery, F, OrderBy, Window
+from django.db.models.functions import RowNumber
 
 from ._timeline import VirtualTimeline
 
@@ -18,30 +19,94 @@ class TimeFrameSubjectSiblings(NamedTuple):
 
 
 class TimeFrameSubjectQuerySet(models.QuerySet):
-    def active_on(
-        self, timeline: VirtualTimeline, at: datetime
-    ) -> "TimeFrameSubjectQuerySet":
+    @staticmethod
+    def _active_at_filter(at: datetime) -> Q:
+        return (
+            Q(time_frames__valid_from__isnull=True) | Q(time_frames__valid_from__lte=at)
+        ) & (Q(time_frames__valid_to__isnull=True) | Q(time_frames__valid_to__gt=at))
+
+    @staticmethod
+    def _timeline_filter(timeline: VirtualTimeline) -> Q:
+        return Q(time_frames__timelines=timeline) | Q(
+            time_frames__timelines__isnull=True
+        )
+
+    @staticmethod
+    def _order_by_recency() -> list[OrderBy]:
+        return [F("most_recent").desc(nulls_first=True), F("pk").desc()]
+
+    @classmethod
+    def _active_filter(cls, timeline: VirtualTimeline | None, at: datetime | None) -> Q:
+        q = Q()
+        if at is not None:
+            q &= cls._active_at_filter(at)
+        if timeline is not None:
+            q &= cls._timeline_filter(timeline)
+        return q
+
+    @property
+    def _all_subjects(self) -> models.QuerySet["TimeFrameSubject"]:
+        return self.model._base_manager.all()
+
+    def _with_most_recent(self, timeline: VirtualTimeline | None) -> Self:
+        """Annotate `latest_end`: NULL if any frame is open or there are no frames,
+        otherwise the greatest valid_to."""
+        own_time_frames = self._all_subjects.filter(pk=OuterRef("pk"))
+        if timeline is not None:
+            own_time_frames = own_time_frames.filter(self._timeline_filter(timeline))
+        return self.annotate(
+            most_recent=Subquery(
+                own_time_frames.order_by(
+                    F("time_frames__valid_to").desc(nulls_first=True)
+                ).values("time_frames__valid_to")[:1]
+            )
+        )
+
+    def active_on(self, timeline: VirtualTimeline | None, at: datetime) -> Self:
         """The subjects active on the timeline at ``at``.
 
-        A subject without time frames is active at all times on all timelines.
+        A subject without time frames is always active on all timelines.
+        A ``None`` timeline matches frames on any timeline.
         """
         return self.filter(
-            Q(time_frames__isnull=True)
-            | (
-                (
-                    Q(time_frames__valid_from__isnull=True)
-                    | Q(time_frames__valid_from__lte=at)
-                )
-                & (
-                    Q(time_frames__valid_to__isnull=True)
-                    | Q(time_frames__valid_to__gt=at)
-                )
-                & (
-                    Q(time_frames__timelines=timeline)
-                    | Q(time_frames__timelines__isnull=True)
-                )
-            )
+            Q(time_frames__isnull=True) | self._active_filter(timeline, at)
         ).distinct()
+
+    def by_recency(self, timeline: VirtualTimeline | None = None) -> Self:
+        """All subjects, most recent first."""
+        return self._with_most_recent(timeline).order_by(*self._order_by_recency())
+
+    def most_recent(
+        self,
+        timeline: VirtualTimeline | None = None,
+        per: tuple[str, ...] | None = None,
+        *,
+        per_timeline: bool = False,
+    ) -> Self:
+        """Keep only the most recent subject per group of siblings.
+
+        Groups by ``model.sibling_fields`` unless ``per`` is given.
+        An empty grouping keeps the single most recent subject overall.
+        With ``per_timeline``, the frame's timeline link joins the grouping,
+        keeping one subject per group per timeline; a subject whose frames
+        have no timeline links forms the NULL-timeline group, i.e. the one
+        applying to all timelines.
+        """
+        per = self.model.sibling_fields if per is None else per
+        if per_timeline:
+            per = per + ("time_frames__timelines",)
+        queryset = self._with_most_recent(timeline)
+        if timeline is not None:
+            queryset = queryset.filter(
+                Q(time_frames__isnull=True) | self._timeline_filter(timeline)
+            )
+        return queryset.annotate(
+            recency_rank=Window(
+                RowNumber(),
+                partition_by=[F(field) for field in per] or None,
+                order_by=self._order_by_recency(),
+            )
+        ).filter(recency_rank=1)
 
 
 class TimeFrameSubject(models.Model):
