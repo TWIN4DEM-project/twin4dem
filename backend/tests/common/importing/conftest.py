@@ -1,7 +1,8 @@
-import shutil
 from pathlib import Path
 
 import pytest
+from django.core.files.base import ContentFile
+from django.core.files.storage import InMemoryStorage
 
 TESTLAND_DIR = Path(__file__).parents[2] / "data" / "constitutional" / "testland"
 
@@ -13,8 +14,9 @@ def testland_dir() -> Path:
 
 
 @pytest.fixture
-def testland_copy(tmp_path) -> Path:
-    """A private copy of Testland that a test can edit to build a variant."""
-    target = tmp_path / "testland"
-    shutil.copytree(TESTLAND_DIR, target)
-    return target
+def testland_storage() -> InMemoryStorage:
+    """Testland's CSV files in memory, for a test to edit into a variant."""
+    storage = InMemoryStorage()
+    for path in TESTLAND_DIR.glob("*.csv"):
+        storage.save(path.name, ContentFile(path.read_bytes()))
+    return storage

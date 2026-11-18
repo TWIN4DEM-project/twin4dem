@@ -76,6 +76,7 @@ extend-select = ["TID251"]
 "common.models.world._country".msg = "Import from the public common.models.world interface instead."
 "common.models.world._settings".msg = "Import from the public common.models.world interface instead."
 "common.importing._errors".msg = "Import from the public common.importing interface instead."
+"common.importing._reader".msg = "Import from the public common.importing interface instead."
 "common.importing._source".msg = "Import from the public common.importing interface instead."
 
 [tool.ruff.lint.per-file-ignores]
