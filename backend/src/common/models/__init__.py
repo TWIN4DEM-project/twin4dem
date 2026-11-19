@@ -35,6 +35,7 @@ from .institution import (
     InstitutionKind,
 )
 from .party import Party, PartyPositionType, PartyPosition, party_position_at
+from .person import Person
 from .timeline import (
     FrameSpec,
     TimeFrame,
@@ -75,6 +76,7 @@ __all__ = (
     "Party",
     "PartyPosition",
     "PartyPositionType",
+    "Person",
     "FrameSpec",
     "TimeFrame",
     "TimeFrameMixin",
