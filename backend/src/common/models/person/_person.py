@@ -13,16 +13,19 @@ class Person(models.Model):
     dod = models.DateField(null=True, blank=True)
 
     class Meta:
-        db_table= "people"
+        db_table = "people"
         verbose_name = "Person"
         verbose_name_plural = "People"
         constraints = [
             models.CheckConstraint(
-                condition=(Q(dod__isnull=True) | Q(dob__isnull=True) | Q(dod__gt=F("dob"))),
+                condition=(
+                    Q(dod__isnull=True) | Q(dob__isnull=True) | Q(dod__gt=F("dob"))
+                ),
                 name="people_dod_after_dob",
-                violation_error_message="Date of death must follow date of birth"
+                violation_error_message="Date of death must follow date of birth",
             )
         ]
+
     def clean(self) -> None:
         if self.dod is None or self.dob is None:
             return None
