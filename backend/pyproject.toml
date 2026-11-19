@@ -79,6 +79,7 @@ extend-select = ["TID251"]
 "common.importing._reader".msg = "Import from the public common.importing interface instead."
 "common.importing._selection".msg = "Import from the public common.importing interface instead."
 "common.importing._source".msg = "Import from the public common.importing interface instead."
+"common.importing._writer".msg = "Import from the public common.importing interface instead."
 
 [tool.ruff.lint.per-file-ignores]
 "src/twin4dem/settings_dev.py" = ["F403", "F405"]

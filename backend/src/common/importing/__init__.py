@@ -7,6 +7,7 @@ from ._selection import (
     select,
 )
 from ._source import resolve_source
+from ._writer import WriteResult, write
 
 __all__ = (
     "CONTRACT_FILES",
@@ -17,7 +18,9 @@ __all__ = (
     "SelectedInstitution",
     "SelectedParty",
     "SourceError",
+    "WriteResult",
     "read_delivery",
     "resolve_source",
     "select",
+    "write",
 )
