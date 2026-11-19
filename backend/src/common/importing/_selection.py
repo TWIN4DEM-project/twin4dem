@@ -1,6 +1,6 @@
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 
 from twin4dem_data_contracts.models import (
     Cabinet,
@@ -48,6 +48,7 @@ class CountrySelection:
 
     country: Country
     as_of: date
+    reference_date: date
     institutions: tuple[SelectedInstitution, ...]
     parties: tuple[SelectedParty, ...]
     skipped_institutions: tuple[Institution, ...]
@@ -55,10 +56,7 @@ class CountrySelection:
 
     @property
     def chamber(self) -> SelectedInstitution | None:
-        return next(
-            (s for s in self.institutions if s.branch == InstitutionBranch.LEGISLATIVE),
-            None,
-        )
+        return _of_branch(self.institutions, InstitutionBranch.LEGISLATIVE)
 
     @property
     def warnings(self) -> tuple[str, ...]:
@@ -78,7 +76,7 @@ class CountrySelection:
             total = len(self.parties) + len(self.skipped_parties)
             warnings.append(
                 f"{name}: {len(self.skipped_parties)} of {total} parties skipped: "
-                f"no position on or before {as_of}, or not active on that date."
+                f"no position on {self.reference_date}, or not active on that date."
             )
         if self.chamber and len(self.parties) >= self.chamber.instance.size:
             warnings.append(
@@ -107,6 +105,18 @@ def is_valid_on(valid_from: date | None, valid_to: date | None, day: date) -> bo
     )
 
 
+def valid_on[T: Instance | PartyPosition](
+    records: list[T], day: date, label: str
+) -> T | None:
+    """The record valid on `day`, if any. Overlapping records are an error."""
+    valid = [r for r in records if is_valid_on(r.valid_from, r.valid_to, day)]
+    if len(valid) > 1:
+        raise_if_any(
+            [f"{label}: {len(valid)} records are valid on {day}, overlapping."]
+        )
+    return valid[0] if valid else None
+
+
 def current_or_latest[T: Instance | PartyPosition](
     records: list[T], as_of: date, label: str
 ) -> T | None:
@@ -114,20 +124,18 @@ def current_or_latest[T: Instance | PartyPosition](
     The record valid on `as_of`, else the most recent one before it. Records
     starting after `as_of` are ignored.
     """
-    valid = [r for r in records if is_valid_on(r.valid_from, r.valid_to, as_of)]
-    if len(valid) > 1:
-        raise_if_any(
-            [f"{label}: {len(valid)} records are valid on {as_of}, overlapping."]
-        )
+    current = valid_on(records, as_of, label)
+    if current is not None:
+        return current
     started = [r for r in records if is_valid_on(r.valid_from, None, as_of)]
     return max(started, key=lambda r: r.valid_from or date.min, default=None)
 
 
 def is_importable_party(
-    party: PoliticalParty, position: PartyPosition | None, as_of: date
+    party: PoliticalParty, position: PartyPosition | None, day: date
 ) -> bool:
     return position is not None and is_valid_on(
-        party.date_founded, party.date_dissolved, as_of
+        party.date_founded, party.date_dissolved, day
     )
 
 
@@ -139,26 +147,45 @@ def _select_country(
     ]
     _check_one_per_branch(country, institutions)
     instances = [(i, _instance(delivery, i, as_of)) for i in institutions]
+    selected = tuple(SelectedInstitution(i, inst) for i, inst in instances if inst)
+    day = _reference_date(selected, as_of)
     parties = [
         p for p in delivery.of(PoliticalParty) if p.country_id == country.country_id
     ]
-    positions = [(p, _latest_position(delivery, p, as_of)) for p in parties]
+    positions = [(p, _position_on(delivery, p, day)) for p in parties]
     return CountrySelection(
         country=country,
         as_of=as_of,
-        institutions=tuple(
-            SelectedInstitution(i, inst) for i, inst in instances if inst
-        ),
+        reference_date=day,
+        institutions=selected,
         parties=tuple(
             SelectedParty(p, pos)
             for p, pos in positions
-            if is_importable_party(p, pos, as_of)
+            if is_importable_party(p, pos, day)
         ),
         skipped_institutions=tuple(i for i, inst in instances if not inst),
         skipped_parties=tuple(
-            p for p, pos in positions if not is_importable_party(p, pos, as_of)
+            p for p, pos in positions if not is_importable_party(p, pos, day)
         ),
     )
+
+
+def _reference_date(institutions: tuple[SelectedInstitution, ...], as_of: date) -> date:
+    """
+    The moment the parties are taken from, so that they come from the same
+    period as the selected cabinet: the import date while that cabinet is
+    valid (or without a cabinet), else the cabinet's last day.
+    """
+    cabinet = _of_branch(institutions, InstitutionBranch.EXECUTIVE)
+    if cabinet is None or cabinet.instance.valid_to is None:
+        return as_of
+    return min(as_of, cabinet.instance.valid_to - timedelta(days=1))
+
+
+def _of_branch(
+    institutions: tuple[SelectedInstitution, ...], branch: InstitutionBranch
+) -> SelectedInstitution | None:
+    return next((s for s in institutions if s.branch == branch), None)
 
 
 def _check_one_per_branch(country: Country, institutions: list[Institution]) -> None:
@@ -187,12 +214,12 @@ def _instance(
     return current_or_latest(records, as_of, f"'{institution.name}'")
 
 
-def _latest_position(
-    delivery: Delivery, party: PoliticalParty, as_of: date
+def _position_on(
+    delivery: Delivery, party: PoliticalParty, day: date
 ) -> PartyPosition | None:
     positions = [
         p
         for p in delivery.of(PartyPosition)
         if p.political_party_id == party.political_party_id
     ]
-    return current_or_latest(positions, as_of, f"positions of '{party.name}'")
+    return valid_on(positions, day, f"positions of '{party.name}'")

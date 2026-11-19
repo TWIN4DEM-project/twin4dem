@@ -23,6 +23,7 @@ from common.importing import (
 from common.models import InstitutionBranch
 
 AS_OF = date(2025, 6, 1)
+RED_FIRST_POSITION = UUID("b0000000-0000-4000-8000-000000000001")
 BLUE_CURRENT_POSITION = UUID("b0000000-0000-4000-8000-000000000004")
 GREY_POSITION = UUID("b0000000-0000-4000-8000-000000000005")
 
@@ -160,11 +161,59 @@ def test_institution_without_records_is_left_out(testland_delivery):
     assert "Testland: no judiciary institution, imported without one." in warnings
 
 
-def test_party_gets_its_latest_position(testland_delivery):
+def test_reference_date_is_the_import_date_while_the_cabinet_is_valid(
+    testland_delivery,
+):
+    selection = select_one(testland_delivery, date(2018, 6, 1))
+
+    assert selection.reference_date == date(2018, 6, 1)
+
+
+def test_reference_date_is_the_last_day_of_an_ended_cabinet(testland_delivery):
+    # the most recent cabinet, Cabinet B, ended on 2024-01-01
+    assert select_one(testland_delivery).reference_date == date(2023, 12, 31)
+
+
+def test_reference_date_without_cabinet_is_the_import_date(testland_delivery):
+    delivery = Delivery({**testland_delivery.records, Cabinet: []})
+
+    assert select_one(delivery).reference_date == AS_OF
+
+
+def test_party_gets_its_position_on_the_reference_date(testland_delivery):
     assert positions(select_one(testland_delivery)) == {
         "Red": "majority",
         "Blue": "opposition",
     }
+
+
+def test_position_ended_before_the_reference_date_is_skipped(testland_delivery):
+    # Blue's last position now ends before Cabinet B does, so Blue is not part
+    # of the selected cabinet's period
+    delivery = edited(
+        testland_delivery,
+        PartyPosition,
+        {"party_position_id": BLUE_CURRENT_POSITION},
+        valid_to=date(2022, 1, 1),
+    )
+
+    selection = select_one(delivery)
+    assert "Blue" not in positions(selection)
+    assert "Blue" in [p.name for p in selection.skipped_parties]
+
+
+def test_overlapping_positions_are_an_error(testland_delivery):
+    delivery = edited(
+        testland_delivery,
+        PartyPosition,
+        {"party_position_id": RED_FIRST_POSITION},
+        valid_to=date(2021, 1, 1),
+    )
+
+    with pytest.raises(
+        DataImportError, match="positions of 'Red': 2 records are valid on 2020-06-01"
+    ):
+        select(delivery, date(2020, 6, 1))
 
 
 def test_party_gets_the_position_valid_on_the_date(testland_delivery):
@@ -185,7 +234,15 @@ def test_party_without_position_is_skipped(testland_delivery):
     "as_of,imported", [(date(2019, 5, 31), True), (date(2019, 6, 1), False)]
 )
 def test_party_is_skipped_from_its_dissolution_day(testland_delivery, as_of, imported):
-    assert ("Grey" in positions(select_one(testland_delivery, as_of))) is imported
+    # Grey's position stays open, so only its dissolution on 2019-06-01 counts
+    delivery = edited(
+        testland_delivery,
+        PartyPosition,
+        {"party_position_id": GREY_POSITION},
+        valid_to=None,
+    )
+
+    assert ("Grey" in positions(select_one(delivery, as_of))) is imported
 
 
 def test_party_not_founded_yet_is_skipped(testland_delivery):
@@ -226,7 +283,7 @@ def test_complete_country_only_warns_about_skipped_parties(testland_delivery):
 
     assert [p.name for p in selection.skipped_parties] == ["Green", "Grey"]
     assert selection.warnings == (
-        "Testland: 2 of 4 parties skipped: no position on or before 2025-06-01, "
+        "Testland: 2 of 4 parties skipped: no position on 2023-12-31, "
         "or not active on that date.",
     )
 
