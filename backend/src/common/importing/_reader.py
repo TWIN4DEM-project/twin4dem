@@ -17,7 +17,7 @@ from twin4dem_data_contracts.models import (
     PoliticalParty,
 )
 
-from ._errors import DataImportError
+from ._errors import raise_if_any
 
 CONTRACT_FILES: dict[str, type[BaseModel]] = {
     "country.csv": Country,
@@ -62,11 +62,11 @@ def read_delivery(storage: Storage) -> Delivery:
             errors.append(f"{file_name}: required file is missing.")
         else:
             warnings.append(f"{file_name}: file is missing, nothing imported from it.")
-    _raise_if_any(errors)
+    raise_if_any(errors)
 
     for file_name in rows:
         errors += _check_keys(file_name, rows)
-    _raise_if_any(errors)
+    raise_if_any(errors)
     return Delivery(
         {CONTRACT_FILES[name]: file_rows for name, file_rows in rows.items()},
         tuple(warnings),
@@ -122,10 +122,3 @@ def _references(file_name: str) -> list[tuple[str, str]]:
     }
     fields = CONTRACT_FILES[file_name].model_fields
     return [(name, by_key[name]) for name in fields if name in by_key]
-
-
-def _raise_if_any(errors: list[str]) -> None:
-    if errors:
-        raise DataImportError(
-            "The import data is invalid:\n" + "\n".join(f"- {e}" for e in errors)
-        )
