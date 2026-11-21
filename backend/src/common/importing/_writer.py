@@ -16,7 +16,7 @@ from common.models import (
     UserSettings,
 )
 
-from ._errors import raise_if_any
+from ._exceptions import DataImportError
 from ._selection import CountrySelection, SelectedInstitution
 
 
@@ -88,7 +88,7 @@ def _save[M: models.Model](
         record.full_clean()
     except ValidationError as e:
         where = ", ".join(f"{key}={value}" for key, value in lookup.items())
-        raise_if_any([f"{model.__name__} ({where}): {m}" for m in e.messages])
+        raise DataImportError(*(f"{model.__name__} ({where}): {m}" for m in e.messages))
     record.save()
     result.created[model] += 1
     return record

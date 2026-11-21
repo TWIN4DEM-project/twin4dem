@@ -1,4 +1,4 @@
-from ._errors import DataImportError, SourceError
+from ._exceptions import DataImportError, SourceError
 from ._reader import CONTRACT_FILES, REQUIRED_FILES, Delivery, read_delivery
 from ._selection import (
     CountrySelection,

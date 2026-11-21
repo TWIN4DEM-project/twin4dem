@@ -17,7 +17,7 @@ from twin4dem_data_contracts.models import (
     PoliticalParty,
 )
 
-from ._errors import raise_if_any
+from ._exceptions import DataImportError
 
 CONTRACT_FILES: dict[str, type[BaseModel]] = {
     "country.csv": Country,
@@ -62,11 +62,13 @@ def read_delivery(storage: Storage) -> Delivery:
             errors.append(f"{file_name}: required file is missing.")
         else:
             warnings.append(f"{file_name}: file is missing, nothing imported from it.")
-    raise_if_any(errors)
+    if errors:
+        raise DataImportError(*errors)
 
     for file_name in rows:
         errors += _check_keys(file_name, rows)
-    raise_if_any(errors)
+    if errors:
+        raise DataImportError(*errors)
     return Delivery(
         {CONTRACT_FILES[name]: file_rows for name, file_rows in rows.items()},
         tuple(warnings),

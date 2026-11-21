@@ -14,7 +14,7 @@ from twin4dem_data_contracts.models import (
 
 from common.models import InstitutionBranch
 
-from ._errors import raise_if_any
+from ._exceptions import DataImportError
 from ._reader import Delivery
 
 type Instance = Cabinet | Chamber | Court
@@ -111,8 +111,8 @@ def valid_on[T: Instance | PartyPosition](
     """The record valid on `day`, if any. Overlapping records are an error."""
     valid = [r for r in records if is_valid_on(r.valid_from, r.valid_to, day)]
     if len(valid) > 1:
-        raise_if_any(
-            [f"{label}: {len(valid)} records are valid on {day}, overlapping."]
+        raise DataImportError(
+            f"{label}: {len(valid)} records are valid on {day}, overlapping."
         )
     return valid[0] if valid else None
 
@@ -192,14 +192,14 @@ def _check_one_per_branch(country: Country, institutions: list[Institution]) -> 
     names = defaultdict(list)
     for institution in institutions:
         names[institution.branch].append(f"'{institution.name}'")
-    raise_if_any(
-        [
-            f"{country.name}: {len(group)} {branch} institutions "
-            f"({', '.join(group)}), only one per branch is supported."
-            for branch, group in names.items()
-            if len(group) > 1
-        ]
-    )
+    errors = [
+        f"{country.name}: {len(group)} {branch} institutions "
+        f"({', '.join(group)}), only one per branch is supported."
+        for branch, group in names.items()
+        if len(group) > 1
+    ]
+    if errors:
+        raise DataImportError(*errors)
 
 
 def _instance(

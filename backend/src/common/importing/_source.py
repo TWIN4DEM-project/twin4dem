@@ -3,7 +3,7 @@ from urllib.parse import urlparse
 
 from django.core.files.storage import FileSystemStorage, Storage
 
-from ._errors import SourceError
+from ._exceptions import SourceError
 
 
 def resolve_source(location: str) -> Storage:
