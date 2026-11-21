@@ -1,4 +1,5 @@
 from datetime import date
+from pathlib import Path
 
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand, CommandError
@@ -8,7 +9,6 @@ from django.utils.text import capfirst
 from ._data_import._exceptions import DataImportError
 from ._data_import._reader import read_delivery
 from ._data_import._selection import select
-from ._data_import._source import resolve_source
 from ._data_import._writer import write
 
 
@@ -21,7 +21,9 @@ class Command(BaseCommand):
     )
 
     def add_arguments(self, parser):
-        parser.add_argument("source", help="Folder with the CSV files to import.")
+        parser.add_argument(
+            "source", type=Path, help="Folder with the CSV files to import."
+        )
         parser.add_argument(
             "--username", required=True, help="User who receives the imported data."
         )
@@ -33,18 +35,21 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         user = self._user(options["username"])
+        source = options["source"]
+        if not source.is_dir():
+            raise CommandError(
+                f"Import source '{source}' does not exist or is not a folder."
+            )
         as_of = options["as_of"] or timezone.localdate()
         try:
-            delivery = read_delivery(resolve_source(options["source"]))
+            delivery = read_delivery(source)
             selections = select(delivery, as_of)
             result = write(selections, user)
         except DataImportError as e:
             raise CommandError(str(e)) from None
 
         self.stdout.write(
-            self.style.SUCCESS(
-                f"Imported {options['source']} as of {as_of} for {user}."
-            )
+            self.style.SUCCESS(f"Imported {source} as of {as_of} for {user}.")
         )
         for model in dict.fromkeys([*result.created, *result.skipped]):
             self.stdout.write(

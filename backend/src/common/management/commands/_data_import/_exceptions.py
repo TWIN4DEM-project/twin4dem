@@ -5,7 +5,3 @@ class DataImportError(Exception):
         super().__init__(
             "The import data is invalid:\n" + "\n".join(f"- {p}" for p in problems)
         )
-
-
-class SourceError(DataImportError):
-    """The location given for the import cannot be used."""

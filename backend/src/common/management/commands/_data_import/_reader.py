@@ -1,10 +1,9 @@
 import csv
-import io
 from collections import Counter
 from dataclasses import dataclass
 from functools import cache
+from pathlib import Path
 
-from django.core.files.storage import Storage
 from pydantic import BaseModel, TypeAdapter, ValidationError
 from pydantic_core import ErrorDetails
 from twin4dem_data_contracts.models import (
@@ -40,9 +39,9 @@ class Delivery:
         return self.records.get(contract, [])
 
 
-def read_delivery(storage: Storage) -> Delivery:
+def read_delivery(folder: Path) -> Delivery:
     """
-    Read the contract files of `storage` and check them: each row against its
+    Read the contract files of `folder` and check them: each row against its
     contract, then unique ids and references across files.
 
     Raises a DataImportError listing every problem found.
@@ -51,9 +50,9 @@ def read_delivery(storage: Storage) -> Delivery:
     warnings: list[str] = []
     errors: list[str] = []
     for file_name in CONTRACT_FILES:
-        if storage.exists(file_name):
+        if (folder / file_name).is_file():
             try:
-                rows[file_name] = _read_file(storage, file_name)
+                rows[file_name] = _read_file(folder, file_name)
             except ValidationError as e:
                 errors += [f"{file_name} {_describe(error)}" for error in e.errors()]
             except UnicodeDecodeError:
@@ -75,11 +74,9 @@ def read_delivery(storage: Storage) -> Delivery:
     )
 
 
-def _read_file(storage: Storage, file_name: str) -> list[BaseModel]:
-    with storage.open(file_name, "rb") as stream:
-        lines = csv.DictReader(
-            io.TextIOWrapper(stream, encoding="utf-8-sig", newline="")
-        )
+def _read_file(folder: Path, file_name: str) -> list[BaseModel]:
+    with (folder / file_name).open(encoding="utf-8-sig", newline="") as stream:
+        lines = csv.DictReader(stream)
         rows = [{key: value or None for key, value in line.items()} for line in lines]
     return TypeAdapter(list[CONTRACT_FILES[file_name]]).validate_python(rows)
 

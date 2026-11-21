@@ -91,9 +91,10 @@ def test_invalid_as_of_is_an_error(testland, importer):
         run(testland, "--username=importer", "--as-of=yesterday")
 
 
-def test_missing_source_is_an_error(tmp_path, importer):
-    with pytest.raises(CommandError, match="does not exist"):
-        run(tmp_path / "nowhere", "--username=importer")
+@pytest.mark.parametrize("name", ["nowhere", "country.csv"])  # missing, a file
+def test_source_must_be_an_existing_folder(testland, importer, name):
+    with pytest.raises(CommandError, match="does not exist or is not a folder"):
+        run(testland / name, "--username=importer")
 
 
 def test_invalid_data_is_an_error_and_nothing_is_saved(testland_copy, importer):
