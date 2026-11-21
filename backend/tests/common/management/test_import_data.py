@@ -32,7 +32,7 @@ def testland_copy(testland, tmp_path) -> Path:
 
 def run(source: Path, *args: str) -> list[str]:
     out = StringIO()
-    call_command("import_constitutional", str(source), *args, stdout=out)
+    call_command("import_data", str(source), *args, stdout=out)
     return out.getvalue().splitlines()
 
 

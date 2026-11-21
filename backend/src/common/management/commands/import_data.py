@@ -16,9 +16,10 @@ from common.importing import (
 
 class Command(BaseCommand):
     help = (
-        "Import constitutional data (CSV files following the twin4dem data "
-        "contracts) into the user settings of a user. Records that already "
-        "exist are skipped, so running it again only adds what is new."
+        "Import data (CSV files following the twin4dem data contracts) into "
+        "the user settings of a user. Currently supports constitutional-level "
+        "data. Records that already exist are skipped, so running it again "
+        "only adds what is new."
     )
 
     def add_arguments(self, parser):
