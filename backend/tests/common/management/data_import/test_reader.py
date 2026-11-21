@@ -12,7 +12,11 @@ from twin4dem_data_contracts.models import (
     PoliticalParty,
 )
 
-from common.importing import REQUIRED_FILES, DataImportError, read_delivery
+from common.management.commands._data_import._exceptions import DataImportError
+from common.management.commands._data_import._reader import (
+    REQUIRED_FILES,
+    read_delivery,
+)
 
 GREY_ID = "a0000000-0000-4000-8000-000000000004"
 UNKNOWN_ID = "a0000000-0000-4000-8000-000000000009"

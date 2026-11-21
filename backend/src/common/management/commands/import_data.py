@@ -5,13 +5,11 @@ from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 from django.utils.text import capfirst
 
-from common.importing import (
-    DataImportError,
-    read_delivery,
-    resolve_source,
-    select,
-    write,
-)
+from ._data_import._exceptions import DataImportError
+from ._data_import._reader import read_delivery
+from ._data_import._selection import select
+from ._data_import._source import resolve_source
+from ._data_import._writer import write
 
 
 class Command(BaseCommand):

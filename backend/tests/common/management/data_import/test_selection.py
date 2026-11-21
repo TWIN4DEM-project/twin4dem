@@ -13,10 +13,10 @@ from twin4dem_data_contracts.models import (
     PoliticalParty,
 )
 
-from common.importing import (
+from common.management.commands._data_import._exceptions import DataImportError
+from common.management.commands._data_import._reader import Delivery
+from common.management.commands._data_import._selection import (
     CountrySelection,
-    DataImportError,
-    Delivery,
     SelectedInstitution,
     select,
 )

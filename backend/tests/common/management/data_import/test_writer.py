@@ -6,7 +6,10 @@ import pytest
 from twin4dem_data_contracts.models import Chamber, PoliticalParty
 from twin4dem_data_contracts.models import Country as CountryRecord
 
-from common.importing import DataImportError, Delivery, WriteResult, select, write
+from common.management.commands._data_import._exceptions import DataImportError
+from common.management.commands._data_import._reader import Delivery
+from common.management.commands._data_import._selection import select
+from common.management.commands._data_import._writer import WriteResult, write
 from common.models import (
     Country,
     Institution,

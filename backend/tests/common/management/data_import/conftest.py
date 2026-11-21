@@ -4,9 +4,10 @@ import pytest
 from django.core.files.base import ContentFile
 from django.core.files.storage import InMemoryStorage
 
-from common.importing import Delivery, read_delivery, resolve_source
+from common.management.commands._data_import._reader import Delivery, read_delivery
+from common.management.commands._data_import._source import resolve_source
 
-TESTLAND_DIR = Path(__file__).parents[2] / "data" / "constitutional" / "testland"
+TESTLAND_DIR = Path(__file__).parents[3] / "data" / "constitutional" / "testland"
 
 
 @pytest.fixture

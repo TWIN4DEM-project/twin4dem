@@ -3,7 +3,11 @@ from pathlib import Path
 import pytest
 from django.core.files.storage import FileSystemStorage, Storage
 
-from common.importing import DataImportError, SourceError, resolve_source
+from common.management.commands._data_import._exceptions import (
+    DataImportError,
+    SourceError,
+)
+from common.management.commands._data_import._source import resolve_source
 
 
 def folder_of(storage: Storage) -> Path:
