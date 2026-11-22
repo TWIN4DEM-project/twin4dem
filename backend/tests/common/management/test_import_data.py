@@ -385,6 +385,14 @@ def test_second_run_adds_nothing(testland, importer):
     assert record_counts() == counts
 
 
+def test_reports_how_many_records_it_created(testland, importer):
+    first = run_import(testland)
+    second = run_import(testland)
+
+    assert "Parties: 2 created" in first
+    assert "Parties: 0 created" in second
+
+
 def test_existing_records_are_kept_and_the_rest_added(testland, importer):
     country = create_testland(importer)
     Party.objects.create(country=country, label="Red")
