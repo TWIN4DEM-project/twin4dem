@@ -2,6 +2,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from datetime import date, timedelta
 
+from pydantic import BaseModel
 from twin4dem_data_contracts.models import (
     Cabinet,
     Chamber,
@@ -16,7 +17,6 @@ from common.models import InstitutionBranch
 
 from ._date_windows import current_or_latest, is_valid_on, valid_on
 from ._exceptions import DataImportError
-from ._reader import Delivery
 
 type Instance = Cabinet | Chamber | Court
 
@@ -89,11 +89,11 @@ class CountrySelection:
         return tuple(warnings)
 
 
-def select(delivery: Delivery, as_of: date) -> list[CountrySelection]:
-    """What to import from `delivery` for each of its countries, as of `as_of`."""
-    return [
-        _select_country(delivery, country, as_of) for country in delivery.of(Country)
-    ]
+def select(
+    records: dict[type[BaseModel], list[BaseModel]], as_of: date
+) -> list[CountrySelection]:
+    """What to import from `records` for each of their countries, as of `as_of`."""
+    return [_select_country(records, country, as_of) for country in records[Country]]
 
 
 def is_importable_party(
@@ -105,19 +105,17 @@ def is_importable_party(
 
 
 def _select_country(
-    delivery: Delivery, country: Country, as_of: date
+    records: dict[type[BaseModel], list[BaseModel]], country: Country, as_of: date
 ) -> CountrySelection:
     institutions = [
-        i for i in delivery.of(Institution) if i.country_id == country.country_id
+        i for i in records[Institution] if i.country_id == country.country_id
     ]
     _check_one_per_branch(country, institutions)
-    instances = [(i, _instance(delivery, i, as_of)) for i in institutions]
+    instances = [(i, _instance(records, i, as_of)) for i in institutions]
     selected = tuple(SelectedInstitution(i, inst) for i, inst in instances if inst)
     day = _reference_date(selected, as_of)
-    parties = [
-        p for p in delivery.of(PoliticalParty) if p.country_id == country.country_id
-    ]
-    positions = [(p, _position_on(delivery, p, day)) for p in parties]
+    parties = [p for p in records[PoliticalParty] if p.country_id == country.country_id]
+    positions = [(p, _position_on(records, p, day)) for p in parties]
     return CountrySelection(
         country=country,
         as_of=as_of,
@@ -168,23 +166,23 @@ def _check_one_per_branch(country: Country, institutions: list[Institution]) -> 
 
 
 def _instance(
-    delivery: Delivery, institution: Institution, as_of: date
+    records: dict[type[BaseModel], list[BaseModel]],
+    institution: Institution,
+    as_of: date,
 ) -> Instance | None:
     _, contract = BRANCHES[institution.branch]
-    records = [
-        r
-        for r in delivery.of(contract)
-        if r.institution_id == institution.institution_id
+    instances = [
+        r for r in records[contract] if r.institution_id == institution.institution_id
     ]
-    return current_or_latest(records, as_of, f"'{institution.name}'")
+    return current_or_latest(instances, as_of, f"'{institution.name}'")
 
 
 def _position_on(
-    delivery: Delivery, party: PoliticalParty, day: date
+    records: dict[type[BaseModel], list[BaseModel]], party: PoliticalParty, day: date
 ) -> PartyPosition | None:
     positions = [
         p
-        for p in delivery.of(PartyPosition)
+        for p in records[PartyPosition]
         if p.political_party_id == party.political_party_id
     ]
     return valid_on(positions, day, f"positions of '{party.name}'")

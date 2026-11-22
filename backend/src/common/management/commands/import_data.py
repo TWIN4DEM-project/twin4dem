@@ -7,7 +7,7 @@ from django.utils import timezone
 from django.utils.text import capfirst
 
 from ._data_import._exceptions import DataImportError
-from ._data_import._reader import read_delivery
+from ._data_import._reader import read_records
 from ._data_import._selection import select
 from ._data_import._writer import write
 
@@ -41,9 +41,10 @@ class Command(BaseCommand):
                 f"Import source '{source}' does not exist or is not a folder."
             )
         as_of = options["as_of"] or timezone.localdate()
+        warnings: list[str] = []
         try:
-            delivery = read_delivery(source)
-            selections = select(delivery, as_of)
+            records = read_records(source, warnings)
+            selections = select(records, as_of)
             result = write(selections, user)
         except DataImportError as e:
             raise CommandError(str(e)) from None
@@ -56,11 +57,9 @@ class Command(BaseCommand):
                 f"{capfirst(model._meta.verbose_name_plural)}: "
                 f"{result.created[model]} created, {result.skipped[model]} skipped"
             )
-        warnings = [
-            *delivery.warnings,
-            *(warning for s in selections for warning in s.warnings),
-            *result.warnings,
-        ]
+        for selection in selections:
+            warnings += selection.warnings
+        warnings += result.warnings
         for warning in warnings:
             self.stdout.write(self.style.WARNING(f"Warning: {warning}"))
 
