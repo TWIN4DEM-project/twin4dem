@@ -3,13 +3,15 @@ from pathlib import Path
 
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand, CommandError
+from django.db import transaction
 from django.utils import timezone
 from django.utils.text import capfirst
+from twin4dem_data_contracts.models import Country
 
 from ._data_import._exceptions import DataImportError
 from ._data_import._reader import read_records
-from ._data_import._selection import select
-from ._data_import._writer import write
+from ._data_import._selection import select_institutions, select_parties
+from ._data_import._writer import WriteResult, write_country
 
 
 class Command(BaseCommand):
@@ -42,10 +44,20 @@ class Command(BaseCommand):
             )
         as_of = options["as_of"] or timezone.localdate()
         warnings: list[str] = []
+        result = WriteResult()
         try:
             records = read_records(source, warnings)
-            selections = select(records, as_of)
-            result = write(selections, user)
+            with transaction.atomic():
+                for country in records[Country]:
+                    institutions = select_institutions(
+                        records, country, as_of, warnings
+                    )
+                    parties = select_parties(
+                        records, country, institutions, as_of, warnings
+                    )
+                    write_country(
+                        user, country, institutions, parties, result, warnings
+                    )
         except DataImportError as e:
             raise CommandError(str(e)) from None
 
@@ -57,9 +69,6 @@ class Command(BaseCommand):
                 f"{capfirst(model._meta.verbose_name_plural)}: "
                 f"{result.created[model]} created, {result.skipped[model]} skipped"
             )
-        for selection in selections:
-            warnings += selection.warnings
-        warnings += result.warnings
         for warning in warnings:
             self.stdout.write(self.style.WARNING(f"Warning: {warning}"))
 

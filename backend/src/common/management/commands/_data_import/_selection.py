@@ -1,5 +1,4 @@
 from collections import defaultdict
-from dataclasses import dataclass
 from datetime import date, timedelta
 
 from pydantic import BaseModel
@@ -27,73 +26,73 @@ BRANCHES: dict[str, tuple[InstitutionBranch, type[Instance]]] = {
 }
 
 
-@dataclass(frozen=True)
-class SelectedInstitution:
-    institution: Institution
-    instance: Instance
-
-    @property
-    def branch(self) -> InstitutionBranch:
-        return BRANCHES[self.institution.branch][0]
-
-
-@dataclass(frozen=True)
-class SelectedParty:
-    party: PoliticalParty
-    position: PartyPosition
-
-
-@dataclass(frozen=True)
-class CountrySelection:
-    """What to import for one country of a delivery, and what is left out."""
-
-    country: Country
-    as_of: date
-    reference_date: date
-    institutions: tuple[SelectedInstitution, ...]
-    parties: tuple[SelectedParty, ...]
-    skipped_institutions: tuple[Institution, ...]
-    skipped_parties: tuple[PoliticalParty, ...]
-
-    @property
-    def chamber(self) -> SelectedInstitution | None:
-        return _of_branch(self.institutions, InstitutionBranch.LEGISLATIVE)
-
-    @property
-    def warnings(self) -> tuple[str, ...]:
-        name, as_of = self.country.name, self.as_of
-        warnings = [
-            f"{name}: '{i.name}' has no records valid on or before {as_of}, "
-            "not imported."
-            for i in self.skipped_institutions
-        ]
-        branches = {s.branch for s in self.institutions}
-        warnings += [
-            f"{name}: no {branch} institution, imported without one."
-            for branch in InstitutionBranch
-            if branch not in branches
-        ]
-        if self.skipped_parties:
-            total = len(self.parties) + len(self.skipped_parties)
+def select_institutions(
+    records: dict[type[BaseModel], list[BaseModel]],
+    country: Country,
+    as_of: date,
+    warnings: list[str],
+) -> dict[InstitutionBranch, tuple[Institution, Instance]]:
+    """
+    The institution of each branch of `country`, with its record valid on
+    `as_of`, else the most recent one before it. An institution without such
+    a record, and a branch without an institution, add a warning.
+    """
+    institutions = [
+        i for i in records[Institution] if i.country_id == country.country_id
+    ]
+    _check_one_per_branch(country, institutions)
+    selected = {}
+    for institution in institutions:
+        instance = _instance(records, institution, as_of)
+        if instance is None:
             warnings.append(
-                f"{name}: {len(self.skipped_parties)} of {total} parties skipped: "
-                f"no position on {self.reference_date}, or not active on that date."
+                f"{country.name}: '{institution.name}' has no records valid on or "
+                f"before {as_of}, not imported."
             )
-        if self.chamber and len(self.parties) >= self.chamber.instance.size:
+        else:
+            branch, _ = BRANCHES[institution.branch]
+            selected[branch] = (institution, instance)
+    warnings += [
+        f"{country.name}: no {branch} institution, imported without one."
+        for branch in InstitutionBranch
+        if branch not in selected
+    ]
+    return selected
+
+
+def select_parties(
+    records: dict[type[BaseModel], list[BaseModel]],
+    country: Country,
+    institutions: dict[InstitutionBranch, tuple[Institution, Instance]],
+    as_of: date,
+    warnings: list[str],
+) -> list[tuple[PoliticalParty, PartyPosition]]:
+    """
+    The parties of `country` that are importable on the reference date (see
+    `_reference_date`), with their position on that date. Skipped parties,
+    and more parties than seats in the chamber, add a warning.
+    """
+    day = _reference_date(institutions, as_of)
+    parties = [p for p in records[PoliticalParty] if p.country_id == country.country_id]
+    selected = []
+    for party in parties:
+        position = _position_on(records, party, day)
+        if is_importable_party(party, position, day):
+            selected.append((party, position))
+    if len(selected) < len(parties):
+        warnings.append(
+            f"{country.name}: {len(parties) - len(selected)} of {len(parties)} "
+            f"parties skipped: no position on {day}, or not active on that date."
+        )
+    if InstitutionBranch.LEGISLATIVE in institutions:
+        institution, chamber = institutions[InstitutionBranch.LEGISLATIVE]
+        if len(selected) >= chamber.size:
             warnings.append(
-                f"{name}: {len(self.parties)} parties for "
-                f"{self.chamber.instance.size} seats in "
-                f"'{self.chamber.institution.name}', the seat model gives each "
-                "party only its leader."
+                f"{country.name}: {len(selected)} parties for {chamber.size} seats "
+                f"in '{institution.name}', the seat model gives each party only "
+                "its leader."
             )
-        return tuple(warnings)
-
-
-def select(
-    records: dict[type[BaseModel], list[BaseModel]], as_of: date
-) -> list[CountrySelection]:
-    """What to import from `records` for each of their countries, as of `as_of`."""
-    return [_select_country(records, country, as_of) for country in records[Country]]
+    return selected
 
 
 def is_importable_party(
@@ -104,51 +103,18 @@ def is_importable_party(
     )
 
 
-def _select_country(
-    records: dict[type[BaseModel], list[BaseModel]], country: Country, as_of: date
-) -> CountrySelection:
-    institutions = [
-        i for i in records[Institution] if i.country_id == country.country_id
-    ]
-    _check_one_per_branch(country, institutions)
-    instances = [(i, _instance(records, i, as_of)) for i in institutions]
-    selected = tuple(SelectedInstitution(i, inst) for i, inst in instances if inst)
-    day = _reference_date(selected, as_of)
-    parties = [p for p in records[PoliticalParty] if p.country_id == country.country_id]
-    positions = [(p, _position_on(records, p, day)) for p in parties]
-    return CountrySelection(
-        country=country,
-        as_of=as_of,
-        reference_date=day,
-        institutions=selected,
-        parties=tuple(
-            SelectedParty(p, pos)
-            for p, pos in positions
-            if is_importable_party(p, pos, day)
-        ),
-        skipped_institutions=tuple(i for i, inst in instances if not inst),
-        skipped_parties=tuple(
-            p for p, pos in positions if not is_importable_party(p, pos, day)
-        ),
-    )
-
-
-def _reference_date(institutions: tuple[SelectedInstitution, ...], as_of: date) -> date:
+def _reference_date(
+    institutions: dict[InstitutionBranch, tuple[Institution, Instance]], as_of: date
+) -> date:
     """
     The moment the parties are taken from, so that they come from the same
     period as the selected cabinet: the import date while that cabinet is
     valid (or without a cabinet), else the cabinet's last day.
     """
-    cabinet = _of_branch(institutions, InstitutionBranch.EXECUTIVE)
-    if cabinet is None or cabinet.instance.valid_to is None:
+    _, cabinet = institutions.get(InstitutionBranch.EXECUTIVE, (None, None))
+    if cabinet is None or cabinet.valid_to is None:
         return as_of
-    return min(as_of, cabinet.instance.valid_to - timedelta(days=1))
-
-
-def _of_branch(
-    institutions: tuple[SelectedInstitution, ...], branch: InstitutionBranch
-) -> SelectedInstitution | None:
-    return next((s for s in institutions if s.branch == branch), None)
+    return min(as_of, cabinet.valid_to - timedelta(days=1))
 
 
 def _check_one_per_branch(country: Country, institutions: list[Institution]) -> None:
