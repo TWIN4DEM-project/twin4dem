@@ -1,15 +1,7 @@
-import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ILogger } from "./logger.interface";
 
-const consoleMethods = [
-  "log",
-  "debug",
-  "info",
-  "warn",
-  "error",
-  "trace",
-] as const;
-
+const consoleMethods = ["log", "debug", "info", "warn", "error", "trace"] as const;
 
 function captureLogs() {
   const spies = consoleMethods.map((method) =>

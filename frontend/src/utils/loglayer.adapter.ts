@@ -1,17 +1,9 @@
-
 import { redactionPlugin } from "@loglayer/plugin-redaction";
 import type { LogLevelType } from "loglayer";
 import { ConsoleTransport, LogLayer } from "loglayer";
 import type { ILogger, LogMetadata } from "./logger.interface";
 
-const LOG_LEVELS = [
-  "trace",
-  "debug",
-  "info",
-  "warn",
-  "error",
-  "fatal",
-] as const;
+const LOG_LEVELS = ["trace", "debug", "info", "warn", "error", "fatal"] as const;
 
 function getLogLevel(): LogLevelType {
   const configuredLevel = import.meta.env.VITE_LOG_LEVEL;
@@ -90,14 +82,8 @@ export class LogLayerAdapter implements ILogger {
     this.write("fatal", message, metadata);
   }
 
-  private write(
-    level: keyof ILogger,
-    message: string,
-    metadata?: LogMetadata,
-  ): void {
-    const target = metadata
-      ? this.instance.withMetadata(metadata)
-      : this.instance;
+  private write(level: keyof ILogger, message: string, metadata?: LogMetadata): void {
+    const target = metadata ? this.instance.withMetadata(metadata) : this.instance;
 
     target[level](message);
   }
