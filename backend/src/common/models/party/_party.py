@@ -1,9 +1,7 @@
 from typing import TYPE_CHECKING
 
 from django.db import models
-from django.db.models import F, OuterRef, Subquery
 
-from ..timeline import TimeFrame, TimeFrameSubjectType
 from ..world import Country
 
 if TYPE_CHECKING:
@@ -29,19 +27,7 @@ class Party(models.Model):
         greatest `valid_to`. A frame without `valid_to` is still active and
         ranks highest; a position without frames counts as active.
         """
-        newest_end = (
-            TimeFrame.objects.filter(
-                subject_type=TimeFrameSubjectType.PARTY_POSITION,
-                subject_id=OuterRef("pk"),
-            )
-            .order_by(F("valid_to").desc(nulls_first=True))
-            .values("valid_to")[:1]
-        )
-        return (
-            self.positions.annotate(newest_end=Subquery(newest_end))
-            .order_by(F("newest_end").desc(nulls_first=True), "-pk")
-            .first()
-        )
+        return self.positions.by_recency().first()
 
     class Meta:
         verbose_name_plural = "Parties"

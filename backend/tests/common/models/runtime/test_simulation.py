@@ -10,7 +10,7 @@ from common.models import (
     InstitutionBranch,
     Simulation,
     SimulationInstitution,
-    TimeFrame,
+    InstitutionTimeFrame,
     UserSettings,
 )
 
@@ -154,7 +154,7 @@ def test_institution_must_belong_to_simulated_country(test_settings, french_simu
 
 @pytest.mark.django_db
 def test_institution_must_be_active_at_simulated_time(french_simulation, cabinet):
-    TimeFrame.objects.occupy(
+    InstitutionTimeFrame.objects.occupy(
         cabinet,
         valid_from=datetime(2022, 5, 16, tzinfo=UTC),
         valid_to=datetime(2024, 1, 9, tzinfo=UTC),

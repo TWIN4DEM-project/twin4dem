@@ -13,9 +13,8 @@ from common.models import (
     Party,
     PartyPosition,
     PartyPositionType,
-    TimeFrame,
+    PartyPositionTimeFrame,
     VirtualTimeline,
-    is_active,
 )
 
 pytestmark = pytest.mark.django_db
@@ -85,7 +84,9 @@ def framed_position(
     party_position = PartyPosition(party=party, chamber=chamber, position=position)
     party_position.full_clean()
     party_position.save()
-    TimeFrame.objects.occupy(party_position, valid_from, valid_to, timelines)
+    PartyPositionTimeFrame.objects.occupy(
+        party_position, valid_from, valid_to, timelines
+    )
     return party_position
 
 
@@ -214,7 +215,9 @@ def test_get_position_with_several_frames_shows_the_first(
 ):
     # only possible in the admin: the API gives every position a single frame
     position = framed_position(psd, valid_from=at(2020), timelines=[default_timeline])
-    TimeFrame.objects.occupy(position, at(2010), at(2015), [alternate_timeline])
+    PartyPositionTimeFrame.objects.occupy(
+        position, at(2010), at(2015), [alternate_timeline]
+    )
 
     response = admin_client.get(detail_url(position.id))
 
@@ -310,7 +313,7 @@ def test_update_success(admin_client, psd):
     )
     position.refresh_from_db()
     assert position.position == PartyPositionType.OPPOSITION
-    assert TimeFrame.objects.of(position).get().valid_to == at(2030)
+    assert PartyPositionTimeFrame.objects.of(position).get().valid_to == at(2030)
 
 
 def test_update_without_data_400(admin_client, frameless_position):
@@ -346,7 +349,7 @@ def test_delete_success(admin_client, psd):
     assert response.status_code == 204
     assert response.content == b""
     assert not PartyPosition.objects.filter(pk=position.pk).exists()
-    assert not TimeFrame.objects.of(position).exists()
+    assert not PartyPositionTimeFrame.objects.of(position).exists()
 
 
 def test_patch_not_allowed(admin_client, frameless_position):
@@ -646,11 +649,11 @@ def test_create_without_time_frame_occupies_one_open_frame(
 
     assert response.status_code == 201
     position = psd.positions.get()
-    frame = TimeFrame.objects.of(position).get()
+    frame = PartyPositionTimeFrame.objects.of(position).get()
     assert (frame.valid_from, frame.valid_to) == (None, None)
     assert frame.is_on_all_timelines
-    assert is_active(position, default_timeline, at(1900))
-    assert is_active(position, alternate_timeline, at(2100))
+    assert position.is_active(default_timeline, at(1900))
+    assert position.is_active(alternate_timeline, at(2100))
 
 
 def test_create_without_timeline_is_on_all_timelines(
@@ -661,8 +664,8 @@ def test_create_without_timeline_is_on_all_timelines(
     assert response.status_code == 201
     assert response.json()["timeline"] is None
     position = psd.positions.get()
-    assert is_active(position, default_timeline, at(2021))
-    assert is_active(position, alternate_timeline, at(2021))
+    assert position.is_active(default_timeline, at(2021))
+    assert position.is_active(alternate_timeline, at(2021))
 
 
 def test_create_on_timeline_is_only_on_that_timeline(
@@ -675,8 +678,8 @@ def test_create_on_timeline_is_only_on_that_timeline(
     assert response.status_code == 201
     assert response.json()["timeline"] == alternate_timeline.id
     position = psd.positions.get()
-    assert not is_active(position, default_timeline, at(2021))
-    assert is_active(position, alternate_timeline, at(2021))
+    assert not position.is_active(default_timeline, at(2021))
+    assert position.is_active(alternate_timeline, at(2021))
 
 
 def test_create_without_valid_to_is_active_from_valid_from_on(
@@ -687,8 +690,8 @@ def test_create_without_valid_to_is_active_from_valid_from_on(
     assert response.status_code == 201
     assert response.json()["validTo"] is None
     position = psd.positions.get()
-    assert not is_active(position, default_timeline, at(2019))
-    assert is_active(position, default_timeline, at(2100))
+    assert not position.is_active(default_timeline, at(2019))
+    assert position.is_active(default_timeline, at(2100))
 
 
 def test_create_without_valid_from_is_active_until_valid_to(
@@ -699,8 +702,8 @@ def test_create_without_valid_from_is_active_until_valid_to(
     assert response.status_code == 201
     assert response.json()["validFrom"] is None
     position = psd.positions.get()
-    assert is_active(position, default_timeline, at(1900))
-    assert not is_active(position, default_timeline, at(2020))
+    assert position.is_active(default_timeline, at(1900))
+    assert not position.is_active(default_timeline, at(2020))
 
 
 def test_create_second_position_without_end_400(admin_client, psd):
@@ -920,8 +923,8 @@ def test_update_restricts_position_to_timeline(
     )
 
     assert response.status_code == 200
-    assert not is_active(position, default_timeline, at(2021))
-    assert is_active(position, alternate_timeline, at(2021))
+    assert not position.is_active(default_timeline, at(2021))
+    assert position.is_active(alternate_timeline, at(2021))
 
 
 def test_update_extends_position_to_all_timelines(
@@ -933,7 +936,7 @@ def test_update_extends_position_to_all_timelines(
 
     assert response.status_code == 200
     assert response.json()["timeline"] is None
-    assert is_active(position, default_timeline, at(2021))
+    assert position.is_active(default_timeline, at(2021))
 
 
 def test_update_resets_omitted_fields(admin_client, psd, senate, alternate_timeline):
@@ -959,7 +962,7 @@ def test_update_extends_own_time_frame_success(admin_client, psd):
     )
 
     assert response.status_code == 200
-    frame = TimeFrame.objects.of(position).get()
+    frame = PartyPositionTimeFrame.objects.of(position).get()
     assert (frame.valid_from, frame.valid_to) == (at(2018), at(2024))
 
 
@@ -967,12 +970,14 @@ def test_update_replaces_all_time_frames_with_one(
     admin_client, psd, default_timeline, alternate_timeline
 ):
     position = framed_position(psd, valid_from=at(2020), timelines=[default_timeline])
-    TimeFrame.objects.occupy(position, at(2010), at(2015), [alternate_timeline])
+    PartyPositionTimeFrame.objects.occupy(
+        position, at(2010), at(2015), [alternate_timeline]
+    )
 
     response = put(admin_client, position.id, body(psd, validFrom=dt(2000)))
 
     assert response.status_code == 200
-    frame = TimeFrame.objects.of(position).get()
+    frame = PartyPositionTimeFrame.objects.of(position).get()
     assert (frame.valid_from, frame.valid_to) == (at(2000), None)
     assert frame.is_on_all_timelines
 
@@ -987,7 +992,9 @@ def test_update_frameless_position_occupies_one_frame(
     )
 
     assert response.status_code == 200
-    assert TimeFrame.objects.of(frameless_position).get().valid_from == at(2020)
+    assert PartyPositionTimeFrame.objects.of(frameless_position).get().valid_from == at(
+        2020
+    )
 
 
 def test_update_into_overlap_400_keeps_position(admin_client, psd, senate):
@@ -1004,7 +1011,7 @@ def test_update_into_overlap_400_keeps_position(admin_client, psd, senate):
     assert response.json() == overlap("majority", "[2020-01-01, +inf)")
     default.refresh_from_db()
     assert default.chamber is None
-    assert TimeFrame.objects.of(default).get().valid_from == at(2021)
+    assert PartyPositionTimeFrame.objects.of(default).get().valid_from == at(2021)
 
 
 def test_update_into_chamber_with_frameless_position_400(
@@ -1071,7 +1078,7 @@ def test_create_batch_with_overlapping_positions_400_creates_nothing(admin_clien
     assert response.status_code == 400
     assert response.json() == [{}, overlap("majority", "[2020-01-01, +inf)")]
     assert not psd.positions.exists()
-    assert not TimeFrame.objects.exists()
+    assert not PartyPositionTimeFrame.objects.exists()
 
 
 def test_create_empty_batch_400(admin_client):
@@ -1134,4 +1141,4 @@ def test_delete_default_position_keeps_chamber_positions(admin_client, psd, sena
 
     assert response.status_code == 204
     assert list(psd.positions.all()) == [in_senate]
-    assert TimeFrame.objects.of(in_senate).exists()
+    assert PartyPositionTimeFrame.objects.of(in_senate).exists()

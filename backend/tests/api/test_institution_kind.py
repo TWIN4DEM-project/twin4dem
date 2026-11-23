@@ -4,7 +4,7 @@ from common.models import (
     Institution,
     InstitutionKind,
     Simulation,
-    TimeFrame,
+    InstitutionTimeFrame,
     VirtualTimeline,
 )
 
@@ -55,7 +55,7 @@ def institution(label: str, *time_frames: dict, **fields) -> dict:
 def assert_senate_not_created():
     assert not InstitutionKind.objects.filter(institution_name="senate").exists()
     assert not Institution.objects.filter(label__startswith="Senate").exists()
-    assert not TimeFrame.objects.exists()
+    assert not InstitutionTimeFrame.objects.exists()
 
 
 def test_list_success(admin_client):
@@ -525,7 +525,7 @@ def test_create_with_institutions_success(admin_client):
             },
         ],
     }
-    assert TimeFrame.objects.count() == 2
+    assert InstitutionTimeFrame.objects.count() == 2
 
 
 @pytest.mark.parametrize(
@@ -540,7 +540,7 @@ def test_create_with_frameless_institution_success(admin_client, senate):
 
     assert response.status_code == 201
     assert response.json()["institutions"][0]["timeFrames"] == []
-    assert not TimeFrame.objects.exists()
+    assert not InstitutionTimeFrame.objects.exists()
 
 
 def test_create_with_overlapping_institutions_400(admin_client):
@@ -807,7 +807,7 @@ def test_delete_deletes_institutions_and_time_frames(
 
     assert response.status_code == 204
     assert not Institution.objects.filter(kind_id=senate_kind.id).exists()
-    assert not TimeFrame.objects.exists()
+    assert not InstitutionTimeFrame.objects.exists()
 
 
 @pytest.mark.parametrize("status", Simulation.Status.values)

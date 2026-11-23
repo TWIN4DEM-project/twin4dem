@@ -1,80 +1,47 @@
+from collections import defaultdict
 from collections.abc import Iterable
-from datetime import datetime
+from typing import TYPE_CHECKING
 
-from django.core.exceptions import ValidationError
-from django.db import models, transaction
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from django.db import models
 from django.db.models import F, Q
 
-from ._spec import FrameSpec, _format_interval
-from ._subjects import (
-    TimeFrameMixin,
-    TimeFrameSubjectType,
-    _subject_models,
-    subject_type_of,
-)
+from ._spec import ALWAYS, FrameSpec, _format_interval, _format_timelines
+from ._subject import TimeFrameSubject
+from ._timeframe_qs import TimeFrameQuerySet
 from ._timeline import VirtualTimeline
 
 
-class TimeFrameQuerySet(models.QuerySet):
-    def of(self, subject: TimeFrameMixin) -> "TimeFrameQuerySet":
-        return self.filter(subject_type=subject_type_of(subject), subject_id=subject.pk)
+class TimeFrameModel(models.Model):
+    """An interval ``[valid_from, valid_to)`` defined on one or more timelines.
 
-    def create_for(self, subject: TimeFrameMixin, **kwargs) -> "TimeFrame":
-        """Create a time frame for the subject, without validation."""
-        return self.create(
-            subject_type=subject_type_of(subject), subject_id=subject.pk, **kwargs
-        )
-
-    def occupy(
-        self,
-        subject: TimeFrameMixin,
-        valid_from: datetime | None = None,
-        valid_to: datetime | None = None,
-        timelines: Iterable[VirtualTimeline] = (),
-    ) -> "TimeFrame":
-        """
-        Validate and create a time frame for the subject, restricted to the given
-        timelines (no timelines: all timelines).
-        """
-        timelines = list(timelines)
-        frame = self.model(
-            subject_type=subject_type_of(subject),
-            subject_id=subject.pk,
-            valid_from=valid_from,
-            valid_to=valid_to,
-        )
-        frame.pending_timeline_ids = [t.pk for t in timelines] or None
-        with transaction.atomic():
-            frame.full_clean()
-            frame.save()
-            frame.timelines.set(timelines)
-        return frame
-
-
-class TimeFrame(models.Model):
-    """An interval ``[valid_from, valid_to)`` in which a subject supporting
-     time frames is active.
-
-    A missing bound means the interval is open-ended. The subject is referenced
-    through a soft foreign key:
-
-    * ``subject_type`` represents the tag registered by the model supporting time frames
-    * ``subject_id`` represents the primary key of the model instance
-
-    There is no enforcement for soft foreign keys at the database level.
-    A time frame without timeline links applies to all timelines of the
-    subject's global context, including timelines added later.
+    A missing bound means the interval is open-ended. Concrete subclasses
+    point to their subject through a real foreign key named ``subject`` with
+    ``related_name="time_frames"``. A time frame without timeline links applies
+    to all timelines of the subject's global context, including timelines added
+    later.
     """
 
-    id = models.AutoField(primary_key=True)
-    subject_type = models.CharField(choices=TimeFrameSubjectType.choices, max_length=32)
-    subject_id = models.IntegerField()
+    class Meta:
+        abstract = True
+        constraints = [
+            models.CheckConstraint(
+                name="%(app_label)s_%(class)s_valid_from_before_valid_to",
+                condition=Q(valid_from__isnull=True)
+                | Q(valid_to__isnull=True)
+                | Q(valid_from__lt=F("valid_to")),
+            ),
+        ]
+
+    if TYPE_CHECKING:
+        subject_id: int
+        subject: TimeFrameSubject
+
     valid_from = models.DateTimeField(null=True, blank=True)
     valid_to = models.DateTimeField(null=True, blank=True)
     timelines = models.ManyToManyField(
         to=VirtualTimeline,
-        through="TimelineTimeFrame",
-        related_name="time_frames",
+        related_name="%(class)s_time_frames",
         blank=True,
     )
 
@@ -86,129 +53,121 @@ class TimeFrame(models.Model):
     pending_timeline_ids: list[int] | None = None
 
     def __str__(self):
-        return f"{self.subject_type}={self.subject_id} {_format_interval(self.spec)}"
-
-    @property
-    def subject(self) -> TimeFrameMixin | None:
-        """The referenced subject, or None if it does not exist (anymore)."""
-        model = _subject_models().get(self.subject_type)
-        if model is None:
-            return None
-        return model.objects.filter(pk=self.subject_id).first()
+        return (
+            f"{self._meta.model_name}={self.subject_id} {_format_interval(self.spec)}"
+        )
 
     @property
     def spec(self) -> FrameSpec:
-        timeline_ids = (
-            frozenset(link.virtual_timeline_id for link in self.timeline_links.all())
-            if self.pk is not None
-            else frozenset()
-        )
+        timeline_ids = None
+        if self.pk is not None:
+            timeline_ids = frozenset(timeline.pk for timeline in self.timelines.all())
         return FrameSpec(self.valid_from, self.valid_to, timeline_ids or None)
 
     @property
     def is_on_all_timelines(self) -> bool:
-        return not self.timeline_links.exists()
+        if self.pk is None:
+            return True
+        if not self.timelines.exists():
+            return True
+        return False
 
     def get_timelines(self) -> models.QuerySet[VirtualTimeline]:
         """The timelines this time frame is active on."""
         if self.is_on_all_timelines:
-            subject = self.subject
-            if subject is None:
-                return VirtualTimeline.objects.none()
             return VirtualTimeline.objects.filter(
-                user_settings_id=subject.time_frame_user_settings_id()
+                user_settings_id=self.subject.time_frame_user_settings_id()
             )
         return self.timelines.all()
 
-    def clean(self):
-        super().clean()
-        if self.subject_type not in _subject_models():
-            return
-        subject = self.subject
-        if subject is None:
-            raise ValidationError(
-                {
-                    "subject_id": (
-                        f"There is no {self.subject_type} with id {self.subject_id}."
-                    )
-                }
-            )
+    def validate_time_frame(self, *, ignore_frame_ids: Iterable[int] = ()) -> None:
+        """Validate this frame of its subject on its timelines.
 
+        A subject occupies at most one time frame per timeline. Its siblings
+        may not be active at the same time on the same timeline. A sibling
+        without time frames is active at all times on all timelines.
+        """
         if self.pending_timeline_ids is not None:
-            timeline_ids = self.pending_timeline_ids
+            timeline_ids = self.pending_timeline_ids or None
         else:
             timeline_ids = self.spec.timeline_ids
-        # imported here: _validation depends on this module
-        from ._validation import validate_time_frame
+        candidate = FrameSpec(
+            self.valid_from,
+            self.valid_to,
+            None if timeline_ids is None else frozenset(timeline_ids),
+        )
+        user_timeline_labels = dict(
+            VirtualTimeline.objects.filter(
+                user_settings_id=self.subject.time_frame_user_settings_id()
+            ).values_list("id", "label")
+        )
 
-        validate_time_frame(subject, self, timeline_ids)
-
-    class Meta:
-        indexes = [
-            models.Index(
-                name="ix_timeframe_subject", fields=["subject_type", "subject_id"]
+        if candidate.timeline_ids is not None and not candidate.timeline_ids.issubset(
+            user_timeline_labels.keys()
+        ):
+            raise ValidationError(
+                "The timelines must belong to the same global context as the "
+                "time frame's subject."
             )
-        ]
-        constraints = [
-            models.CheckConstraint(
-                name="ck_timeframe_subject_type",
-                condition=Q(subject_type__in=TimeFrameSubjectType.values),
-            ),
-            models.CheckConstraint(
-                name="ck_timeframe_valid_from_before_valid_to",
-                condition=Q(valid_from__isnull=True)
-                | Q(valid_to__isnull=True)
-                | Q(valid_from__lt=F("valid_to")),
-            ),
-        ]
 
+        errors = []
+        own_frames = type(self).objects.of(self.subject).prefetch_related("timelines")
+        if self.pk is not None:
+            own_frames = own_frames.exclude(pk=self.pk)
+        if ignore_frame_ids:
+            own_frames = own_frames.exclude(pk__in=ignore_frame_ids)
+        for other in own_frames:
+            if candidate.shares_timeline_with(other.spec):
+                errors.append(
+                    f"{self.subject.time_frame_label()} already occupies the time "
+                    f"frame {_format_interval(other.spec)} on "
+                    f"{_format_timelines(candidate.shared_timelines(other.spec), user_timeline_labels)}."
+                )
 
-class TimelineTimeFrame(models.Model):
-    """Restricts a time frame to a virtual timeline."""
+        siblings = list(self.subject.siblings())
+        sibling_frames = defaultdict(list)
+        for sibling_frame in self.subject.sibling_time_frames().prefetch_related(
+            "timelines"
+        ):
+            sibling_frames[sibling_frame.subject_id].append(sibling_frame.spec)
 
-    id = models.AutoField(primary_key=True)
-    time_frame = models.ForeignKey(
-        to=TimeFrame, on_delete=models.CASCADE, related_name="timeline_links"
-    )
-    virtual_timeline = models.ForeignKey(
-        to=VirtualTimeline, on_delete=models.CASCADE, related_name="time_frame_links"
-    )
+        for sibling in siblings:
+            for spec in sibling_frames.get(sibling.pk) or [ALWAYS]:
+                if not (
+                    candidate.shares_timeline_with(spec)
+                    and candidate.overlaps_in_time(spec)
+                ):
+                    continue
+                if spec is ALWAYS:
+                    errors.append(
+                        f"{sibling.time_frame_label()} has no time frame, so it is "
+                        f"active at all times on all timelines."
+                    )
+                else:
+                    errors.append(
+                        f"Overlaps with {sibling.time_frame_label()} "
+                        f"{_format_interval(spec)} on "
+                        f"{_format_timelines(candidate.shared_timelines(spec), user_timeline_labels)}."
+                    )
+
+        if errors:
+            raise ValidationError(errors)
 
     def clean(self):
         super().clean()
-        subject = self.time_frame.subject
-        if subject is None:
-            return
         if (
-            self.virtual_timeline.user_settings_id
-            != subject.time_frame_user_settings_id()
+            self.valid_from is not None
+            and self.valid_to is not None
+            and self.valid_from >= self.valid_to
         ):
             raise ValidationError(
-                {
-                    "virtual_timeline": (
-                        "The timeline must belong to the same global context "
-                        "as the time frame's subject."
-                    )
-                }
+                {"valid_to": "The time frame must end after it starts."}
             )
-
-        other_links = self.time_frame.timeline_links.exclude(pk=self.pk)
-        timeline_ids = {
-            self.virtual_timeline_id,
-            *other_links.values_list("virtual_timeline_id", flat=True),
-        }
-        # imported here: _validation depends on this module
-        from ._validation import validate_time_frame
-
+        if self.subject_id is None:
+            return
         try:
-            validate_time_frame(subject, self.time_frame, timeline_ids)
-        except ValidationError as e:
-            raise ValidationError({"virtual_timeline": e.messages})
+            self.subject
+        except ObjectDoesNotExist:
+            return
 
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                name="uq_timelinetimeframe_time_frame_virtual_timeline",
-                fields=["time_frame", "virtual_timeline"],
-            )
-        ]
+        self.validate_time_frame()
