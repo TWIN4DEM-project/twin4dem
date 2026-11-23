@@ -83,6 +83,18 @@ def test_user_settings(test_user):
 
 
 @pytest.fixture
+def default_timeline(test_settings) -> VirtualTimeline:
+    return test_settings.timelines.get(label=VirtualTimeline.DEFAULT_LABEL)
+
+
+@pytest.fixture
+def alternate_timeline(test_settings) -> VirtualTimeline:
+    return VirtualTimeline.objects.create(
+        user_settings=test_settings, label="alternate"
+    )
+
+
+@pytest.fixture
 def simulation_id(request) -> int:
     return getattr(request, "param", 1)
 

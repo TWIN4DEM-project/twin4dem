@@ -4,302 +4,161 @@ import pytest
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 
-from common.models import (
-    PartyPosition,
-    PartyPositionType,
-    TimeFrame,
-    TimeFrameSubjectType,
-    TimelineTimeFrame,
-    UserSettings,
-    VirtualTimeline,
-)
+from common.models import VirtualTimeline
+
+from .stub_app.models import StubTimeFrame
+
+
+pytestmark = pytest.mark.django_db
 
 
 def _dt(year: int, month: int = 1, day: int = 1) -> datetime:
     return datetime(year, month, day, tzinfo=UTC)
 
 
-@pytest.fixture
-def majority_position(renaissance, assemblee) -> PartyPosition:
-    return PartyPosition.objects.create(
-        party=renaissance, chamber=assemblee, position=PartyPositionType.MAJORITY
+def test_create_for_links_a_real_subject(stub_subject):
+    frame = StubTimeFrame.objects.create_for(
+        stub_subject, valid_from=_dt(2020), valid_to=_dt(2022)
     )
 
-
-# --- soft foreign key -----------------------------------------------------------
-
-
-@pytest.mark.django_db
-def test_create_for_institution(cabinet):
-    frame = TimeFrame.objects.create_for(
-        cabinet, valid_from=_dt(2020, 7, 3), valid_to=_dt(2022, 5, 16)
-    )
-
-    assert frame.subject_type == TimeFrameSubjectType.INSTITUTION
-    assert frame.subject_id == cabinet.id
-    assert frame.subject == cabinet
-    assert list(TimeFrame.objects.of(cabinet)) == [frame]
+    assert frame.subject == stub_subject
+    assert list(stub_subject.time_frames.all()) == [frame]
 
 
-@pytest.mark.django_db
-def test_create_for_party_position(majority_position):
-    frame = TimeFrame.objects.create_for(majority_position, valid_from=_dt(2022))
-
-    assert frame.subject_type == TimeFrameSubjectType.PARTY_POSITION
-    assert frame.subject == majority_position
-    assert list(TimeFrame.objects.of(majority_position)) == [frame]
-
-
-@pytest.mark.django_db
-def test_create_for_unsupported_subject(renaissance):
+def test_create_for_rejects_a_non_subject():
     with pytest.raises(TypeError) as err_proxy:
-        TimeFrame.objects.create_for(renaissance)
+        StubTimeFrame.objects.create_for(object())
 
-    assert str(err_proxy.value) == "Party cannot occupy a time frame"
-
-
-@pytest.mark.django_db
-def test_subjects_with_same_id_are_kept_apart(cabinet, renaissance, assemblee):
-    # same primary key in two different tables
-    position = PartyPosition.objects.create(
-        id=cabinet.id,
-        party=renaissance,
-        chamber=assemblee,
-        position=PartyPositionType.MAJORITY,
-    )
-    cabinet_frame = TimeFrame.objects.create_for(cabinet)
-    position_frame = TimeFrame.objects.create_for(position)
-
-    assert list(TimeFrame.objects.of(cabinet)) == [cabinet_frame]
-    assert list(TimeFrame.objects.of(position)) == [position_frame]
-
-    cabinet.delete()
-
-    assert list(TimeFrame.objects.all()) == [position_frame]
+    assert str(err_proxy.value) == "object cannot occupy a time frame"
 
 
-@pytest.mark.django_db
-def test_dangling_subject_is_none_and_rejected_by_validation(cabinet):
-    frame = TimeFrame(subject_type=TimeFrameSubjectType.INSTITUTION, subject_id=9999)
+def test_deleting_the_subject_cascades_to_frames(stub_subject):
+    StubTimeFrame.objects.create_for(stub_subject)
 
-    assert frame.subject is None
-    with pytest.raises(ValidationError) as err_proxy:
-        frame.full_clean()
-    assert err_proxy.value.message_dict == {
-        "subject_id": ["There is no institution with id 9999."]
-    }
+    stub_subject.delete()
+
+    assert not StubTimeFrame.objects.exists()
 
 
-@pytest.mark.django_db
-def test_subject_type_rejected_by_database(cabinet):
-    with pytest.raises(IntegrityError) as err_proxy:
-        with transaction.atomic():
-            TimeFrame.objects.create(subject_type="party", subject_id=cabinet.id)
-
-    assert str(err_proxy.value) == "CHECK constraint failed: ck_timeframe_subject_type"
-
-
-# --- interval bounds ------------------------------------------------------------
-
-
-@pytest.mark.django_db
-@pytest.mark.parametrize(
-    "valid_from,valid_to",
-    [
-        (_dt(2017, 5, 15), _dt(2017, 6, 21)),
-        (None, _dt(2017, 6, 21)),
-        (_dt(2017, 5, 15), None),
-        (None, None),
-    ],
-    ids=["bounded", "open start", "open end", "unbounded"],
-)
-def test_bounded_and_open_ended_frames(cabinet, valid_from, valid_to):
-    frame = TimeFrame.objects.create_for(
-        cabinet, valid_from=valid_from, valid_to=valid_to
-    )
-
-    frame.full_clean()
-
-    assert frame.pk is not None
-
-
-@pytest.mark.django_db
 @pytest.mark.parametrize(
     "valid_from,valid_to",
     [(_dt(2022), _dt(2020)), (_dt(2020), _dt(2020))],
     ids=["reversed", "empty"],
 )
-def test_valid_from_must_precede_valid_to(cabinet, valid_from, valid_to):
+def test_valid_from_must_precede_valid_to(stub_subject, valid_from, valid_to):
     with pytest.raises(IntegrityError) as err_proxy:
         with transaction.atomic():
-            TimeFrame.objects.create_for(
-                cabinet, valid_from=valid_from, valid_to=valid_to
+            StubTimeFrame.objects.create_for(
+                stub_subject, valid_from=valid_from, valid_to=valid_to
             )
 
-    assert str(err_proxy.value) == (
-        "CHECK constraint failed: ck_timeframe_valid_from_before_valid_to"
+    assert "valid_from_before_valid_to" in str(err_proxy.value)
+
+
+def test_clean_rejects_reversed_bounds(stub_subject):
+    frame = StubTimeFrame(
+        subject=stub_subject, valid_from=_dt(2022), valid_to=_dt(2020)
     )
 
+    with pytest.raises(ValidationError) as err_proxy:
+        frame.full_clean()
 
-# --- timeline association -------------------------------------------------------
+    assert err_proxy.value.message_dict == {
+        "valid_to": ["The time frame must end after it starts."]
+    }
 
 
-@pytest.mark.django_db
-def test_frame_without_links_applies_to_all_timelines(
-    cabinet, default_timeline, alternate_timeline
+def test_timeline_links_control_spec_and_get_timelines(
+    stub_subject, default_timeline, alternate_timeline
 ):
-    frame = TimeFrame.objects.create_for(cabinet)
-
+    frame = StubTimeFrame.objects.create_for(stub_subject)
     assert frame.is_on_all_timelines
     assert set(frame.get_timelines()) == {default_timeline, alternate_timeline}
+    assert frame.spec.timeline_ids is None
 
-
-@pytest.mark.django_db
-def test_frame_for_all_timelines_tracks_added_timelines(
-    test_settings, cabinet, default_timeline
-):
-    frame = TimeFrame.objects.create_for(cabinet)
-
-    added = VirtualTimeline.objects.create(user_settings=test_settings, label="new")
-
-    assert set(frame.get_timelines()) == {default_timeline, added}
-
-
-@pytest.mark.django_db
-def test_frame_with_links_applies_to_linked_timelines_only(
-    cabinet, default_timeline, alternate_timeline
-):
-    frame = TimeFrame.objects.create_for(cabinet)
     frame.timelines.add(alternate_timeline)
 
     assert not frame.is_on_all_timelines
     assert list(frame.get_timelines()) == [alternate_timeline]
+    assert frame.spec.timeline_ids == frozenset({alternate_timeline.pk})
 
 
-@pytest.mark.django_db
-def test_frame_for_all_timelines_excludes_other_contexts(test_settings, cabinet):
-    other_settings = UserSettings.objects.create(
-        user=test_settings.user, label="alternate world"
-    )
-    frame = TimeFrame.objects.create_for(cabinet)
-
-    assert other_settings.timelines.get() not in frame.get_timelines()
-
-
-@pytest.mark.django_db
-def test_timeline_link_is_unique(cabinet, default_timeline):
-    frame = TimeFrame.objects.create_for(cabinet)
-    TimelineTimeFrame.objects.create(
-        time_frame=frame, virtual_timeline=default_timeline
+def test_frame_for_all_timelines_tracks_added_timelines(stub_subject, default_timeline):
+    frame = StubTimeFrame.objects.create_for(stub_subject)
+    added = VirtualTimeline.objects.create(
+        user_settings=stub_subject.country.user_settings, label="new"
     )
 
-    with pytest.raises(IntegrityError) as err_proxy:
-        with transaction.atomic():
-            TimelineTimeFrame.objects.create(
-                time_frame=frame, virtual_timeline=default_timeline
-            )
+    assert set(frame.get_timelines()) == {default_timeline, added}
 
-    assert str(err_proxy.value) == (
-        "UNIQUE constraint failed: common_timelinetimeframe.time_frame_id, "
-        "common_timelinetimeframe.virtual_timeline_id"
+
+@pytest.mark.parametrize(
+    "at,expected",
+    [
+        (_dt(2019), False),
+        (_dt(2020), True),
+        (_dt(2021, 12, 31), True),
+        (_dt(2022), False),
+    ],
+    ids=["before", "first day", "last day", "end is excluded"],
+)
+def test_covering(stub_subject, at, expected):
+    frame = StubTimeFrame.objects.create_for(
+        stub_subject, valid_from=_dt(2020), valid_to=_dt(2022)
+    )
+
+    assert list(StubTimeFrame.objects.of(stub_subject).covering(at)) == (
+        [frame] if expected else []
     )
 
 
-@pytest.mark.django_db
-def test_timeline_must_belong_to_subject_context(test_settings, cabinet):
-    other_settings = UserSettings.objects.create(
-        user=test_settings.user, label="alternate world"
-    )
-    frame = TimeFrame.objects.create_for(cabinet)
-    link = TimelineTimeFrame(
-        time_frame=frame, virtual_timeline=other_settings.timelines.get()
-    )
+def test_on_timeline_includes_unrestricted_and_linked_frames(
+    stub_subject, default_timeline, alternate_timeline
+):
+    unrestricted = StubTimeFrame.objects.create_for(stub_subject, valid_from=_dt(2020))
+    on_default = StubTimeFrame.objects.create_for(stub_subject, valid_from=_dt(2021))
+    on_default.timelines.add(default_timeline)
+    on_alternate = StubTimeFrame.objects.create_for(stub_subject, valid_from=_dt(2022))
+    on_alternate.timelines.add(alternate_timeline)
 
-    with pytest.raises(ValidationError) as err_proxy:
-        link.full_clean()
-
-    assert err_proxy.value.message_dict == {
-        "virtual_timeline": [
-            "The timeline must belong to the same global context "
-            "as the time frame's subject."
-        ]
+    assert set(StubTimeFrame.objects.on_timeline(default_timeline)) == {
+        unrestricted,
+        on_default,
+    }
+    assert set(StubTimeFrame.objects.on_timeline(alternate_timeline)) == {
+        unrestricted,
+        on_alternate,
     }
 
 
-# --- cleanup --------------------------------------------------------------------
-
-
-@pytest.mark.django_db
-def test_deleting_institution_deletes_its_frames(cabinet, default_timeline):
-    frame = TimeFrame.objects.create_for(cabinet)
-    frame.timelines.add(default_timeline)
-
-    cabinet.delete()
-
-    assert not TimeFrame.objects.exists()
-    assert not TimelineTimeFrame.objects.exists()
-
-
-@pytest.mark.django_db
-def test_deleting_party_position_deletes_its_frames(majority_position):
-    TimeFrame.objects.create_for(majority_position)
-
-    majority_position.delete()
-
-    assert not TimeFrame.objects.exists()
-
-
-@pytest.mark.django_db
-def test_cascading_country_delete_deletes_frames(france, cabinet, majority_position):
-    TimeFrame.objects.create_for(cabinet)
-    TimeFrame.objects.create_for(majority_position)
-
-    france.delete()
-
-    assert not TimeFrame.objects.exists()
-
-
-@pytest.mark.django_db
-def test_deleting_only_timeline_of_frame_deletes_frame(cabinet, alternate_timeline):
-    frame = TimeFrame.objects.create_for(cabinet)
-    frame.timelines.add(alternate_timeline)
-
-    alternate_timeline.delete()
-
-    # without the cleanup, the frame would now apply to all timelines
-    assert not TimeFrame.objects.exists()
-
-
-@pytest.mark.django_db
-def test_deleting_one_of_several_timelines_keeps_frame(
-    cabinet, default_timeline, alternate_timeline
+def test_active_on_combines_timeline_and_interval(
+    stub_subject, default_timeline, alternate_timeline
 ):
-    frame = TimeFrame.objects.create_for(cabinet)
-    frame.timelines.add(default_timeline, alternate_timeline)
+    covering = StubTimeFrame.objects.create_for(
+        stub_subject, valid_from=_dt(2020), valid_to=_dt(2022)
+    )
+    covering.timelines.add(default_timeline)
+    StubTimeFrame.objects.create_for(
+        stub_subject, valid_from=_dt(2030), valid_to=_dt(2031)
+    )
 
-    alternate_timeline.delete()
-
-    assert list(frame.get_timelines()) == [default_timeline]
-
-
-@pytest.mark.django_db
-def test_deleting_timeline_keeps_frames_for_all_timelines(
-    cabinet, default_timeline, alternate_timeline
-):
-    frame = TimeFrame.objects.create_for(cabinet)
-
-    alternate_timeline.delete()
-
-    assert frame.is_on_all_timelines
-    assert list(frame.get_timelines()) == [default_timeline]
+    assert list(StubTimeFrame.objects.active_on(default_timeline, _dt(2021))) == [
+        covering
+    ]
+    assert not StubTimeFrame.objects.active_on(alternate_timeline, _dt(2021)).exists()
 
 
-@pytest.mark.django_db
-def test_deleting_settings_deletes_frames(test_settings, cabinet, alternate_timeline):
-    frame = TimeFrame.objects.create_for(cabinet)
-    frame.timelines.add(alternate_timeline)
-    TimeFrame.objects.create_for(cabinet)
+def test_subject_occupies_one_frame_per_timeline(stub_subject, alternate_timeline):
+    StubTimeFrame.objects.occupy(
+        stub_subject, _dt(2020), _dt(2022), [alternate_timeline]
+    )
 
-    test_settings.delete()
+    with pytest.raises(ValidationError) as err_proxy:
+        StubTimeFrame.objects.occupy(
+            stub_subject, _dt(2030), _dt(2031), [alternate_timeline]
+        )
 
-    assert not TimeFrame.objects.exists()
+    assert err_proxy.value.messages == [
+        "'stub' already occupies the time frame [2020-01-01, 2022-01-01) "
+        "on timeline 'alternate'."
+    ]

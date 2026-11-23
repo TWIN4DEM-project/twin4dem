@@ -1,11 +1,16 @@
 from caseswitcher import to_snake
-from django.db.models import RestrictedError
+from django.db.models import RestrictedError, QuerySet
 from django.utils import timezone
 from rest_framework import permissions, routers, serializers, status, viewsets
 from rest_framework.exceptions import APIException
 
-from api.serializers import AllowedTimelineField, PartySerializer, position_summaries
-from common.models import Party, PartyPositionType
+from api.serializers import (
+    AllowedTimelineField,
+    PartyListSerializer,
+    PartyPositionSummaries,
+    PartySerializer,
+)
+from common.models import Party, PartyPosition, PartyPositionType
 
 
 class PartyInUse(APIException):
@@ -46,42 +51,55 @@ class PartyViewSet(viewsets.ModelViewSet):
     http_method_names = ["get", "head", "post", "put", "delete"]
     timeline = None
 
+    def get_serializer_class(self):
+        if self.action == "list":
+            return PartyListSerializer
+        return super().get_serializer_class()
+
     def get_queryset(self):
-        parties = Party.objects.order_by("id")
+        parties = Party.objects.order_by("id").select_related("country")
         if self.request.user.is_superuser:
+            parties = self._with_position_summaries(parties)
             return parties
-        return parties.filter(country__user_settings__user=self.request.user)
+        return self._with_position_summaries(
+            parties.filter(country__user_settings__user=self.request.user)
+        )
+
+    def _with_position_summaries(self, parties: QuerySet) -> QuerySet:
+        """Prefetch the latest/active positions, for the serializers to read."""
+        if self.action != "list":
+            return parties
+        return PartyPositionSummaries.prefetch(parties, timeline=self.timeline)
+
+    def _get_filter(self) -> PartyFilter | TimelineFilter:
+        filter_cls = TimelineFilter
+        if self.action == "list":
+            filter_cls = PartyFilter
+        filter_data = {to_snake(k): v for k, v in self.request.query_params.items()}
+        return filter_cls(data=filter_data, context={"request": self.request})
 
     def filter_queryset(self, queryset):
-        parties = super().filter_queryset(queryset)
+        parties: QuerySet = super().filter_queryset(queryset)
         if self.action not in ("list", "retrieve"):
             return parties
-        filters = (PartyFilter if self.action == "list" else TimelineFilter)(
-            data={to_snake(k): v for k, v in self.request.query_params.items()},
-            context={"request": self.request},
-        )
-        filters.is_valid(raise_exception=True)
-        criteria = dict(filters.validated_data)
+        party_filter = self._get_filter()
+        party_filter.is_valid(raise_exception=True)
+        criteria = dict(party_filter.validated_data)
         self.timeline = criteria.pop("timeline", None)
+        active_position = criteria.pop("active_position", None)
         if self.timeline is not None:
             parties = parties.filter(
                 country__user_settings_id=self.timeline.user_settings_id
             )
-        active_position = criteria.pop("active_position", None)
+
         parties = parties.filter(**criteria)
         if active_position is not None:
-            summaries = position_summaries(list(parties), timezone.now(), self.timeline)
+            active = PartyPosition.objects.active_on(self.timeline, timezone.now())
+            if self.timeline is not None:
+                pass
             parties = parties.filter(
-                pk__in=[
-                    pk
-                    for pk, chambers in summaries.items()
-                    if any(
-                        summary.active is not None
-                        and summary.active.position == active_position
-                        for summary in chambers.values()
-                    )
-                ]
-            )
+                positions__in=active.filter(position=active_position)
+            ).distinct()
         return parties
 
     def get_serializer_context(self):

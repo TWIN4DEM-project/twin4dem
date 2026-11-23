@@ -16,3 +16,8 @@ FIXTURE_DIRS = [TESTS_DIR / "data" / "fixtures"]
 CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
 ADAPTER_FACTORY = "simulator.db.DbAdapters"
 SIMULATION_PERSISTENCE_BACKEND = "simulator.persistence.DjangoSimulationPersistence"
+INSTALLED_APPS = [
+    *INSTALLED_APPS,  # noqa: F405
+    "tests.common.models.timeline.stub_app",
+]
+MIGRATION_MODULES = {"timeline_tests": None}

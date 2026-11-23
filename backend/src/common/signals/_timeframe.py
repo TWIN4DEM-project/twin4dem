@@ -1,20 +1,18 @@
-from django.db.models.signals import post_delete, pre_delete
+from django.apps import apps
+from django.db.models import Count
+from django.db.models.signals import pre_delete
 from django.dispatch import receiver
 
-from common.models import (
-    Institution,
-    PartyPosition,
-    TimeFrame,
-    TimelineTimeFrame,
-    VirtualTimeline,
-)
+from common.models import TimeFrameModel, VirtualTimeline
 
 
-@receiver(post_delete, sender=Institution)
-@receiver(post_delete, sender=PartyPosition)
-def delete_subject_time_frames(sender, instance, **kwargs):
-    """The soft foreign key has no ON DELETE CASCADE, so cascade manually."""
-    TimeFrame.objects.of(instance).delete()
+def time_frame_models() -> list[type[TimeFrameModel]]:
+    """The concrete time frame models registered in the app registry."""
+    return [
+        model
+        for model in apps.get_models()
+        if issubclass(model, TimeFrameModel) and not model._meta.abstract
+    ]
 
 
 @receiver(pre_delete, sender=VirtualTimeline)
@@ -23,9 +21,7 @@ def delete_orphaned_time_frames(sender, instance, **kwargs):
     Delete the time frames restricted to this timeline only. Otherwise, losing
     their last timeline link would silently make them apply to all timelines.
     """
-    linked_elsewhere = TimelineTimeFrame.objects.exclude(
-        virtual_timeline=instance
-    ).values("time_frame_id")
-    TimeFrame.objects.filter(timeline_links__virtual_timeline=instance).exclude(
-        id__in=linked_elsewhere
-    ).delete()
+    for model in time_frame_models():
+        model.objects.filter(timelines=instance).annotate(
+            link_count=Count("timelines")
+        ).filter(link_count=1).delete()
