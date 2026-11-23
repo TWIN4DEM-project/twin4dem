@@ -40,10 +40,10 @@ export function useSimulationLog(
       setSimulationLog(simulationLog);
     };
     fetch().catch((error: unknown) => {
-      logger.withMetadata({
+      logger.error("Failed to fetch simulation log", {
         simulationId,
         errorType: error instanceof Error ? error.name : "UnknownError",
-      }).error("Failed to fetch simulation log");
+      });
     });
   }, [shouldFetch, simulationId, stepNo, simulationLog]);
 

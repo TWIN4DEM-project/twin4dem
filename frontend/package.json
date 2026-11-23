@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "biome ci ./src",
     "format": "biome check --write ./src",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run"
   },
   "dependencies": {
     "@loglayer/plugin-redaction": "^4.1.0",

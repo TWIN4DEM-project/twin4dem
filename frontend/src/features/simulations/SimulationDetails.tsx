@@ -94,11 +94,11 @@ export function SimulationDetails({ updateSimulationStep }: SimulationDetailsPar
 
   useEffect(() => {
     loadSettings().catch((error: unknown) => {
-      logger.withMetadata({
+    logger.error("Failed to load simulation settings", {
         errorType: error instanceof Error ? error.name : "UnknownError",
-      }).error("Failed to load simulation settings");
     });
-  }, [loadSettings]);
+  });
+}, [loadSettings]);
 
   // initial data loading
   // biome-ignore lint/correctness/useExhaustiveDependencies: the missing dependency is defined within the effect

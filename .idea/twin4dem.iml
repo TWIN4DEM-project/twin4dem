@@ -17,7 +17,7 @@
       <sourceFolder url="file://$MODULE_DIR$/backend/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/backend/.venv" />
     </content>
-    <orderEntry type="jdk" jdkName="twin4dem (uv)" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="~\Desktop\twin4dem\backend\.venv" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
   <component name="TemplatesService">
