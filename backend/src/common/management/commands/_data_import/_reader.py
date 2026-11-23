@@ -1,4 +1,5 @@
 import csv
+import logging
 from pathlib import Path
 
 from pydantic import BaseModel, TypeAdapter, ValidationError
@@ -15,6 +16,8 @@ from twin4dem_data_contracts.models import (
 
 from ._exceptions import DataImportError
 
+logger = logging.getLogger(__name__)
+
 CONTRACT_FILES: dict[str, type[BaseModel]] = {
     "country.csv": Country,
     "institution.csv": Institution,
@@ -27,13 +30,11 @@ CONTRACT_FILES: dict[str, type[BaseModel]] = {
 REQUIRED_FILES = frozenset({"country.csv", "institution.csv"})
 
 
-def read_records(
-    folder: Path, warnings: list[str]
-) -> dict[type[BaseModel], list[BaseModel]]:
+def read_records(folder: Path) -> dict[type[BaseModel], list[BaseModel]]:
     """
     The records of the contract files of `folder`, per contract. Each file is
     parsed and its rows validated against its contract. A missing optional
-    file has no records and adds a warning to `warnings`.
+    file has no records and logs a warning.
 
     Raises a DataImportError at the first file with a problem.
     """
@@ -52,7 +53,7 @@ def read_records(
         elif file_name in REQUIRED_FILES:
             raise DataImportError(f"{file_name}: required file is missing.")
         else:
-            warnings.append(f"{file_name}: file is missing, nothing imported from it.")
+            logger.warning(f"{file_name}: file is missing, nothing imported from it.")
             records[contract] = []
     return records
 

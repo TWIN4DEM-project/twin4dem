@@ -54,11 +54,10 @@ def run_import(source: Path, as_of: str = AS_OF) -> str:
     return run(source, "--username=importer", f"--as-of={as_of}")
 
 
-def import_error(source: Path, as_of: str = AS_OF) -> str:
-    """The message of the error that stops the import of `source`."""
-    with pytest.raises(CommandError) as error:
+def fail_import(source: Path, as_of: str = AS_OF) -> None:
+    """Import `source`, which must fail. The reason is in the log."""
+    with pytest.raises(CommandError, match="Import failed, nothing was saved."):
         run_import(source, as_of)
-    return str(error.value)
 
 
 def read_rows(path: Path) -> list[dict[str, str]]:
@@ -164,21 +163,23 @@ def test_imports_the_latest_institutions_started_by_the_import_date(testland, im
 
 
 def test_imports_the_parties_with_a_position_at_the_end_of_the_cabinet(
-    testland, importer
+    testland, importer, caplog
 ):
     # Cabinet B ended on 2024-01-01: Red and Blue have a position on its last
     # day, Green never had one and Grey was dissolved in 2019
-    output = run_import(testland)
+    run_import(testland)
 
     assert parties(importer) == {"Red", "Blue"}
     assert positions(importer) == {
         ("Red", "majority", "Parliament"),
         ("Blue", "opposition", "Parliament"),
     }
-    assert "2 of 4 parties skipped" in output
+    assert "2 of 4 parties skipped" in caplog.text
 
 
-def test_each_country_is_imported_into_its_own_settings(testland_copy, importer):
+def test_each_country_is_imported_into_its_own_settings(
+    testland_copy, importer, caplog
+):
     add_row(
         testland_copy / "country.csv",
         {"name": "Testland"},
@@ -186,14 +187,14 @@ def test_each_country_is_imported_into_its_own_settings(testland_copy, importer)
         name="Otherland",
     )
 
-    output = run_import(testland_copy)
+    run_import(testland_copy)
 
     labels = UserSettings.objects.filter(user=importer).values_list("label", flat=True)
     assert set(labels) == {"default", "Testland", "Otherland"}
     otherland = Country.objects.get(user_settings__user=importer, name="Otherland")
     assert not otherland.institution_kinds.exists()
     assert not otherland.parties.exists()
-    assert "Otherland: no executive institution" in output
+    assert "Otherland: no executive institution" in caplog.text
 
 
 # Which institution records are taken
@@ -223,25 +224,29 @@ def test_chamber_and_court_follow_the_same_rule(testland, importer):
     assert institution(importer, "judiciary").size == 9
 
 
-def test_institution_starting_after_the_date_is_not_imported(testland, importer):
-    output = run_import(testland, "2014-06-01")
+def test_institution_starting_after_the_date_is_not_imported(
+    testland, importer, caplog
+):
+    run_import(testland, "2014-06-01")
 
     assert {branch for branch, *_ in institutions(importer)} == {"judiciary"}
-    assert "'Government' has no records valid on or before 2014-06-01" in output
-    assert "'Parliament' has no records valid on or before 2014-06-01" in output
+    assert "'Government' has no records valid on or before 2014-06-01" in caplog.text
+    assert "'Parliament' has no records valid on or before 2014-06-01" in caplog.text
 
 
-def test_overlapping_cabinets_are_an_error(testland_copy, importer):
+def test_overlapping_cabinets_are_an_error(testland_copy, importer, caplog):
     edit_rows(
         testland_copy / "cabinet.csv", {"name": "Cabinet B"}, valid_from="2019-01-01"
     )
 
-    assert "'Government': 2 records are valid on 2019-06-01" in import_error(
-        testland_copy, "2019-06-01"
-    )
+    fail_import(testland_copy, "2019-06-01")
+
+    assert "'Government': 2 records are valid on 2019-06-01" in caplog.text
 
 
-def test_more_than_one_institution_per_branch_is_an_error(testland_copy, importer):
+def test_more_than_one_institution_per_branch_is_an_error(
+    testland_copy, importer, caplog
+):
     add_row(
         testland_copy / "institution.csv",
         {"name": "Parliament"},
@@ -249,8 +254,10 @@ def test_more_than_one_institution_per_branch_is_an_error(testland_copy, importe
         name="Senate",
     )
 
-    assert "Testland: 2 legislative institutions ('Parliament', 'Senate')" in (
-        import_error(testland_copy)
+    fail_import(testland_copy)
+
+    assert (
+        "Testland: 2 legislative institutions ('Parliament', 'Senate')" in caplog.text
     )
 
 
@@ -354,22 +361,24 @@ def test_position_without_start_counts_from_the_beginning(testland_copy, importe
     assert parties(importer) == {"Grey"}
 
 
-def test_overlapping_positions_are_an_error(testland_copy, importer):
+def test_overlapping_positions_are_an_error(testland_copy, importer, caplog):
     edit_rows(
         testland_copy / "party-position.csv",
         {"party_position_id": RED_FIRST_POSITION},
         valid_to="2021-01-01",
     )
 
-    assert "positions of 'Red': 2 records are valid on 2020-06-01" in import_error(
-        testland_copy, "2020-06-01"
-    )
+    fail_import(testland_copy, "2020-06-01")
+
+    assert "positions of 'Red': 2 records are valid on 2020-06-01" in caplog.text
 
 
-def test_more_parties_than_seats_is_a_warning(testland_copy, importer):
+def test_more_parties_than_seats_is_a_warning(testland_copy, importer, caplog):
     edit_rows(testland_copy / "chamber.csv", {"size": "100"}, size="2")
 
-    assert "2 parties for 2 seats in 'Parliament'" in run_import(testland_copy)
+    run_import(testland_copy)
+
+    assert "2 parties for 2 seats in 'Parliament'" in caplog.text
 
 
 # Running it again
@@ -422,17 +431,17 @@ def test_run_on_another_date_keeps_what_exists_and_adds_the_rest(testland, impor
 # Missing files
 
 
-def test_missing_court_imports_the_rest_and_warns(testland_copy, importer):
+def test_missing_court_imports_the_rest_and_warns(testland_copy, importer, caplog):
     (testland_copy / "court.csv").unlink()
 
-    output = run_import(testland_copy)
+    run_import(testland_copy)
 
     assert {branch for branch, *_ in institutions(importer)} == {
         "executive",
         "legislative",
     }
-    assert "court.csv: file is missing" in output
-    assert "no judiciary institution" in output
+    assert "court.csv: file is missing" in caplog.text
+    assert "no judiciary institution" in caplog.text
 
 
 @pytest.mark.parametrize(
@@ -445,31 +454,33 @@ def test_missing_court_imports_the_rest_and_warns(testland_copy, importer):
         "party-position.csv",
     ],
 )
-def test_missing_optional_file_is_a_warning(testland_copy, importer, file_name):
+def test_missing_optional_file_is_a_warning(testland_copy, importer, caplog, file_name):
     (testland_copy / file_name).unlink()
 
-    assert f"{file_name}: file is missing, nothing imported from it." in run_import(
-        testland_copy
-    )
+    run_import(testland_copy)
+
+    assert f"{file_name}: file is missing, nothing imported from it." in caplog.text
 
 
 def test_without_a_chamber_parties_are_imported_without_positions(
-    testland_copy, importer
+    testland_copy, importer, caplog
 ):
     (testland_copy / "chamber.csv").unlink()
 
-    output = run_import(testland_copy)
+    run_import(testland_copy)
 
     assert parties(importer) == {"Red", "Blue"}
     assert positions(importer) == set()
-    assert "no chamber, party positions not imported" in output
+    assert "no chamber, party positions not imported" in caplog.text
 
 
 @pytest.mark.parametrize("file_name", ["country.csv", "institution.csv"])
-def test_missing_required_file_is_an_error(testland_copy, importer, file_name):
+def test_missing_required_file_is_an_error(testland_copy, importer, caplog, file_name):
     (testland_copy / file_name).unlink()
 
-    assert f"{file_name}: required file is missing." in import_error(testland_copy)
+    fail_import(testland_copy)
+
+    assert f"{file_name}: required file is missing." in caplog.text
 
 
 # File format
@@ -492,22 +503,24 @@ def test_byte_order_mark_is_accepted(testland_copy, importer):
     assert UserSettings.objects.filter(user=importer, label="Testland").exists()
 
 
-def test_other_files_in_the_folder_are_ignored(testland_copy, importer):
+def test_other_files_in_the_folder_are_ignored(testland_copy, importer, caplog):
     (testland_copy / "README.md").write_bytes(b"# notes")
 
-    output = run_import(testland_copy)
+    run_import(testland_copy)
 
-    assert "README" not in output
+    assert "README" not in caplog.text
     assert parties(importer) == {"Red", "Blue"}
 
 
-def test_non_utf8_file_is_an_error(testland_copy, importer):
+def test_non_utf8_file_is_an_error(testland_copy, importer, caplog):
     path = testland_copy / "country.csv"
     path.write_bytes(
         path.read_bytes().replace(b"Testland", "Testländ".encode("latin-1"))
     )
 
-    assert "country.csv: not a UTF-8 text file." in import_error(testland_copy)
+    fail_import(testland_copy)
+
+    assert "country.csv: not a UTF-8 text file." in caplog.text
 
 
 # Invalid data
@@ -538,28 +551,34 @@ def test_non_utf8_file_is_an_error(testland_copy, importer):
     ids=["wrong type", "missing value", "unknown choice"],
 )
 def test_invalid_value_is_an_error_and_nothing_is_saved(
-    testland_copy, importer, file_name, where, changes, problem
+    testland_copy, importer, caplog, file_name, where, changes, problem
 ):
     edit_rows(testland_copy / file_name, where, **changes)
     counts = record_counts()
 
-    assert problem in import_error(testland_copy)
+    fail_import(testland_copy)
+
+    assert problem in caplog.text
     assert record_counts() == counts
 
 
 def test_record_rejected_by_a_model_rolls_back_the_whole_import(
-    testland_copy, importer
+    testland_copy, importer, caplog
 ):
     # the contract accepts the name, the 50-character Party.label does not;
     # Blue comes after Red, so records were already saved when it fails
     edit_rows(testland_copy / "political-party.csv", {"name": "Blue"}, name="B" * 51)
     counts = record_counts()
 
-    assert "B" * 51 in import_error(testland_copy)
+    fail_import(testland_copy)
+
+    assert "B" * 51 in caplog.text
     assert record_counts() == counts
 
 
-def test_institution_name_taken_by_another_branch_is_an_error(testland, importer):
+def test_institution_name_taken_by_another_branch_is_an_error(
+    testland, importer, caplog
+):
     InstitutionKind.objects.create(
         country=create_testland(importer),
         institution_name="Parliament",
@@ -567,7 +586,9 @@ def test_institution_name_taken_by_another_branch_is_an_error(testland, importer
     )
     counts = record_counts()
 
-    assert "already exists" in import_error(testland)
+    fail_import(testland)
+
+    assert "already exists" in caplog.text
     assert record_counts() == counts
 
 

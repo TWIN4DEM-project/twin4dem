@@ -1,3 +1,4 @@
+import logging
 from collections import defaultdict
 from datetime import date, timedelta
 
@@ -17,6 +18,8 @@ from common.models import InstitutionBranch
 from ._date_windows import current_or_latest, is_valid_on, valid_on
 from ._exceptions import DataImportError
 
+logger = logging.getLogger(__name__)
+
 type Instance = Cabinet | Chamber | Court
 
 BRANCHES: dict[str, tuple[InstitutionBranch, type[Instance]]] = {
@@ -30,12 +33,11 @@ def select_institutions(
     records: dict[type[BaseModel], list[BaseModel]],
     country: Country,
     as_of: date,
-    warnings: list[str],
 ) -> dict[InstitutionBranch, tuple[Institution, Instance]]:
     """
     The institution of each branch of `country`, with its record valid on
     `as_of`, else the most recent one before it. An institution without such
-    a record, and a branch without an institution, add a warning.
+    a record, and a branch without an institution, log a warning.
     """
     institutions = [
         i for i in records[Institution] if i.country_id == country.country_id
@@ -45,18 +47,18 @@ def select_institutions(
     for institution in institutions:
         instance = _instance(records, institution, as_of)
         if instance is None:
-            warnings.append(
+            logger.warning(
                 f"{country.name}: '{institution.name}' has no records valid on or "
                 f"before {as_of}, not imported."
             )
         else:
             branch, _ = BRANCHES[institution.branch]
             selected[branch] = (institution, instance)
-    warnings += [
-        f"{country.name}: no {branch} institution, imported without one."
-        for branch in InstitutionBranch
-        if branch not in selected
-    ]
+    for branch in InstitutionBranch:
+        if branch not in selected:
+            logger.warning(
+                f"{country.name}: no {branch} institution, imported without one."
+            )
     return selected
 
 
@@ -65,12 +67,11 @@ def select_parties(
     country: Country,
     institutions: dict[InstitutionBranch, tuple[Institution, Instance]],
     as_of: date,
-    warnings: list[str],
 ) -> list[tuple[PoliticalParty, PartyPosition]]:
     """
     The parties of `country` that are importable on the reference date (see
     `_reference_date`), with their position on that date. Skipped parties,
-    and more parties than seats in the chamber, add a warning.
+    and more parties than seats in the chamber, log a warning.
     """
     day = _reference_date(institutions, as_of)
     parties = [p for p in records[PoliticalParty] if p.country_id == country.country_id]
@@ -80,14 +81,14 @@ def select_parties(
         if is_importable_party(party, position, day):
             selected.append((party, position))
     if len(selected) < len(parties):
-        warnings.append(
+        logger.warning(
             f"{country.name}: {len(parties) - len(selected)} of {len(parties)} "
             f"parties skipped: no position on {day}, or not active on that date."
         )
     if InstitutionBranch.LEGISLATIVE in institutions:
         institution, chamber = institutions[InstitutionBranch.LEGISLATIVE]
         if len(selected) >= chamber.size:
-            warnings.append(
+            logger.warning(
                 f"{country.name}: {len(selected)} parties for {chamber.size} seats "
                 f"in '{institution.name}', the seat model gives each party only "
                 "its leader."

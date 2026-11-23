@@ -1,3 +1,5 @@
+import logging
+
 from django.contrib.auth.models import AbstractBaseUser
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -16,13 +18,14 @@ from common.models import (
 from ._exceptions import DataImportError
 from ._selection import Instance
 
+logger = logging.getLogger(__name__)
+
 
 def write_country(
     user: AbstractBaseUser,
     country: contracts.Country,
     institutions: dict[InstitutionBranch, tuple[contracts.Institution, Instance]],
     parties: list[tuple[contracts.PoliticalParty, contracts.PartyPosition]],
-    warnings: list[str],
 ) -> None:
     settings = _find_or_create_settings(user, country.name)
     saved_country = _find_or_create_country(settings, country.name)
@@ -37,7 +40,7 @@ def write_country(
         if branch == InstitutionBranch.LEGISLATIVE:
             chamber = saved_institution
     if chamber is None and parties:
-        warnings.append(f"{country.name}: no chamber, party positions not imported.")
+        logger.warning(f"{country.name}: no chamber, party positions not imported.")
     for party, position in parties:
         saved_party = _find_or_create_party(saved_country, party.name)
         if chamber is not None:

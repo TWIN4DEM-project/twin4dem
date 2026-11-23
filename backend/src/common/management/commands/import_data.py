@@ -1,3 +1,4 @@
+import logging
 from datetime import date
 from pathlib import Path
 
@@ -21,6 +22,8 @@ from ._data_import._exceptions import DataImportError
 from ._data_import._reader import read_records
 from ._data_import._selection import select_institutions, select_parties
 from ._data_import._writer import write_country
+
+logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
@@ -52,21 +55,17 @@ class Command(BaseCommand):
                 f"Import source '{source}' does not exist or is not a folder."
             )
         as_of = options["as_of"] or timezone.localdate()
-        warnings: list[str] = []
         before = self._counts(user)
         try:
-            records = read_records(source, warnings)
+            records = read_records(source)
             with transaction.atomic():
                 for country in records[contracts.Country]:
-                    institutions = select_institutions(
-                        records, country, as_of, warnings
-                    )
-                    parties = select_parties(
-                        records, country, institutions, as_of, warnings
-                    )
-                    write_country(user, country, institutions, parties, warnings)
+                    institutions = select_institutions(records, country, as_of)
+                    parties = select_parties(records, country, institutions, as_of)
+                    write_country(user, country, institutions, parties)
         except DataImportError as e:
-            raise CommandError(str(e)) from None
+            logger.error(e)
+            raise CommandError("Import failed, nothing was saved.") from None
 
         self.stdout.write(
             self.style.SUCCESS(f"Imported {source} as of {as_of} for {user}.")
@@ -76,8 +75,6 @@ class Command(BaseCommand):
                 f"{capfirst(model._meta.verbose_name_plural)}: "
                 f"{count - before[model]} created"
             )
-        for warning in warnings:
-            self.stdout.write(self.style.WARNING(f"Warning: {warning}"))
 
     @staticmethod
     def _counts(user) -> dict[type[models.Model], int]:

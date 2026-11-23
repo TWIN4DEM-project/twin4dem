@@ -179,3 +179,18 @@ CELERY_HOST = os.getenv("TWIN4DEM_BACKEND_CELERY_HOST", "localhost")
 CELERY_PORT = int(os.getenv("TWIN4DEM_BACKEND_CELERY_PORT", 5672))
 CELERY_BROKER_URL = f"amqp://{CELERY_USER}:{CELERY_PASS}@{CELERY_HOST}:{CELERY_PORT}//"
 CELERY_RESULT_BACKEND = "rpc://"
+
+# Logging
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "timestamped": {"format": "{asctime} {levelname} {message}", "style": "{"},
+    },
+    "handlers": {
+        "console": {"class": "logging.StreamHandler", "formatter": "timestamped"},
+    },
+    "loggers": {
+        "common.management": {"handlers": ["console"], "level": "INFO"},
+    },
+}
