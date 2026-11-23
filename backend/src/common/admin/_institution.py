@@ -1,13 +1,26 @@
 from django.contrib import admin
 
-from ..models import Institution, InstitutionKind
+from ..models import Institution, InstitutionKind, InstitutionTimeFrame
+from ._timeframe import TimeFrameInline, TimeFrameInlineAdminMixin, TimeFrameInlineForm
+
+
+class InstitutionTimeFrameInlineForm(TimeFrameInlineForm):
+    class Meta:
+        model = InstitutionTimeFrame
+        fields = ("valid_from", "valid_to")
+
+
+class InstitutionTimeFrameInline(TimeFrameInline):
+    model = InstitutionTimeFrame
+    form = InstitutionTimeFrameInlineForm
 
 
 @admin.register(Institution)
-class InstitutionAdmin(admin.ModelAdmin):
+class InstitutionAdmin(TimeFrameInlineAdminMixin, admin.ModelAdmin):
     list_display = ("id", "label", "kind", "size")
     list_filter = ("kind__branch",)
     search_fields = ("label", "kind__institution_name")
+    inlines = [InstitutionTimeFrameInline]
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)

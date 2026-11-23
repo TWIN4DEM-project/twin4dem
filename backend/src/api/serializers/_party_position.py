@@ -3,7 +3,12 @@ from django.db import transaction
 from rest_framework import serializers
 from rest_framework.settings import api_settings
 
-from common.models import Institution, Party, PartyPosition, TimeFrame
+from common.models import (
+    Institution,
+    Party,
+    PartyPosition,
+    PartyPositionTimeFrame,
+)
 
 from ._base import LCCModelSerializer
 from ._batch import BatchListSerializer
@@ -26,8 +31,7 @@ class AllowedChamberField(serializers.PrimaryKeyRelatedField):
         return Institution.objects.filter(kind__country__user_settings__user=user)
 
 
-class PartyPositionSerializer(LCCModelSerializer):
-    party = AllowedPartyField()
+class BasePartyPositionSerializer(LCCModelSerializer):
     chamber = AllowedChamberField(allow_null=True, default=None)
     timeline = AllowedTimelineField(allow_null=True, default=None, write_only=True)
     valid_from = serializers.DateTimeField(
@@ -37,23 +41,8 @@ class PartyPositionSerializer(LCCModelSerializer):
 
     class Meta:
         model = PartyPosition
-        fields = [
-            "id",
-            "party",
-            "position",
-            "chamber",
-            "timeline",
-            "valid_from",
-            "valid_to",
-        ]
+        fields = ["id", "position", "chamber", "timeline", "valid_from", "valid_to"]
         list_serializer_class = BatchListSerializer
-
-    def validate_party(self, value):
-        if self.instance is not None and value != self.instance.party:
-            raise serializers.ValidationError(
-                "A party position cannot be moved to another party."
-            )
-        return value
 
     def validate(self, attrs):
         valid_from, valid_to = attrs.get("valid_from"), attrs.get("valid_to")
@@ -77,19 +66,17 @@ class PartyPositionSerializer(LCCModelSerializer):
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         self._clean_and_save(instance)
-        TimeFrame.objects.of(instance).delete()
+        instance.time_frames.all().delete()
         self._occupy(instance, frame)
         return instance
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
-        frame = TimeFrame.objects.of(instance).order_by("id").first()
+        frame = instance.time_frames.order_by("id").first()
         timeline_id = valid_from = valid_to = None
         if frame is not None:
             timeline_id = (
-                frame.timeline_links.order_by("id")
-                .values_list("virtual_timeline_id", flat=True)
-                .first()
+                frame.timelines.order_by("id").values_list("id", flat=True).first()
             )
             valid_from, valid_to = frame.valid_from, frame.valid_to
         data["timeline"] = timeline_id
@@ -117,8 +104,30 @@ class PartyPositionSerializer(LCCModelSerializer):
     @staticmethod
     def _occupy(position: PartyPosition, frame: dict):
         try:
-            TimeFrame.objects.occupy(position, **frame)
+            PartyPositionTimeFrame.objects.occupy(position, **frame)
         except DjangoValidationError as e:
             raise serializers.ValidationError(
                 {api_settings.NON_FIELD_ERRORS_KEY: e.messages}
             )
+
+
+class PartyPositionSerializer(BasePartyPositionSerializer):
+    party = AllowedPartyField()
+
+    class Meta(BasePartyPositionSerializer.Meta):
+        fields = [
+            "id",
+            "party",
+            "position",
+            "chamber",
+            "timeline",
+            "valid_from",
+            "valid_to",
+        ]
+
+    def validate_party(self, value):
+        if self.instance is not None and value != self.instance.party:
+            raise serializers.ValidationError(
+                "A party position cannot be moved to another party."
+            )
+        return value

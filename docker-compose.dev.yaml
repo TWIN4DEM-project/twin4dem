@@ -38,6 +38,7 @@ services:
     container_name: twin4dem-frontend-dev
     command: npm run dev
     volumes:
+      - ./assets:/assets:ro
       - ./frontend/src:/frontend/src
       - ./frontend/assets:/frontend/assets
     ports:

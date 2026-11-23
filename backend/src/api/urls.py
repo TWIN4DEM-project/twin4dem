@@ -5,6 +5,7 @@ from api import views
 from api.viewsets import (
     country_router,
     institution_kind_router,
+    party_router,
     party_position_router,
     simulation_router,
     institution_router,
@@ -23,6 +24,7 @@ urlpatterns = format_suffix_patterns(
         *country_router.urls,
         *institution_router.urls,
         *institution_kind_router.urls,
+        *party_router.urls,
         *party_position_router.urls,
         *simulation_router.urls,
     ]
