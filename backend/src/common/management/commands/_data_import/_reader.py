@@ -35,26 +35,25 @@ def read_records(
     parsed and its rows validated against its contract. A missing optional
     file has no records and adds a warning to `warnings`.
 
-    Raises a DataImportError listing every problem found.
+    Raises a DataImportError at the first file with a problem.
     """
     records: dict[type[BaseModel], list[BaseModel]] = {}
-    errors: list[str] = []
     for file_name, contract in CONTRACT_FILES.items():
         path = folder / file_name
         if path.is_file():
             try:
                 records[contract] = _validate(_parse_csv(path), contract)
             except ValidationError as e:
-                errors += [f"{file_name} {_describe(error)}" for error in e.errors()]
+                raise DataImportError(
+                    *(f"{file_name} {_describe(error)}" for error in e.errors())
+                )
             except UnicodeDecodeError:
-                errors.append(f"{file_name}: not a UTF-8 text file.")
+                raise DataImportError(f"{file_name}: not a UTF-8 text file.")
         elif file_name in REQUIRED_FILES:
-            errors.append(f"{file_name}: required file is missing.")
+            raise DataImportError(f"{file_name}: required file is missing.")
         else:
             warnings.append(f"{file_name}: file is missing, nothing imported from it.")
             records[contract] = []
-    if errors:
-        raise DataImportError(*errors)
     return records
 
 

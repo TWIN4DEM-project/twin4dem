@@ -121,14 +121,12 @@ def _check_one_per_branch(country: Country, institutions: list[Institution]) -> 
     names = defaultdict(list)
     for institution in institutions:
         names[institution.branch].append(f"'{institution.name}'")
-    errors = [
-        f"{country.name}: {len(group)} {branch} institutions "
-        f"({', '.join(group)}), only one per branch is supported."
-        for branch, group in names.items()
-        if len(group) > 1
-    ]
-    if errors:
-        raise DataImportError(*errors)
+    for branch, group in names.items():
+        if len(group) > 1:
+            raise DataImportError(
+                f"{country.name}: {len(group)} {branch} institutions "
+                f"({', '.join(group)}), only one per branch is supported."
+            )
 
 
 def _instance(

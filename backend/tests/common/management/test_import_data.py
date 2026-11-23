@@ -547,20 +547,6 @@ def test_invalid_value_is_an_error_and_nothing_is_saved(
     assert record_counts() == counts
 
 
-def test_every_problem_is_reported_at_once(testland_copy, importer):
-    edit_rows(testland_copy / "cabinet.csv", {"name": "Cabinet B"}, size="abc")
-    edit_rows(
-        testland_copy / "party-position.csv",
-        {"party_position_id": RED_FIRST_POSITION},
-        position="coalition",
-    )
-
-    message = import_error(testland_copy)
-
-    assert "cabinet.csv line 3:" in message
-    assert "party-position.csv line 2:" in message
-
-
 def test_record_rejected_by_a_model_rolls_back_the_whole_import(
     testland_copy, importer
 ):

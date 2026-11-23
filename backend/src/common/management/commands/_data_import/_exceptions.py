@@ -1,5 +1,5 @@
 class DataImportError(Exception):
-    """Stops an import before anything is saved, listing every problem found."""
+    """Stops an import before anything is saved, listing what stopped it."""
 
     def __init__(self, *problems: str):
         super().__init__(
