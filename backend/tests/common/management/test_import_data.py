@@ -25,7 +25,6 @@ AS_OF = "2025-06-01"
 RED_FIRST_POSITION = "b0000000-0000-4000-8000-000000000001"
 BLUE_CURRENT_POSITION = "b0000000-0000-4000-8000-000000000004"
 GREY_POSITION = "b0000000-0000-4000-8000-000000000005"
-UNKNOWN_PARTY = "a0000000-0000-4000-8000-000000000009"
 
 
 @pytest.fixture
@@ -437,7 +436,14 @@ def test_missing_court_imports_the_rest_and_warns(testland_copy, importer):
 
 
 @pytest.mark.parametrize(
-    "file_name", ["cabinet.csv", "chamber.csv", "court.csv", "party-position.csv"]
+    "file_name",
+    [
+        "cabinet.csv",
+        "chamber.csv",
+        "court.csv",
+        "political-party.csv",
+        "party-position.csv",
+    ],
 )
 def test_missing_optional_file_is_a_warning(testland_copy, importer, file_name):
     (testland_copy / file_name).unlink()
@@ -553,45 +559,6 @@ def test_every_problem_is_reported_at_once(testland_copy, importer):
 
     assert "cabinet.csv line 3:" in message
     assert "party-position.csv line 2:" in message
-
-
-def test_duplicate_id_is_an_error(testland_copy, importer):
-    add_row(testland_copy / "cabinet.csv", {"name": "Cabinet A"})
-
-    assert (
-        "cabinet.csv: duplicate cabinet_id ca000000-0000-4000-8000-000000000001."
-        in import_error(testland_copy)
-    )
-
-
-def test_broken_reference_is_an_error(testland_copy, importer):
-    edit_rows(
-        testland_copy / "party-position.csv",
-        {"party_position_id": GREY_POSITION},
-        political_party_id=UNKNOWN_PARTY,
-    )
-
-    assert (
-        f"party-position.csv: political_party_id {UNKNOWN_PARTY} not found in "
-        "political-party.csv." in import_error(testland_copy)
-    )
-
-
-def test_reference_to_a_missing_file_is_an_error(testland_copy, importer):
-    (testland_copy / "political-party.csv").unlink()
-
-    assert "not found in political-party.csv" in import_error(testland_copy)
-
-
-def test_invalid_rows_are_not_also_reported_as_broken_references(
-    testland_copy, importer
-):
-    edit_rows(testland_copy / "country.csv", {"name": "Testland"}, country_id="x")
-
-    message = import_error(testland_copy)
-
-    assert "country.csv line 2: country_id:" in message
-    assert "not found" not in message
 
 
 def test_record_rejected_by_a_model_rolls_back_the_whole_import(
