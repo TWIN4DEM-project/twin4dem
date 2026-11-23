@@ -162,19 +162,19 @@ def test_imports_the_latest_institutions_started_by_the_import_date(testland, im
     }
 
 
-def test_imports_the_parties_with_a_position_at_the_end_of_the_cabinet(
+def test_imports_the_parties_active_at_the_end_of_the_cabinet(
     testland, importer, caplog
 ):
     # Cabinet B ended on 2024-01-01: Red and Blue have a position on its last
     # day, Green never had one and Grey was dissolved in 2019
     run_import(testland)
 
-    assert parties(importer) == {"Red", "Blue"}
+    assert parties(importer) == {"Red", "Blue", "Green"}
     assert positions(importer) == {
         ("Red", "majority", "Parliament"),
         ("Blue", "opposition", "Parliament"),
     }
-    assert "2 of 4 parties skipped" in caplog.text
+    assert "1 of 4 parties skipped: not active on 2023-12-31." in caplog.text
 
 
 def test_each_country_is_imported_into_its_own_settings(
@@ -289,10 +289,10 @@ def test_without_a_cabinet_parties_are_taken_on_the_import_date(
 
     run_import(testland_copy)
 
-    assert parties(importer) == {"Red"}
+    assert positions(importer) == {("Red", "majority", "Parliament")}
 
 
-def test_party_whose_position_ended_before_the_cabinet_is_skipped(
+def test_party_without_a_position_on_the_date_is_imported_without_one(
     testland_copy, importer
 ):
     # Cabinet B ended on 2024-01-01, Blue's last position now ends in 2022
@@ -304,7 +304,8 @@ def test_party_whose_position_ended_before_the_cabinet_is_skipped(
 
     run_import(testland_copy)
 
-    assert parties(importer) == {"Red"}
+    assert "Blue" in parties(importer)
+    assert positions(importer) == {("Red", "majority", "Parliament")}
 
 
 @pytest.mark.parametrize(
@@ -355,10 +356,11 @@ def test_position_without_start_counts_from_the_beginning(testland_copy, importe
         {"party_position_id": GREY_POSITION},
         valid_from="",
     )
+    edit_rows(testland_copy / "chamber.csv", {"size": "90"}, valid_from="2000-01-01")
 
     run_import(testland_copy, "2010-01-01")  # the other positions start in 2015
 
-    assert parties(importer) == {"Grey"}
+    assert positions(importer) == {("Grey", "opposition", "Parliament")}
 
 
 def test_overlapping_positions_are_an_error(testland_copy, importer, caplog):
@@ -374,11 +376,11 @@ def test_overlapping_positions_are_an_error(testland_copy, importer, caplog):
 
 
 def test_more_parties_than_seats_is_a_warning(testland_copy, importer, caplog):
-    edit_rows(testland_copy / "chamber.csv", {"size": "100"}, size="2")
+    edit_rows(testland_copy / "chamber.csv", {"size": "100"}, size="3")
 
     run_import(testland_copy)
 
-    assert "2 parties for 2 seats in 'Parliament'" in caplog.text
+    assert "3 parties for 3 seats in 'Parliament'" in caplog.text
 
 
 # Running it again
@@ -397,7 +399,7 @@ def test_reports_how_many_records_it_created(testland, importer):
     first = run_import(testland)
     second = run_import(testland)
 
-    assert "Parties: 2 created" in first
+    assert "Parties: 3 created" in first
     assert "Parties: 0 created" in second
 
 
@@ -408,7 +410,11 @@ def test_existing_records_are_kept_and_the_rest_added(testland, importer):
     run_import(testland)
 
     assert UserSettings.objects.filter(user=importer, label="Testland").count() == 1
-    assert sorted(country.parties.values_list("label", flat=True)) == ["Blue", "Red"]
+    assert sorted(country.parties.values_list("label", flat=True)) == [
+        "Blue",
+        "Green",
+        "Red",
+    ]
     assert positions(importer) == {
         ("Red", "majority", "Parliament"),
         ("Blue", "opposition", "Parliament"),
@@ -469,7 +475,7 @@ def test_without_a_chamber_parties_are_imported_without_positions(
 
     run_import(testland_copy)
 
-    assert parties(importer) == {"Red", "Blue"}
+    assert parties(importer) == {"Red", "Blue", "Green"}
     assert positions(importer) == set()
     assert "no chamber, party positions not imported" in caplog.text
 
@@ -509,7 +515,7 @@ def test_other_files_in_the_folder_are_ignored(testland_copy, importer, caplog):
     run_import(testland_copy)
 
     assert "README" not in caplog.text
-    assert parties(importer) == {"Red", "Blue"}
+    assert parties(importer) == {"Red", "Blue", "Green"}
 
 
 def test_non_utf8_file_is_an_error(testland_copy, importer, caplog):

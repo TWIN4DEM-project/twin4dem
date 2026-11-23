@@ -67,41 +67,29 @@ def select_parties(
     country: Country,
     institutions: dict[InstitutionBranch, tuple[Institution, Instance]],
     as_of: date,
-) -> list[tuple[PoliticalParty, PartyPosition]]:
+) -> list[tuple[PoliticalParty, PartyPosition | None]]:
     """
-    The parties of `country` that are importable on the reference date (see
-    `_reference_date`), with their position on that date. Skipped parties,
-    and more parties than seats in the chamber, log a warning.
+    The parties of `country` that are active on the reference date (see
+    `_reference_date`), each with its position on that date, if it has one.
+    Skipped parties, and more parties than seats in the chamber, log a warning.
     """
     day = _reference_date(institutions, as_of)
     parties = [p for p in records[PoliticalParty] if p.country_id == country.country_id]
-    selected = []
-    for party in parties:
-        position = _position_on(records, party, day)
-        if is_importable_party(party, position, day):
-            selected.append((party, position))
-    if len(selected) < len(parties):
+    active = [p for p in parties if is_valid_on(p.date_founded, p.date_dissolved, day)]
+    if len(active) < len(parties):
         logger.warning(
-            f"{country.name}: {len(parties) - len(selected)} of {len(parties)} "
-            f"parties skipped: no position on {day}, or not active on that date."
+            f"{country.name}: {len(parties) - len(active)} of {len(parties)} "
+            f"parties skipped: not active on {day}."
         )
     if InstitutionBranch.LEGISLATIVE in institutions:
         institution, chamber = institutions[InstitutionBranch.LEGISLATIVE]
-        if len(selected) >= chamber.size:
+        if len(active) >= chamber.size:
             logger.warning(
-                f"{country.name}: {len(selected)} parties for {chamber.size} seats "
+                f"{country.name}: {len(active)} parties for {chamber.size} seats "
                 f"in '{institution.name}', the seat model gives each party only "
                 "its leader."
             )
-    return selected
-
-
-def is_importable_party(
-    party: PoliticalParty, position: PartyPosition | None, day: date
-) -> bool:
-    return position is not None and is_valid_on(
-        party.date_founded, party.date_dissolved, day
-    )
+    return [(party, _position_on(records, party, day)) for party in active]
 
 
 def _reference_date(
