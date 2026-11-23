@@ -10,7 +10,6 @@ from common.models import (
     Party,
     Simulation,
     SimulationInstitution,
-    VirtualTimeline,
 )
 
 
@@ -75,18 +74,6 @@ def court(french_taxonomy) -> Institution:
         kind=french_taxonomy[InstitutionBranch.JUDICIARY],
         label="CC",
         size=9,
-    )
-
-
-@pytest.fixture
-def default_timeline(test_settings) -> VirtualTimeline:
-    return test_settings.timelines.get(label=VirtualTimeline.DEFAULT_LABEL)
-
-
-@pytest.fixture
-def alternate_timeline(test_settings) -> VirtualTimeline:
-    return VirtualTimeline.objects.create(
-        user_settings=test_settings, label="alternate"
     )
 
 

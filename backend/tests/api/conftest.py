@@ -9,8 +9,7 @@ from common.models import (
     Institution,
     InstitutionBranch,
     InstitutionKind,
-    TimeFrame,
-    VirtualTimeline,
+    InstitutionTimeFrame,
 )
 
 
@@ -70,19 +69,12 @@ def make_senate(senate_kind) -> Callable[..., Institution]:
             kind=senate_kind, label=label, size=136
         )
         if valid_from or valid_to:
-            TimeFrame.objects.occupy(
+            InstitutionTimeFrame.objects.occupy(
                 institution, _midnight(valid_from), _midnight(valid_to)
             )
         return institution
 
     return make
-
-
-@pytest.fixture
-def alternate_timeline(test_settings) -> VirtualTimeline:
-    return VirtualTimeline.objects.create(
-        user_settings=test_settings, label="alternate"
-    )
 
 
 @pytest.fixture(scope="session")

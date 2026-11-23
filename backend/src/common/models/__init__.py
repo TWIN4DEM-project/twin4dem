@@ -33,17 +33,20 @@ from .institution import (
     CourtPayload,
     InstitutionBranch,
     InstitutionKind,
+    InstitutionTimeFrame,
 )
-from .party import Party, PartyPositionType, PartyPosition, party_position_at
+from .party import (
+    Party,
+    PartyPositionTimeFrame,
+    PartyPositionType,
+    PartyPosition,
+    party_position_at,
+)
 from .timeline import (
     FrameSpec,
-    TimeFrame,
-    TimeFrameMixin,
-    TimeFrameSubjectType,
-    TimelineTimeFrame,
+    TimeFrameModel,
+    TimeFrameSubject,
     VirtualTimeline,
-    active_subjects,
-    is_active,
 )
 
 
@@ -72,16 +75,14 @@ __all__ = (
     "CabinetPayload",
     "ChamberPayload",
     "CourtPayload",
+    "InstitutionTimeFrame",
     "Party",
     "PartyPosition",
+    "PartyPositionTimeFrame",
     "PartyPositionType",
     "FrameSpec",
-    "TimeFrame",
-    "TimeFrameMixin",
-    "TimeFrameSubjectType",
-    "TimelineTimeFrame",
-    "active_subjects",
-    "is_active",
+    "TimeFrameModel",
+    "TimeFrameSubject",
     "party_position_at",
     "AggrandisementUnit",
     "AggrandisementBatch",

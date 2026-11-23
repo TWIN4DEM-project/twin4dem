@@ -1,25 +1,65 @@
-from datetime import datetime, UTC
+import json
+from datetime import UTC, datetime
 
 import pytest
 
-from common.models import TimeFrame, TimeFrameSubjectType
+from common.models import (
+    InstitutionTimeFrame,
+    PartyPosition,
+    PartyPositionTimeFrame,
+    PartyPositionType,
+)
 
 pytestmark = pytest.mark.urls("tests.common.admin.urls")
 
-ADD_URL = "/admin/common/timeframe/add/"
+INSTITUTION_CHANGE_URL = "/admin/common/institution/{pk}/change/"
+PARTY_CHANGE_URL = "/admin/common/party/{pk}/change/"
 
 
-def _form_data(subject, valid_from: str, valid_to: str, timelines=()) -> dict:
-    # the admin splits datetimes into a date and a time input
-    return {
-        "subject_type": TimeFrameSubjectType.INSTITUTION,
-        "subject_id": subject.id,
-        "valid_from_0": valid_from,
-        "valid_from_1": "00:00:00",
-        "valid_to_0": valid_to,
-        "valid_to_1": "00:00:00",
-        "timeline_selection": [t.id for t in timelines],
+def _institution_form_data(cabinet, frames) -> dict:
+    data = {
+        "kind": cabinet.kind_id,
+        "label": cabinet.label,
+        "size": cabinet.size,
+        "payload": json.dumps(cabinet.payload),
+        "time_frames-TOTAL_FORMS": str(len(frames)),
+        "time_frames-INITIAL_FORMS": "0",
+        "time_frames-MIN_NUM_FORMS": "0",
+        "time_frames-MAX_NUM_FORMS": "1000",
     }
+    for i, frame in enumerate(frames):
+        if frame.get("valid_from") is not None:
+            data[f"time_frames-{i}-valid_from_0"] = frame.get("valid_from")
+            data[f"time_frames-{i}-valid_from_1"] = "00:00:00"
+        if frame.get("valid_to") is not None:
+            data[f"time_frames-{i}-valid_to_0"] = frame.get("valid_to")
+            data[f"time_frames-{i}-valid_to_1"] = "00:00:00"
+        data[f"time_frames-{i}-timeline_selection"] = [
+            timeline.pk for timeline in frame.get("timelines", ())
+        ]
+    return data
+
+
+def _party_form_data(party, positions) -> dict:
+    data = {
+        "country": party.country_id,
+        "label": party.label,
+        "positions-TOTAL_FORMS": str(len(positions)),
+        "positions-INITIAL_FORMS": "0",
+        "positions-MIN_NUM_FORMS": "0",
+        "positions-MAX_NUM_FORMS": "1000",
+    }
+    for i, position in enumerate(positions):
+        data[f"positions-{i}-position"] = position["position"]
+        data[f"positions-{i}-chamber"] = position["chamber"].pk
+        if position.get("valid_from") is not None:
+            data[f"positions-{i}-valid_from"] = position.get("valid_from")
+        if position.get("valid_to") is not None:
+            data[f"positions-{i}-valid_to"] = position.get("valid_to")
+        data[f"positions-{i}-timeline_selection"] = [
+            timeline.pk for timeline in position.get("timelines", ())
+        ]
+    return data
 
 
 @pytest.mark.django_db
@@ -34,8 +74,6 @@ def _form_data(subject, valid_from: str, valid_to: str, timelines=()) -> dict:
         "/admin/common/institution/add/",
         "/admin/common/party/",
         "/admin/common/party/add/",
-        "/admin/common/timeframe/",
-        ADD_URL,
     ],
 )
 def test_admin_pages_render(admin_client, url):
@@ -45,30 +83,188 @@ def test_admin_pages_render(admin_client, url):
 
 
 @pytest.mark.django_db
-def test_add_time_frame_with_timelines(admin_client, cabinet, alternate_timeline):
+def test_add_institution_frame_with_timelines(
+    admin_client, cabinet, alternate_timeline
+):
     response = admin_client.post(
-        ADD_URL, _form_data(cabinet, "2020-07-03", "2022-05-16", [alternate_timeline])
+        INSTITUTION_CHANGE_URL.format(pk=cabinet.pk),
+        _institution_form_data(
+            cabinet,
+            [
+                {
+                    "valid_from": "2020-07-03",
+                    "valid_to": "2022-05-16",
+                    "timelines": [alternate_timeline],
+                }
+            ],
+        ),
     )
 
     assert response.status_code == 302
-    frame = TimeFrame.objects.of(cabinet).get()
-    assert frame.valid_from == datetime(2020, 7, 3, tzinfo=UTC)
+    frame = InstitutionTimeFrame.objects.of(cabinet).get()
     assert list(frame.timelines.all()) == [alternate_timeline]
 
 
 @pytest.mark.django_db
-def test_add_overlapping_time_frame_shows_error(
+def test_add_institution_frame_without_timelines_applies_to_all(
+    admin_client, cabinet, default_timeline, alternate_timeline
+):
+    response = admin_client.post(
+        INSTITUTION_CHANGE_URL.format(pk=cabinet.pk),
+        _institution_form_data(
+            cabinet, [{"valid_from": "2020-07-03", "valid_to": "2022-05-16"}]
+        ),
+    )
+
+    assert response.status_code == 302
+    frame = InstitutionTimeFrame.objects.of(cabinet).get()
+    assert frame.is_on_all_timelines
+    assert set(frame.get_timelines()) == {default_timeline, alternate_timeline}
+
+
+@pytest.mark.django_db
+def test_add_overlapping_institution_frame_shows_error(
     admin_client, cabinet, alternate_timeline
 ):
-    TimeFrame.objects.occupy(cabinet, valid_from=datetime(2020, 7, 3, tzinfo=UTC))
+    InstitutionTimeFrame.objects.occupy(
+        cabinet, valid_from=datetime(2020, 7, 3, tzinfo=UTC)
+    )
 
     response = admin_client.post(
-        ADD_URL, _form_data(cabinet, "2030-01-01", "2031-01-01", [alternate_timeline])
+        INSTITUTION_CHANGE_URL.format(pk=cabinet.pk),
+        _institution_form_data(
+            cabinet,
+            [
+                {
+                    "valid_from": "2030-01-01",
+                    "valid_to": "2031-01-01",
+                    "timelines": [alternate_timeline],
+                }
+            ],
+        ),
     )
 
     assert response.status_code == 200
-    assert response.context["adminform"].form.non_field_errors() == [
+    inline_formset = response.context["inline_admin_formsets"][0].formset
+    assert inline_formset.forms[0].non_field_errors() == [
         "'Castex' already occupies the time frame [2020-07-03, +inf) "
         "on timeline 'alternate'."
     ]
-    assert TimeFrame.objects.count() == 1
+    assert InstitutionTimeFrame.objects.count() == 1
+
+
+@pytest.mark.django_db
+def test_add_party_position_with_timeline(
+    admin_client, renaissance, assemblee, alternate_timeline
+):
+    response = admin_client.post(
+        PARTY_CHANGE_URL.format(pk=renaissance.pk),
+        _party_form_data(
+            renaissance,
+            [
+                {
+                    "position": PartyPositionType.MAJORITY,
+                    "chamber": assemblee,
+                    "valid_from": "2020-07-03",
+                    "valid_to": "2022-05-16",
+                    "timelines": [alternate_timeline],
+                }
+            ],
+        ),
+    )
+
+    assert response.status_code == 302
+    position = renaissance.positions.get()
+    frame = PartyPositionTimeFrame.objects.of(position).get()
+    assert list(frame.timelines.all()) == [alternate_timeline]
+
+
+@pytest.mark.django_db
+def test_add_party_position_without_timeline_applies_to_all(
+    admin_client, renaissance, assemblee, default_timeline, alternate_timeline
+):
+    response = admin_client.post(
+        PARTY_CHANGE_URL.format(pk=renaissance.pk),
+        _party_form_data(
+            renaissance,
+            [
+                {
+                    "position": PartyPositionType.MAJORITY,
+                    "chamber": assemblee,
+                    "valid_from": "2020-07-03",
+                    "valid_to": "2022-05-16",
+                }
+            ],
+        ),
+    )
+
+    assert response.status_code == 302
+    position = renaissance.positions.get()
+    frame = PartyPositionTimeFrame.objects.of(position).get()
+    assert frame.is_on_all_timelines
+    assert set(frame.get_timelines()) == {default_timeline, alternate_timeline}
+
+
+@pytest.mark.django_db
+def test_add_adjacent_party_positions_success(admin_client, renaissance, assemblee):
+    response = admin_client.post(
+        PARTY_CHANGE_URL.format(pk=renaissance.pk),
+        _party_form_data(
+            renaissance,
+            [
+                {
+                    "position": PartyPositionType.MAJORITY,
+                    "chamber": assemblee,
+                    "valid_from": "2026-01-01",
+                    "valid_to": "2026-02-15",
+                },
+                {
+                    "position": PartyPositionType.OPPOSITION,
+                    "chamber": assemblee,
+                    "valid_from": "2026-02-15",
+                },
+            ],
+        ),
+    )
+
+    assert response.status_code == 302
+    frames = PartyPositionTimeFrame.objects.order_by("id")
+    assert [frame.spec for frame in frames] == [
+        frames[0].spec,
+        frames[1].spec,
+    ]
+
+
+@pytest.mark.django_db
+def test_add_overlapping_party_positions_shows_error(
+    admin_client, renaissance, assemblee
+):
+    response = admin_client.post(
+        PARTY_CHANGE_URL.format(pk=renaissance.pk),
+        _party_form_data(
+            renaissance,
+            [
+                {
+                    "position": PartyPositionType.MAJORITY,
+                    "chamber": assemblee,
+                    "valid_from": "2026-01-01",
+                    "valid_to": "2026-02-15",
+                },
+                {
+                    "position": PartyPositionType.OPPOSITION,
+                    "chamber": assemblee,
+                    "valid_from": "2026-02-01",
+                    "valid_to": "2026-03-01",
+                },
+            ],
+        ),
+    )
+
+    assert response.status_code == 200
+    inline_formset = response.context["inline_admin_formsets"][0].formset
+    assert inline_formset.forms[1].non_field_errors() == [
+        "Overlaps with 'Renaissance' (majority) [2026-01-01, 2026-02-15) "
+        "on all timelines."
+    ]
+    assert PartyPosition.objects.filter(party=renaissance).count() == 0
+    assert PartyPositionTimeFrame.objects.count() == 0
