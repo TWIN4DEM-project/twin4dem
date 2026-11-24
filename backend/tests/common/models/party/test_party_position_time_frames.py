@@ -1,5 +1,3 @@
-from datetime import datetime, UTC
-
 import pytest
 from django.core.exceptions import ValidationError
 
@@ -12,10 +10,6 @@ from common.models import (
 
 
 pytestmark = pytest.mark.django_db
-
-
-def _dt(year: int, month: int = 1, day: int = 1) -> datetime:
-    return datetime(year, month, day, tzinfo=UTC)
 
 
 def _position(
@@ -37,28 +31,28 @@ def _position(
 
 
 def test_same_party_and_chamber_positions_may_not_overlap(
-    renaissance, assemblee, default_timeline, alternate_timeline
+    dt, renaissance, assemblee, default_timeline, alternate_timeline
 ):
     _position(
         renaissance,
         assemblee,
         PartyPositionType.MAJORITY,
-        _dt(2020),
-        _dt(2022),
+        dt(2020),
+        dt(2022),
         [default_timeline],
     )
     second = _position(
         renaissance,
         assemblee,
         PartyPositionType.OPPOSITION,
-        _dt(2030),
-        _dt(2031),
+        dt(2030),
+        dt(2031),
         [alternate_timeline],
     )
 
     with pytest.raises(ValidationError) as err_proxy:
         PartyPositionTimeFrame.objects.occupy(
-            second, _dt(2021), _dt(2023), [default_timeline]
+            second, dt(2021), dt(2023), [default_timeline]
         )
 
     assert err_proxy.value.messages == [
@@ -67,17 +61,17 @@ def test_same_party_and_chamber_positions_may_not_overlap(
     ]
 
 
-def test_positions_in_different_chambers_may_overlap(renaissance, assemblee, senat):
-    _position(renaissance, assemblee, PartyPositionType.MAJORITY, _dt(2020), _dt(2022))
-    _position(renaissance, senat, PartyPositionType.OPPOSITION, _dt(2020), _dt(2022))
+def test_positions_in_different_chambers_may_overlap(dt, renaissance, assemblee, senat):
+    _position(renaissance, assemblee, PartyPositionType.MAJORITY, dt(2020), dt(2022))
+    _position(renaissance, senat, PartyPositionType.OPPOSITION, dt(2020), dt(2022))
 
     assert PartyPositionTimeFrame.objects.count() == 2
 
 
-def test_positions_of_different_parties_may_overlap(france, renaissance, assemblee):
+def test_positions_of_different_parties_may_overlap(dt, france, renaissance, assemblee):
     modem = france.parties.create(label="MoDem")
-    _position(renaissance, assemblee, PartyPositionType.MAJORITY, _dt(2020), _dt(2022))
-    _position(modem, assemblee, PartyPositionType.MAJORITY, _dt(2020), _dt(2022))
+    _position(renaissance, assemblee, PartyPositionType.MAJORITY, dt(2020), dt(2022))
+    _position(modem, assemblee, PartyPositionType.MAJORITY, dt(2020), dt(2022))
 
     assert PartyPositionTimeFrame.objects.count() == 2
 
@@ -105,50 +99,50 @@ def test_frameless_position_blocks_a_same_party_and_chamber_sibling(
 
 
 def test_party_position_at_uses_frames(
-    renaissance, assemblee, default_timeline, django_assert_num_queries
+    dt, renaissance, assemblee, default_timeline, django_assert_num_queries
 ):
     _position(
         renaissance,
         assemblee,
         PartyPositionType.MAJORITY,
-        _dt(2017, 6, 21),
-        _dt(2022, 6, 19),
+        dt(2017, 6, 21),
+        dt(2022, 6, 19),
     )
     _position(
         renaissance,
         assemblee,
         PartyPositionType.OPPOSITION,
-        _dt(2022, 6, 19),
+        dt(2022, 6, 19),
     )
 
     with django_assert_num_queries(1):
         assert (
             party_position_at(
-                renaissance, assemblee, default_timeline, _dt(2021)
+                renaissance, assemblee, default_timeline, dt(2021)
             ).position
             == PartyPositionType.MAJORITY
         )
     assert (
-        party_position_at(renaissance, assemblee, default_timeline, _dt(2023)).position
+        party_position_at(renaissance, assemblee, default_timeline, dt(2023)).position
         == PartyPositionType.OPPOSITION
     )
 
 
 def test_party_position_at_honours_timeline_links(
-    renaissance, assemblee, default_timeline, alternate_timeline
+    dt, renaissance, assemblee, default_timeline, alternate_timeline
 ):
     position = _position(
         renaissance,
         assemblee,
         PartyPositionType.MAJORITY,
-        _dt(2020),
-        _dt(2022),
+        dt(2020),
+        dt(2022),
         [default_timeline],
     )
 
-    assert party_position_at(renaissance, assemblee, default_timeline, _dt(2021)) == (
+    assert party_position_at(renaissance, assemblee, default_timeline, dt(2021)) == (
         position
     )
-    assert party_position_at(renaissance, assemblee, alternate_timeline, _dt(2021)) is (
+    assert party_position_at(renaissance, assemblee, alternate_timeline, dt(2021)) is (
         None
     )

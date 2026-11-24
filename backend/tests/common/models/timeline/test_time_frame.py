@@ -1,5 +1,3 @@
-from datetime import datetime, UTC
-
 import pytest
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
@@ -12,13 +10,9 @@ from .stub_app.models import StubTimeFrame
 pytestmark = pytest.mark.django_db
 
 
-def _dt(year: int, month: int = 1, day: int = 1) -> datetime:
-    return datetime(year, month, day, tzinfo=UTC)
-
-
-def test_create_for_links_a_real_subject(stub_subject):
+def test_create_for_links_a_real_subject(dt, stub_subject):
     frame = StubTimeFrame.objects.create_for(
-        stub_subject, valid_from=_dt(2020), valid_to=_dt(2022)
+        stub_subject, valid_from=dt(2020), valid_to=dt(2022)
     )
 
     assert frame.subject == stub_subject
@@ -42,23 +36,21 @@ def test_deleting_the_subject_cascades_to_frames(stub_subject):
 
 @pytest.mark.parametrize(
     "valid_from,valid_to",
-    [(_dt(2022), _dt(2020)), (_dt(2020), _dt(2020))],
+    [((2022,), (2020,)), ((2020,), (2020,))],
     ids=["reversed", "empty"],
 )
-def test_valid_from_must_precede_valid_to(stub_subject, valid_from, valid_to):
+def test_valid_from_must_precede_valid_to(dt, stub_subject, valid_from, valid_to):
     with pytest.raises(IntegrityError) as err_proxy:
         with transaction.atomic():
             StubTimeFrame.objects.create_for(
-                stub_subject, valid_from=valid_from, valid_to=valid_to
+                stub_subject, valid_from=dt(*valid_from), valid_to=dt(*valid_to)
             )
 
     assert "valid_from_before_valid_to" in str(err_proxy.value)
 
 
-def test_clean_rejects_reversed_bounds(stub_subject):
-    frame = StubTimeFrame(
-        subject=stub_subject, valid_from=_dt(2022), valid_to=_dt(2020)
-    )
+def test_clean_rejects_reversed_bounds(dt, stub_subject):
+    frame = StubTimeFrame(subject=stub_subject, valid_from=dt(2022), valid_to=dt(2020))
 
     with pytest.raises(ValidationError) as err_proxy:
         frame.full_clean()
@@ -92,17 +84,13 @@ def test_frame_for_all_timelines_tracks_added_timelines(stub_subject, default_ti
 
 @pytest.mark.parametrize(
     "at,expected",
-    [
-        (_dt(2019), False),
-        (_dt(2020), True),
-        (_dt(2021, 12, 31), True),
-        (_dt(2022), False),
-    ],
+    [((2019,), False), ((2020,), True), ((2021, 12, 31), True), ((2022,), False)],
     ids=["before", "first day", "last day", "end is excluded"],
 )
-def test_covering(stub_subject, at, expected):
+def test_covering(dt, stub_subject, at, expected):
+    at = dt(*at)
     frame = StubTimeFrame.objects.create_for(
-        stub_subject, valid_from=_dt(2020), valid_to=_dt(2022)
+        stub_subject, valid_from=dt(2020), valid_to=dt(2022)
     )
 
     assert list(StubTimeFrame.objects.of(stub_subject).covering(at)) == (
@@ -111,12 +99,12 @@ def test_covering(stub_subject, at, expected):
 
 
 def test_on_timeline_includes_unrestricted_and_linked_frames(
-    stub_subject, default_timeline, alternate_timeline
+    dt, stub_subject, default_timeline, alternate_timeline
 ):
-    unrestricted = StubTimeFrame.objects.create_for(stub_subject, valid_from=_dt(2020))
-    on_default = StubTimeFrame.objects.create_for(stub_subject, valid_from=_dt(2021))
+    unrestricted = StubTimeFrame.objects.create_for(stub_subject, valid_from=dt(2020))
+    on_default = StubTimeFrame.objects.create_for(stub_subject, valid_from=dt(2021))
     on_default.timelines.add(default_timeline)
-    on_alternate = StubTimeFrame.objects.create_for(stub_subject, valid_from=_dt(2022))
+    on_alternate = StubTimeFrame.objects.create_for(stub_subject, valid_from=dt(2022))
     on_alternate.timelines.add(alternate_timeline)
 
     assert set(StubTimeFrame.objects.on_timeline(default_timeline)) == {
@@ -130,30 +118,28 @@ def test_on_timeline_includes_unrestricted_and_linked_frames(
 
 
 def test_active_on_combines_timeline_and_interval(
-    stub_subject, default_timeline, alternate_timeline
+    dt, stub_subject, default_timeline, alternate_timeline
 ):
     covering = StubTimeFrame.objects.create_for(
-        stub_subject, valid_from=_dt(2020), valid_to=_dt(2022)
+        stub_subject, valid_from=dt(2020), valid_to=dt(2022)
     )
     covering.timelines.add(default_timeline)
     StubTimeFrame.objects.create_for(
-        stub_subject, valid_from=_dt(2030), valid_to=_dt(2031)
+        stub_subject, valid_from=dt(2030), valid_to=dt(2031)
     )
 
-    assert list(StubTimeFrame.objects.active_on(default_timeline, _dt(2021))) == [
+    assert list(StubTimeFrame.objects.active_on(default_timeline, dt(2021))) == [
         covering
     ]
-    assert not StubTimeFrame.objects.active_on(alternate_timeline, _dt(2021)).exists()
+    assert not StubTimeFrame.objects.active_on(alternate_timeline, dt(2021)).exists()
 
 
-def test_subject_occupies_one_frame_per_timeline(stub_subject, alternate_timeline):
-    StubTimeFrame.objects.occupy(
-        stub_subject, _dt(2020), _dt(2022), [alternate_timeline]
-    )
+def test_subject_occupies_one_frame_per_timeline(dt, stub_subject, alternate_timeline):
+    StubTimeFrame.objects.occupy(stub_subject, dt(2020), dt(2022), [alternate_timeline])
 
     with pytest.raises(ValidationError) as err_proxy:
         StubTimeFrame.objects.occupy(
-            stub_subject, _dt(2030), _dt(2031), [alternate_timeline]
+            stub_subject, dt(2030), dt(2031), [alternate_timeline]
         )
 
     assert err_proxy.value.messages == [
@@ -165,14 +151,14 @@ def test_subject_occupies_one_frame_per_timeline(stub_subject, alternate_timelin
 @pytest.mark.parametrize(
     "first,second,conflict",
     [
-        ((_dt(2017), _dt(2018)), (_dt(2018), _dt(2019)), False),
-        ((_dt(2017), _dt(2019)), (_dt(2018), _dt(2020)), True),
-        ((_dt(2017), _dt(2020)), (_dt(2018), _dt(2019)), True),
-        ((_dt(2017), _dt(2018)), (_dt(2019), _dt(2020)), False),
-        ((None, _dt(2018)), (_dt(2017), _dt(2019)), True),
-        ((None, _dt(2018)), (_dt(2018), None), False),
-        ((_dt(2017), None), (_dt(2030), _dt(2031)), True),
-        ((None, None), (_dt(2017), _dt(2018)), True),
+        (((2017,), (2018,)), ((2018,), (2019,)), False),
+        (((2017,), (2019,)), ((2018,), (2020,)), True),
+        (((2017,), (2020,)), ((2018,), (2019,)), True),
+        (((2017,), (2018,)), ((2019,), (2020,)), False),
+        ((None, (2018,)), ((2017,), (2019,)), True),
+        ((None, (2018,)), ((2018,), None), False),
+        (((2017,), None), ((2030,), (2031,)), True),
+        ((None, None), ((2017,), (2018,)), True),
     ],
     ids=[
         "adjacent",
@@ -186,8 +172,10 @@ def test_subject_occupies_one_frame_per_timeline(stub_subject, alternate_timelin
     ],
 )
 def test_siblings_conflict_only_when_their_intervals_intersect(
-    make_stub_subject, first, second, conflict
+    dt, make_stub_subject, first, second, conflict
 ):
+    first = tuple(dt(*part) if part else None for part in first)
+    second = tuple(dt(*part) if part else None for part in second)
     StubTimeFrame.objects.occupy(make_stub_subject("first"), *first)
     second_subject = make_stub_subject("second")
 
@@ -208,6 +196,7 @@ def test_siblings_conflict_only_when_their_intervals_intersect(
     ids=["disjoint", "shared", "shared with all timelines"],
 )
 def test_siblings_conflict_only_on_shared_timelines(
+    dt,
     make_stub_subject,
     default_timeline,
     alternate_timeline,
@@ -221,16 +210,16 @@ def test_siblings_conflict_only_on_shared_timelines(
         return [timelines[label] for label in labels]
 
     StubTimeFrame.objects.occupy(
-        make_stub_subject("first"), _dt(2020), _dt(2022), select(first_timelines)
+        make_stub_subject("first"), dt(2020), dt(2022), select(first_timelines)
     )
     second_subject = make_stub_subject("second")
 
     if conflict:
         with pytest.raises(ValidationError, match="Overlaps with 'first'"):
             StubTimeFrame.objects.occupy(
-                second_subject, _dt(2021), _dt(2023), select(second_timelines)
+                second_subject, dt(2021), dt(2023), select(second_timelines)
             )
     else:
         StubTimeFrame.objects.occupy(
-            second_subject, _dt(2021), _dt(2023), select(second_timelines)
+            second_subject, dt(2021), dt(2023), select(second_timelines)
         )

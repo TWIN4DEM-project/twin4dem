@@ -1,5 +1,6 @@
 import importlib
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Callable
 
@@ -40,6 +41,16 @@ def load_json(data_dir) -> Callable[[str], dict]:
             return json.load(fp)
 
     return _
+
+
+@pytest.fixture
+def dt() -> Callable[..., datetime]:
+    """Build a UTC datetime, defaulting to January 1st."""
+
+    def make(year: int, month: int = 1, day: int = 1) -> datetime:
+        return datetime(year, month, day, tzinfo=UTC)
+
+    return make
 
 
 @pytest.fixture
