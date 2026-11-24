@@ -23,12 +23,12 @@ def write_country(
     api: Api,
     settings_id: int,
     country: contracts.Country,
-    institutions: dict[InstitutionBranch, tuple[contracts.Institution, Instance]],
+    institutions: list[tuple[InstitutionBranch, contracts.Institution, Instance]],
     parties: list[tuple[contracts.PoliticalParty, contracts.PartyPosition | None]],
 ) -> None:
     saved_country = _find_or_create_country(api, settings_id, country.name)
-    chamber = None
-    for branch, (institution, instance) in institutions.items():
+    chambers = []
+    for branch, institution, instance in institutions:
         kind = _find_or_create_kind(api, saved_country, institution.name, branch)
         if isinstance(instance, contracts.Cabinet):
             label = instance.name
@@ -38,7 +38,7 @@ def write_country(
             api, saved_country, kind, label, instance.size
         )
         if branch == InstitutionBranch.LEGISLATIVE:
-            chamber = saved_institution
+            chambers.append(saved_institution)
     saved_parties = _find_or_create_parties(
         api, saved_country, [party.name for party, _ in parties]
     )
@@ -47,9 +47,9 @@ def write_country(
         for party, position in parties
         if position is not None
     ]
-    if chamber is not None:
+    for chamber in chambers:
         _find_or_create_positions(api, chamber, positions)
-    elif positions:
+    if not chambers and positions:
         logger.warning(f"{country.name}: no chamber, party positions not imported.")
 
 

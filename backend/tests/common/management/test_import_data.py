@@ -102,6 +102,24 @@ def add_row(path: Path, where: dict[str, str], **changes: str) -> None:
     write_rows(path, [*rows, {**row, **changes}])
 
 
+def add_senate(folder: Path, size: str) -> None:
+    """Add a second legislative institution, Senate, with a chamber from 2020."""
+    senate_id = str(uuid4())
+    add_row(
+        folder / "institution.csv",
+        {"name": "Parliament"},
+        institution_id=senate_id,
+        name="Senate",
+    )
+    add_row(
+        folder / "chamber.csv",
+        {"size": "100"},
+        chamber_id=str(uuid4()),
+        institution_id=senate_id,
+        size=size,
+    )
+
+
 def default_settings(user) -> UserSettings:
     return UserSettings.objects.get(user=user, label="default")
 
@@ -254,20 +272,46 @@ def test_institution_starting_after_the_date_is_not_imported(
     assert "'Parliament' has no records valid on or before 2014-06-01" in caplog.text
 
 
-def test_more_than_one_institution_per_branch_is_an_error(
+def test_every_chamber_is_imported_with_the_same_positions(testland_copy, importer):
+    add_senate(testland_copy, size="50")
+
+    run_import(testland_copy)
+
+    assert ("legislative", "Senate", "Senate", 50) in institutions(importer)
+    assert positions(importer) == {
+        ("Red", "majority", "Parliament"),
+        ("Blue", "opposition", "Parliament"),
+        ("Red", "majority", "Senate"),
+        ("Blue", "opposition", "Senate"),
+    }
+
+
+def test_more_parties_than_seats_is_checked_in_each_chamber(
+    testland_copy, importer, caplog
+):
+    add_senate(testland_copy, size="3")
+
+    run_import(testland_copy)
+
+    assert "3 parties for 3 seats in 'Senate'" in caplog.text
+    assert "seats in 'Parliament'" not in caplog.text
+
+
+def test_more_than_one_executive_institution_is_an_error(
     testland_copy, importer, caplog
 ):
     add_row(
         testland_copy / "institution.csv",
-        {"name": "Parliament"},
+        {"name": "Government"},
         institution_id=str(uuid4()),
-        name="Senate",
+        name="Presidency",
     )
 
     fail_import(testland_copy)
 
     assert (
-        "Testland: 2 legislative institutions ('Parliament', 'Senate')" in caplog.text
+        "Testland: 2 executive institutions ('Government', 'Presidency'), "
+        "only one is supported." in caplog.text
     )
 
 

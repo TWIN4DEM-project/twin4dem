@@ -1,5 +1,4 @@
 import logging
-from collections import defaultdict
 from datetime import date, timedelta
 
 from pydantic import BaseModel
@@ -33,17 +32,17 @@ def select_institutions(
     records: dict[type[BaseModel], list[BaseModel]],
     country: Country,
     as_of: date,
-) -> dict[InstitutionBranch, tuple[Institution, Instance]]:
+) -> list[tuple[InstitutionBranch, Institution, Instance]]:
     """
-    The institution of each branch of `country`, with its record valid on
+    The institutions of `country`, each with its branch and its record valid on
     `as_of`, else the most recent one before it. An institution without such
     a record, and a branch without an institution, log a warning.
     """
     institutions = [
         i for i in records[Institution] if i.country_id == country.country_id
     ]
-    _check_one_per_branch(country, institutions)
-    selected = {}
+    _check_one_executive(country, institutions)
+    selected = []
     for institution in institutions:
         instance = _instance(records, institution, as_of)
         if instance is None:
@@ -53,9 +52,10 @@ def select_institutions(
             )
         else:
             branch, _ = BRANCHES[institution.branch]
-            selected[branch] = (institution, instance)
+            selected.append((branch, institution, instance))
+    branches = {branch for branch, _, _ in selected}
     for branch in InstitutionBranch:
-        if branch not in selected:
+        if branch not in branches:
             logger.warning(
                 f"{country.name}: no {branch} institution, imported without one."
             )
@@ -65,13 +65,13 @@ def select_institutions(
 def select_parties(
     records: dict[type[BaseModel], list[BaseModel]],
     country: Country,
-    institutions: dict[InstitutionBranch, tuple[Institution, Instance]],
+    institutions: list[tuple[InstitutionBranch, Institution, Instance]],
     as_of: date,
 ) -> list[tuple[PoliticalParty, PartyPosition | None]]:
     """
     The parties of `country` that are active on the reference date (see
     `_reference_date`), each with its position on that date, if it has one.
-    Skipped parties, and more parties than seats in the chamber, log a warning.
+    Skipped parties, and more parties than seats in a chamber, log a warning.
     """
     day = _reference_date(institutions, as_of)
     parties = [p for p in records[PoliticalParty] if p.country_id == country.country_id]
@@ -81,9 +81,8 @@ def select_parties(
             f"{country.name}: {len(parties) - len(active)} of {len(parties)} "
             f"parties skipped: not active on {day}."
         )
-    if InstitutionBranch.LEGISLATIVE in institutions:
-        institution, chamber = institutions[InstitutionBranch.LEGISLATIVE]
-        if len(active) >= chamber.size:
+    for branch, institution, chamber in institutions:
+        if branch == InstitutionBranch.LEGISLATIVE and len(active) >= chamber.size:
             logger.warning(
                 f"{country.name}: {len(active)} parties for {chamber.size} seats "
                 f"in '{institution.name}', the seat model gives each party only "
@@ -93,29 +92,33 @@ def select_parties(
 
 
 def _reference_date(
-    institutions: dict[InstitutionBranch, tuple[Institution, Instance]], as_of: date
+    institutions: list[tuple[InstitutionBranch, Institution, Instance]], as_of: date
 ) -> date:
     """
     The moment the parties are taken from, so that they come from the same
     period as the selected cabinet: the import date while that cabinet is
     valid (or without a cabinet), else the cabinet's last day.
     """
-    _, cabinet = institutions.get(InstitutionBranch.EXECUTIVE, (None, None))
+    cabinet = next(
+        (r for branch, _, r in institutions if branch == InstitutionBranch.EXECUTIVE),
+        None,
+    )
     if cabinet is None or cabinet.valid_to is None:
         return as_of
     return min(as_of, cabinet.valid_to - timedelta(days=1))
 
 
-def _check_one_per_branch(country: Country, institutions: list[Institution]) -> None:
-    names = defaultdict(list)
-    for institution in institutions:
-        names[institution.branch].append(f"'{institution.name}'")
-    for branch, group in names.items():
-        if len(group) > 1:
-            raise DataImportError(
-                f"{country.name}: {len(group)} {branch} institutions "
-                f"({', '.join(group)}), only one per branch is supported."
-            )
+def _check_one_executive(country: Country, institutions: list[Institution]) -> None:
+    """
+    The parties are taken from the period of the cabinet (see
+    `_reference_date`), so a country can have only one executive institution.
+    """
+    names = [f"'{i.name}'" for i in institutions if i.branch == "executive"]
+    if len(names) > 1:
+        raise DataImportError(
+            f"{country.name}: {len(names)} executive institutions "
+            f"({', '.join(names)}), only one is supported."
+        )
 
 
 def _instance(
