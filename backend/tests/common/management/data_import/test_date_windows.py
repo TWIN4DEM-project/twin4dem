@@ -9,7 +9,6 @@ from common.management.commands._data_import._date_windows import (
     is_valid_on,
     valid_on,
 )
-from common.management.commands._data_import._exceptions import DataImportError
 
 START = date(2020, 1, 1)
 END = date(2021, 1, 1)
@@ -52,38 +51,31 @@ def test_window_without_end_is_open_to_the_future():
 def test_valid_on_finds_the_record_whose_window_has_the_day():
     first, second = record(START, END), record(END, None)
 
-    assert valid_on([first, second], END, "positions") is second
+    assert valid_on([first, second], END) is second
 
 
 def test_valid_on_finds_nothing_when_no_window_has_the_day():
-    assert valid_on([record(START, END)], END, "positions") is None
-
-
-def test_records_valid_on_the_same_day_are_an_error():
-    records = [record(START, END), record(date(2020, 6, 1), None)]
-
-    with pytest.raises(DataImportError, match="positions: 2 records are valid on"):
-        valid_on(records, date(2020, 7, 1), "positions")
+    assert valid_on([record(START, END)], END) is None
 
 
 def test_current_or_latest_takes_the_record_valid_on_the_date():
     current = record(START, None)
     records = [record(None, START), current]
 
-    assert current_or_latest(records, END, "positions") is current
+    assert current_or_latest(records, END) is current
 
 
 def test_current_or_latest_else_takes_the_latest_started_before_the_date():
     older, latest = record(date(2010, 1, 1), date(2015, 1, 1)), record(START, END)
 
-    assert current_or_latest([latest, older], date(2025, 1, 1), "positions") is latest
+    assert current_or_latest([latest, older], date(2025, 1, 1)) is latest
 
 
 def test_current_or_latest_ignores_records_starting_after_the_date():
-    assert current_or_latest([record(END, None)], START, "positions") is None
+    assert current_or_latest([record(END, None)], START) is None
 
 
 def test_record_without_start_counts_as_started():
     ended = record(None, START)
 
-    assert current_or_latest([ended], END, "positions") is ended
+    assert current_or_latest([ended], END) is ended

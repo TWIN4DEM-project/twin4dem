@@ -127,7 +127,7 @@ def _instance(
     instances = [
         r for r in records[contract] if r.institution_id == institution.institution_id
     ]
-    return current_or_latest(instances, as_of, f"'{institution.name}'")
+    return current_or_latest(instances, as_of)
 
 
 def _position_on(
@@ -138,4 +138,4 @@ def _position_on(
         for p in records[PartyPosition]
         if p.political_party_id == party.political_party_id
     ]
-    return valid_on(positions, day, f"positions of '{party.name}'")
+    return valid_on(positions, day)

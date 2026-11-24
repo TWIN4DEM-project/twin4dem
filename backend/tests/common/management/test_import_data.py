@@ -254,16 +254,6 @@ def test_institution_starting_after_the_date_is_not_imported(
     assert "'Parliament' has no records valid on or before 2014-06-01" in caplog.text
 
 
-def test_overlapping_cabinets_are_an_error(testland_copy, importer, caplog):
-    edit_rows(
-        testland_copy / "cabinet.csv", {"name": "Cabinet B"}, valid_from="2019-01-01"
-    )
-
-    fail_import(testland_copy, "2019-06-01")
-
-    assert "'Government': 2 records are valid on 2019-06-01" in caplog.text
-
-
 def test_more_than_one_institution_per_branch_is_an_error(
     testland_copy, importer, caplog
 ):
@@ -381,18 +371,6 @@ def test_position_without_start_counts_from_the_beginning(testland_copy, importe
     run_import(testland_copy, "2010-01-01")  # the other positions start in 2015
 
     assert positions(importer) == {("Grey", "opposition", "Parliament")}
-
-
-def test_overlapping_positions_are_an_error(testland_copy, importer, caplog):
-    edit_rows(
-        testland_copy / "party-position.csv",
-        {"party_position_id": RED_FIRST_POSITION},
-        valid_to="2021-01-01",
-    )
-
-    fail_import(testland_copy, "2020-06-01")
-
-    assert "positions of 'Red': 2 records are valid on 2020-06-01" in caplog.text
 
 
 def test_more_parties_than_seats_is_a_warning(testland_copy, importer, caplog):

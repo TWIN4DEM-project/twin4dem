@@ -2,8 +2,6 @@ from datetime import date
 
 from twin4dem_data_contracts.models import Cabinet, Chamber, Court, PartyPosition
 
-from ._exceptions import DataImportError
-
 type TimeBound = Cabinet | Chamber | Court | PartyPosition
 
 
@@ -17,24 +15,22 @@ def is_valid_on(valid_from: date | None, valid_to: date | None, day: date) -> bo
     )
 
 
-def valid_on[T: TimeBound](records: list[T], day: date, label: str) -> T | None:
-    """The record valid on `day`, if any. Overlapping records are an error."""
-    valid = [r for r in records if is_valid_on(r.valid_from, r.valid_to, day)]
-    if len(valid) > 1:
-        raise DataImportError(
-            f"{label}: {len(valid)} records are valid on {day}, overlapping."
-        )
-    return valid[0] if valid else None
+def valid_on[T: TimeBound](records: list[T], day: date) -> T | None:
+    """
+    The record valid on `day`, if any. The data contracts rule out records
+    that overlap, so there is at most one.
+    """
+    return next(
+        (r for r in records if is_valid_on(r.valid_from, r.valid_to, day)), None
+    )
 
 
-def current_or_latest[T: TimeBound](
-    records: list[T], as_of: date, label: str
-) -> T | None:
+def current_or_latest[T: TimeBound](records: list[T], as_of: date) -> T | None:
     """
     The record valid on `as_of`, else the most recent one before it. Records
     starting after `as_of` are ignored.
     """
-    current = valid_on(records, as_of, label)
+    current = valid_on(records, as_of)
     if current is not None:
         return current
     started = [r for r in records if is_valid_on(r.valid_from, None, as_of)]
