@@ -4,18 +4,9 @@ from datetime import date
 from pathlib import Path
 
 from django.core.management.base import BaseCommand, CommandError
-from django.db import models, transaction
+from django.db import transaction
 from django.utils import timezone
-from django.utils.text import capfirst
 from twin4dem_data_contracts import models as contracts
-
-from common.models import (
-    Country,
-    Institution,
-    InstitutionKind,
-    Party,
-    PartyPosition,
-)
 
 from ._data_import._api import Api
 from ._data_import._exceptions import DataImportError
@@ -67,7 +58,6 @@ class Command(BaseCommand):
             )
         as_of = options["as_of"] or timezone.localdate()
         password = options["password"] or getpass.getpass(f"Password for {username}: ")
-        before = self._counts(username)
         try:
             api = Api(username, password)
             records = read_records(source)
@@ -76,7 +66,7 @@ class Command(BaseCommand):
                 for country in records[contracts.Country]:
                     institutions = select_institutions(records, country, as_of)
                     parties = select_parties(records, country, institutions, as_of)
-                    write_country(settings_id, country, institutions, parties)
+                    write_country(api, settings_id, country, institutions, parties)
         except DataImportError as e:
             logger.error(e)
             raise CommandError("Import failed, nothing was saved.") from None
@@ -87,28 +77,7 @@ class Command(BaseCommand):
                 f"'{options['user_settings']}' of {username}."
             )
         )
-        for model, count in self._counts(username).items():
-            self.stdout.write(
-                f"{capfirst(model._meta.verbose_name_plural)}: "
-                f"{count - before[model]} created"
-            )
-
-    @staticmethod
-    def _counts(username: str) -> dict[type[models.Model], int]:
-        return {
-            Country: Country.objects.filter(
-                user_settings__user__username=username
-            ).count(),
-            InstitutionKind: InstitutionKind.objects.filter(
-                country__user_settings__user__username=username
-            ).count(),
-            Institution: Institution.objects.filter(
-                kind__country__user_settings__user__username=username
-            ).count(),
-            Party: Party.objects.filter(
-                country__user_settings__user__username=username
-            ).count(),
-            PartyPosition: PartyPosition.objects.filter(
-                party__country__user_settings__user__username=username
-            ).count(),
-        }
+        for endpoint, count in api.created.items():
+            self.stdout.write(f"{endpoint}: {count} created")
+        if not api.created:
+            self.stdout.write("Nothing created.")

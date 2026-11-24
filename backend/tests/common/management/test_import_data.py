@@ -419,8 +419,8 @@ def test_reports_how_many_records_it_created(testland, importer):
     first = run_import(testland)
     second = run_import(testland)
 
-    assert "Parties: 3 created" in first
-    assert "Parties: 0 created" in second
+    assert "party: 3 created" in first
+    assert "Nothing created." in second
 
 
 def test_existing_records_are_kept_and_the_rest_added(testland, importer):
@@ -452,6 +452,16 @@ def test_run_on_another_date_keeps_what_exists_and_adds_the_rest(testland, impor
         ("Blue", "opposition", "Parliament"),
         ("Grey", "opposition", "Parliament"),
     }
+
+
+def test_records_of_another_user_are_not_reused(testland, importer, django_user_model):
+    other_testland = create_testland(django_user_model.objects.create_user("other"))
+    Party.objects.create(country=other_testland, label="Red")
+
+    run_import(testland)
+
+    assert parties(importer) == {"Red", "Blue", "Green"}
+    assert list(other_testland.parties.values_list("label", flat=True)) == ["Red"]
 
 
 # Missing files
@@ -588,17 +598,41 @@ def test_invalid_value_is_an_error_and_nothing_is_saved(
     assert record_counts() == counts
 
 
-def test_record_rejected_by_a_model_rolls_back_the_whole_import(
+def test_record_rejected_by_the_api_rolls_back_the_whole_import(
     testland_copy, importer, caplog
 ):
-    # the contract accepts the name, the 50-character Party.label does not;
-    # Blue comes after Red, so records were already saved when it fails
+    # the contract accepts the name, the API's 50-character party label does
+    # not; Blue comes after Red, so records were already saved when it fails
     edit_rows(testland_copy / "political-party.csv", {"name": "Blue"}, name="B" * 51)
     counts = record_counts()
 
     fail_import(testland_copy)
 
-    assert "B" * 51 in caplog.text
+    assert f"party '{'B' * 51}' of Testland" in caplog.text
+    assert "no more than 50 characters" in caplog.text
+    assert record_counts() == counts
+
+
+def test_party_named_twice_in_the_file_is_imported_once(testland_copy, importer):
+    add_row(
+        testland_copy / "political-party.csv",
+        {"name": "Green"},
+        political_party_id=str(uuid4()),
+    )
+
+    run_import(testland_copy)
+
+    assert parties(importer) == {"Red", "Blue", "Green"}
+
+
+def test_user_without_permissions_is_refused(testland, django_user_model, caplog):
+    django_user_model.objects.create_user("viewer", password=PASSWORD)
+    counts = record_counts()
+
+    with pytest.raises(CommandError, match="Import failed, nothing was saved."):
+        run(testland, "--username=viewer", f"--password={PASSWORD}")
+
+    assert "You do not have permission to perform this action." in caplog.text
     assert record_counts() == counts
 
 

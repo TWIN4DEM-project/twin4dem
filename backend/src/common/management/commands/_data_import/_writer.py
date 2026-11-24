@@ -1,17 +1,8 @@
 import logging
 
-from django.core.exceptions import ValidationError
-from django.db import models
 from twin4dem_data_contracts import models as contracts
 
-from common.models import (
-    Country,
-    Institution,
-    InstitutionBranch,
-    InstitutionKind,
-    Party,
-    PartyPosition,
-)
+from common.models import InstitutionBranch
 
 from ._api import Api
 from ._exceptions import DataImportError
@@ -29,80 +20,100 @@ def find_settings(api: Api, label: str) -> int:
 
 
 def write_country(
+    api: Api,
     settings_id: int,
     country: contracts.Country,
     institutions: dict[InstitutionBranch, tuple[contracts.Institution, Instance]],
     parties: list[tuple[contracts.PoliticalParty, contracts.PartyPosition | None]],
 ) -> None:
-    saved_country = _find_or_create_country(settings_id, country.name)
+    saved_country = _find_or_create_country(api, settings_id, country.name)
     chamber = None
     for branch, (institution, instance) in institutions.items():
-        kind = _find_or_create_kind(saved_country, institution.name, branch)
+        kind = _find_or_create_kind(api, saved_country, institution.name, branch)
         if isinstance(instance, contracts.Cabinet):
             label = instance.name
         else:
             label = institution.name
-        saved_institution = _find_or_create_institution(kind, label, instance.size)
+        saved_institution = _find_or_create_institution(
+            api, saved_country, kind, label, instance.size
+        )
         if branch == InstitutionBranch.LEGISLATIVE:
             chamber = saved_institution
-    if chamber is None and any(position is not None for _, position in parties):
+    saved_parties = _find_or_create_parties(
+        api, saved_country, [party.name for party, _ in parties]
+    )
+    positions = [
+        (saved_parties[party.name], position.position)
+        for party, position in parties
+        if position is not None
+    ]
+    if chamber is not None:
+        _find_or_create_positions(api, chamber, positions)
+    elif positions:
         logger.warning(f"{country.name}: no chamber, party positions not imported.")
-    for party, position in parties:
-        saved_party = _find_or_create_party(saved_country, party.name)
-        if chamber is not None and position is not None:
-            _find_or_create_position(saved_party, chamber, position.position)
 
 
-def _find_or_create_country(settings_id: int, name: str) -> Country:
-    found = Country.objects.filter(user_settings_id=settings_id, name=name).first()
-    return found or _create(
-        Country(user_settings_id=settings_id, name=name), f"country '{name}'"
+def _find_or_create_country(api: Api, settings_id: int, name: str) -> dict:
+    for found in api.list("country"):
+        if found["userSettings"] == settings_id and found["name"] == name:
+            return found
+    return api.create(
+        "country", {"userSettings": settings_id, "name": name}, f"country '{name}'"
     )
 
 
 def _find_or_create_kind(
-    country: Country, name: str, branch: InstitutionBranch
-) -> InstitutionKind:
-    found = InstitutionKind.objects.filter(
-        country=country, institution_name=name, branch=branch
-    ).first()
-    return found or _create(
-        InstitutionKind(country=country, institution_name=name, branch=branch),
-        f"{branch} institution '{name}' of {country}",
+    api: Api, country: dict, name: str, branch: InstitutionBranch
+) -> dict:
+    for found in api.list("institution-kind", country=country["id"], branch=branch):
+        if found["name"] == name:
+            return found
+    return api.create(
+        "institution-kind",
+        {"country": country["id"], "name": name, "branch": branch},
+        f"{branch} institution '{name}' of {country['name']}",
     )
 
 
 def _find_or_create_institution(
-    kind: InstitutionKind, label: str, size: int
-) -> Institution:
-    found = Institution.objects.filter(kind=kind).first()
-    return found or _create(
-        Institution(kind=kind, label=label, size=size),
-        f"institution '{label}' of {kind.country}",
+    api: Api, country: dict, kind: dict, label: str, size: int
+) -> dict:
+    found = api.list("institution", kind=kind["id"])
+    if found:
+        return found[0]
+    return api.create(
+        "institution",
+        {"country": country["id"], "kind": kind["id"], "label": label, "size": size},
+        f"institution '{label}' of {country['name']}",
     )
 
 
-def _find_or_create_party(country: Country, label: str) -> Party:
-    found = Party.objects.filter(country=country, label=label).first()
-    return found or _create(
-        Party(country=country, label=label), f"party '{label}' of {country}"
-    )
+def _find_or_create_parties(
+    api: Api, country: dict, labels: list[str]
+) -> dict[str, dict]:
+    """The saved party of each label, the missing ones created."""
+    saved = {
+        party["label"]: party for party in api.list("party", country=country["id"])
+    }
+    for label in labels:
+        if label not in saved:
+            saved[label] = api.create(
+                "party",
+                {"country": country["id"], "label": label},
+                f"party '{label}' of {country['name']}",
+            )
+    return saved
 
 
-def _find_or_create_position(
-    party: Party, chamber: Institution, position: str
-) -> PartyPosition:
-    found = PartyPosition.objects.filter(party=party, chamber=chamber).first()
-    return found or _create(
-        PartyPosition(party=party, chamber=chamber, position=position),
-        f"position of party '{party}' in '{chamber.label}'",
-    )
-
-
-def _create[M: models.Model](record: M, description: str) -> M:
-    try:
-        record.full_clean()
-    except ValidationError as e:
-        raise DataImportError(*(f"{description}: {m}" for m in e.messages))
-    record.save()
-    return record
+def _find_or_create_positions(
+    api: Api, chamber: dict, positions: list[tuple[dict, str]]
+) -> None:
+    """The position of each party in `chamber`, unless it already has one there."""
+    positioned = {p["party"] for p in api.list("party-position", chamber=chamber["id"])}
+    for party, position in positions:
+        if party["id"] not in positioned:
+            api.create(
+                "party-position",
+                {"party": party["id"], "chamber": chamber["id"], "position": position},
+                f"position of party '{party['label']}' in '{chamber['label']}'",
+            )
