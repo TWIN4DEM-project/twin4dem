@@ -39,7 +39,8 @@ def test_same_kind_institutions_may_not_overlap(
         )
 
     assert err_proxy.value.messages == [
-        "Overlaps with 'Philippe' [2020-01-01, 2022-01-01) " "on timeline 'default'."
+        "Overlaps with 'Philippe' [2020-01-01 00:00:00+00:00, 2022-01-01 00:00:00+00:00) "
+        "on timeline 'default'."
     ]
 
 

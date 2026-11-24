@@ -14,7 +14,6 @@ from ._timeframe import (
     TimeFrameInlineFormSet,
     TimelineQuerysetInlineMixin,
     TimelineSelectionFormMixin,
-    timeline_selection_field,
 )
 
 
@@ -22,7 +21,7 @@ FRAME_FIELDS = ("valid_from", "valid_to", "timeline_selection")
 
 
 class PartyPositionInlineForm(TimelineSelectionFormMixin, forms.ModelForm):
-    timeline_selection = timeline_selection_field()
+    timeline_selection = TimelineSelectionFormMixin.timeline_selection_field()
     valid_from = forms.DateTimeField(
         required=False,
         label="Valid from",
@@ -50,13 +49,19 @@ class PartyPositionInlineForm(TimelineSelectionFormMixin, forms.ModelForm):
     def frame_changed(self) -> bool:
         return self.is_new or any(name in self.changed_data for name in FRAME_FIELDS)
 
-    def time_frame_subject(self) -> PartyPosition:
-        return PartyPosition(
-            pk=self.instance.pk,
-            party_id=self.instance.party_id,
-            chamber=self.cleaned_data.get("chamber"),
-            position=self.cleaned_data.get("position"),
+    def time_frame(self) -> PartyPositionTimeFrame:
+        frame = PartyPositionTimeFrame(
+            subject=PartyPosition(
+                pk=self.instance.pk,
+                party_id=self.instance.party_id,
+                chamber=self.cleaned_data.get("chamber"),
+                position=self.cleaned_data.get("position"),
+            ),
+            valid_from=self.cleaned_data.get("valid_from"),
+            valid_to=self.cleaned_data.get("valid_to"),
         )
+        frame.pending_timeline_ids = self.selected_timeline_ids()
+        return frame
 
     def save_time_frame(self):
         if self.cleaned_data.get("DELETE") or not self.instance.pk:

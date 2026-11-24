@@ -67,7 +67,6 @@ extend-select = ["TID251"]
 "common.models.runtime._judiciary".msg = "Import from the public common.models.runtime interface instead."
 "common.models.runtime._legislative".msg = "Import from the public common.models.runtime interface instead."
 "common.models.runtime._simulation".msg = "Import from the public common.models.runtime interface instead."
-"common.models.timeline._spec".msg = "Import from the public common.models.timeline interface instead."
 "common.models.timeline._subject".msg = "Import from the public common.models.timeline interface instead."
 "common.models.timeline._timeframe".msg = "Import from the public common.models.timeline interface instead."
 "common.models.timeline._timeframe_qs".msg = "Import from the public common.models.timeline interface instead."

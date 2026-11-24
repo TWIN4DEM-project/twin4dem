@@ -68,19 +68,17 @@ def test_clean_rejects_reversed_bounds(stub_subject):
     }
 
 
-def test_timeline_links_control_spec_and_get_timelines(
+def test_timeline_links_control_get_timelines(
     stub_subject, default_timeline, alternate_timeline
 ):
     frame = StubTimeFrame.objects.create_for(stub_subject)
     assert frame.is_on_all_timelines
     assert set(frame.get_timelines()) == {default_timeline, alternate_timeline}
-    assert frame.spec.timeline_ids is None
 
     frame.timelines.add(alternate_timeline)
 
     assert not frame.is_on_all_timelines
     assert list(frame.get_timelines()) == [alternate_timeline]
-    assert frame.spec.timeline_ids == frozenset({alternate_timeline.pk})
 
 
 def test_frame_for_all_timelines_tracks_added_timelines(stub_subject, default_timeline):
@@ -159,6 +157,80 @@ def test_subject_occupies_one_frame_per_timeline(stub_subject, alternate_timelin
         )
 
     assert err_proxy.value.messages == [
-        "'stub' already occupies the time frame [2020-01-01, 2022-01-01) "
+        "'stub' already occupies the time frame [2020-01-01 00:00:00+00:00, 2022-01-01 00:00:00+00:00) "
         "on timeline 'alternate'."
     ]
+
+
+@pytest.mark.parametrize(
+    "first,second,conflict",
+    [
+        ((_dt(2017), _dt(2018)), (_dt(2018), _dt(2019)), False),
+        ((_dt(2017), _dt(2019)), (_dt(2018), _dt(2020)), True),
+        ((_dt(2017), _dt(2020)), (_dt(2018), _dt(2019)), True),
+        ((_dt(2017), _dt(2018)), (_dt(2019), _dt(2020)), False),
+        ((None, _dt(2018)), (_dt(2017), _dt(2019)), True),
+        ((None, _dt(2018)), (_dt(2018), None), False),
+        ((_dt(2017), None), (_dt(2030), _dt(2031)), True),
+        ((None, None), (_dt(2017), _dt(2018)), True),
+    ],
+    ids=[
+        "adjacent",
+        "overlapping",
+        "contained",
+        "disjoint",
+        "open start overlapping",
+        "open start adjacent to open end",
+        "open end",
+        "unbounded",
+    ],
+)
+def test_siblings_conflict_only_when_their_intervals_intersect(
+    make_stub_subject, first, second, conflict
+):
+    StubTimeFrame.objects.occupy(make_stub_subject("first"), *first)
+    second_subject = make_stub_subject("second")
+
+    if conflict:
+        with pytest.raises(ValidationError, match="Overlaps with 'first'"):
+            StubTimeFrame.objects.occupy(second_subject, *second)
+    else:
+        StubTimeFrame.objects.occupy(second_subject, *second)
+
+
+@pytest.mark.parametrize(
+    "first_timelines,second_timelines,conflict",
+    [
+        (("default",), ("alternate",), False),
+        (("default",), ("default",), True),
+        (("default",), (), True),
+    ],
+    ids=["disjoint", "shared", "shared with all timelines"],
+)
+def test_siblings_conflict_only_on_shared_timelines(
+    make_stub_subject,
+    default_timeline,
+    alternate_timeline,
+    first_timelines,
+    second_timelines,
+    conflict,
+):
+    timelines = {"default": default_timeline, "alternate": alternate_timeline}
+
+    def select(labels):
+        return [timelines[label] for label in labels]
+
+    StubTimeFrame.objects.occupy(
+        make_stub_subject("first"), _dt(2020), _dt(2022), select(first_timelines)
+    )
+    second_subject = make_stub_subject("second")
+
+    if conflict:
+        with pytest.raises(ValidationError, match="Overlaps with 'first'"):
+            StubTimeFrame.objects.occupy(
+                second_subject, _dt(2021), _dt(2023), select(second_timelines)
+            )
+    else:
+        StubTimeFrame.objects.occupy(
+            second_subject, _dt(2021), _dt(2023), select(second_timelines)
+        )

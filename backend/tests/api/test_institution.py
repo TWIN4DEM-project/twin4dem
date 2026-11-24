@@ -719,13 +719,12 @@ def test_create_overlapping_sibling_400(admin_client, senate_kind, make_senate):
         senate_body(senate_kind, "Senate 2016", frame("2016-12-21", "2021-01-01")),
         content_type=JSON,
     )
-
     assert response.status_code == 400
     assert response.json() == {
         "time_frames": [
             {
                 "non_field_errors": [
-                    "Overlaps with 'Senate 2020' [2020-12-21, +inf) on all timelines."
+                    "Overlaps with 'Senate 2020' [2020-12-21 00:00:00+00:00, +inf) on all timelines."
                 ]
             }
         ]
@@ -771,8 +770,7 @@ def test_create_two_time_frames_on_a_timeline_400(admin_client, senate_kind):
             {},
             {
                 "non_field_errors": [
-                    "'Senate' already occupies the time frame [2016-12-21, 2020-12-21) "
-                    "on all timelines."
+                    "'Senate' already occupies the time frame [2016-12-21 00:00:00+00:00, 2020-12-21 00:00:00+00:00) on all timelines."
                 ]
             },
         ]
@@ -920,7 +918,7 @@ def test_create_batch_reports_all_errors_and_creates_nothing(admin_client, senat
             "time_frames": [
                 {
                     "non_field_errors": [
-                        "Overlaps with 'Senate 2016' [2016-12-21, 2021-01-01) on all "
+                        "Overlaps with 'Senate 2016' [2016-12-21 00:00:00+00:00, 2021-01-01 00:00:00+00:00) on all "
                         "timelines."
                     ]
                 }
@@ -976,7 +974,7 @@ def test_update_overlapping_sibling_400(admin_client, senate_kind, make_senate):
         "time_frames": [
             {
                 "non_field_errors": [
-                    "Overlaps with 'Senate 2020' [2020-12-21, +inf) on all timelines."
+                    "Overlaps with 'Senate 2020' [2020-12-21 00:00:00+00:00, +inf) on all timelines."
                 ]
             }
         ]

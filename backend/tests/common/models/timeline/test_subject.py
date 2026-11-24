@@ -46,7 +46,8 @@ def test_sibling_overlap_is_rejected(
         StubTimeFrame.objects.occupy(second, _dt(2021), _dt(2023), [alternate_timeline])
 
     assert err_proxy.value.messages == [
-        "Overlaps with 'first' [2020-01-01, 2022-01-01) " "on timeline 'alternate'."
+        "Overlaps with 'first' [2020-01-01 00:00:00+00:00, 2022-01-01 00:00:00+00:00) "
+        "on timeline 'alternate'."
     ]
 
 

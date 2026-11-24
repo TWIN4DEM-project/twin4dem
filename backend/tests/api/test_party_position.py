@@ -712,7 +712,7 @@ def test_create_second_position_without_end_400(admin_client, psd):
     response = post(admin_client, body(psd, position="opposition", validFrom=dt(2024)))
 
     assert response.status_code == 400
-    assert response.json() == overlap("majority", "[2020-01-01, +inf)")
+    assert response.json() == overlap("majority", "[2020-01-01 00:00:00+00:00, +inf)")
     assert psd.positions.count() == 1
 
 
@@ -722,7 +722,7 @@ def test_create_second_position_without_start_400(admin_client, psd):
     response = post(admin_client, body(psd, position="opposition", validTo=dt(2000)))
 
     assert response.status_code == 400
-    assert response.json() == overlap("majority", "[-inf, 2010-01-01)")
+    assert response.json() == overlap("majority", "[-inf, 2010-01-01 00:00:00+00:00)")
     assert psd.positions.count() == 1
 
 
@@ -769,7 +769,7 @@ def test_create_overlapping_position_on_all_timelines_400(
 
     assert response.status_code == 400
     assert response.json() == overlap(
-        "majority", "[2020-01-01, +inf)", "timeline 'alternate'"
+        "majority", "[2020-01-01 00:00:00+00:00, +inf)", "timeline 'alternate'"
     )
 
 
@@ -844,7 +844,9 @@ def test_default_positions_may_not_overlap(admin_client, psd):
     )
 
     assert response.status_code == 400
-    assert response.json() == overlap("majority", "[2020-01-01, 2030-01-01)")
+    assert response.json() == overlap(
+        "majority", "[2020-01-01 00:00:00+00:00, 2030-01-01 00:00:00+00:00)"
+    )
 
 
 def test_positions_in_the_same_chamber_may_not_overlap(admin_client, psd, senate):
@@ -862,7 +864,7 @@ def test_positions_in_the_same_chamber_may_not_overlap(admin_client, psd, senate
     )
 
     assert response.status_code == 400
-    assert response.json() == overlap("majority", "[2020-01-01, +inf)")
+    assert response.json() == overlap("majority", "[2020-01-01 00:00:00+00:00, +inf)")
 
 
 def test_positions_in_different_chambers_may_overlap(
@@ -1008,7 +1010,7 @@ def test_update_into_overlap_400_keeps_position(admin_client, psd, senate):
     )
 
     assert response.status_code == 400
-    assert response.json() == overlap("majority", "[2020-01-01, +inf)")
+    assert response.json() == overlap("majority", "[2020-01-01 00:00:00+00:00, +inf)")
     default.refresh_from_db()
     assert default.chamber is None
     assert PartyPositionTimeFrame.objects.of(default).get().valid_from == at(2021)
@@ -1076,7 +1078,10 @@ def test_create_batch_with_overlapping_positions_400_creates_nothing(admin_clien
     )
 
     assert response.status_code == 400
-    assert response.json() == [{}, overlap("majority", "[2020-01-01, +inf)")]
+    assert response.json() == [
+        {},
+        overlap("majority", "[2020-01-01 00:00:00+00:00, +inf)"),
+    ]
     assert not psd.positions.exists()
     assert not PartyPositionTimeFrame.objects.exists()
 

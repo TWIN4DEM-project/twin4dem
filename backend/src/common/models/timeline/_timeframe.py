@@ -1,12 +1,10 @@
 from collections import defaultdict
-from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import models
 from django.db.models import F, Q
 
-from ._spec import ALWAYS, FrameSpec, _format_interval, _format_timelines
 from ._subject import TimeFrameSubject
 from ._timeframe_qs import TimeFrameQuerySet
 from ._timeline import VirtualTimeline
@@ -53,24 +51,73 @@ class TimeFrameModel(models.Model):
     pending_timeline_ids: list[int] | None = None
 
     def __str__(self):
-        return (
-            f"{self._meta.model_name}={self.subject_id} {_format_interval(self.spec)}"
-        )
+        return f"{self._meta.model_name}={self.subject_id} {self.format_interval()}"
+
+    def format_interval(self) -> str:
+        return f"[{self.valid_from or '-inf'}, {self.valid_to or '+inf'})"
 
     @property
-    def spec(self) -> FrameSpec:
-        timeline_ids = None
-        if self.pk is not None:
-            timeline_ids = frozenset(timeline.pk for timeline in self.timelines.all())
-        return FrameSpec(self.valid_from, self.valid_to, timeline_ids or None)
+    def timeline_ids(self) -> frozenset[int] | None:
+        """The timelines the frame is restricted to; None means all timelines.
+
+        Reads ``pending_timeline_ids`` when set, i.e. before the links are
+        saved.
+        """
+        if self.pending_timeline_ids is not None:
+            return frozenset(self.pending_timeline_ids) or None
+        if self.pk is None:
+            return None
+        return frozenset(timeline.pk for timeline in self.timelines.all()) or None
 
     @property
     def is_on_all_timelines(self) -> bool:
+        if (
+            self.pending_timeline_ids is not None
+            and len(self.pending_timeline_ids) == 0
+        ):
+            return True
         if self.pk is None:
             return True
-        if not self.timelines.exists():
+        if self.timeline_ids is None:
             return True
         return False
+
+    def overlaps(self, other: "TimeFrameModel") -> bool:
+        """Whether the two frames' intervals intersect (the ends are excluded)."""
+        if not self.shares_timeline_with(other):
+            return False
+        self_start_before_other_end = (
+            self.valid_from is None
+            or other.valid_to is None
+            or self.valid_from < other.valid_to
+        )
+        other_start_before_self_end = (
+            other.valid_from is None
+            or self.valid_to is None
+            or other.valid_from < self.valid_to
+        )
+        return self_start_before_other_end and other_start_before_self_end
+
+    def _shared_timeline_ids(self, other: "TimeFrameModel") -> frozenset[int] | None:
+        """The timelines both frames are on (None: all timelines)."""
+        mine, others = self.timeline_ids, other.timeline_ids
+        if mine is None:
+            return others
+        if others is None:
+            return mine
+        return mine & others
+
+    def shares_timeline_with(self, other: "TimeFrameModel") -> bool:
+        shared_ids = self._shared_timeline_ids(other)
+        return shared_ids is None or len(shared_ids) > 0
+
+    def format_timelines(self, other: "TimeFrameModel", labels: dict[int, str]) -> str:
+        """The timelines two frames share, in error messages."""
+        shared_ids = self._shared_timeline_ids(other)
+        if shared_ids is None:
+            return "all timelines"
+        names = sorted(f"'{labels.get(i, i)}'" for i in shared_ids)
+        return ("timeline " if len(names) == 1 else "timelines ") + ", ".join(names)
 
     def get_timelines(self) -> models.QuerySet[VirtualTimeline]:
         """The timelines this time frame is active on."""
@@ -80,29 +127,21 @@ class TimeFrameModel(models.Model):
             )
         return self.timelines.all()
 
-    def validate_time_frame(self, *, ignore_frame_ids: Iterable[int] = ()) -> None:
+    def validate_time_frame(self) -> None:
         """Validate this frame of its subject on its timelines.
 
         A subject occupies at most one time frame per timeline. Its siblings
         may not be active at the same time on the same timeline. A sibling
         without time frames is active at all times on all timelines.
         """
-        if self.pending_timeline_ids is not None:
-            timeline_ids = self.pending_timeline_ids or None
-        else:
-            timeline_ids = self.spec.timeline_ids
-        candidate = FrameSpec(
-            self.valid_from,
-            self.valid_to,
-            None if timeline_ids is None else frozenset(timeline_ids),
-        )
         user_timeline_labels = dict(
             VirtualTimeline.objects.filter(
                 user_settings_id=self.subject.time_frame_user_settings_id()
             ).values_list("id", "label")
         )
 
-        if candidate.timeline_ids is not None and not candidate.timeline_ids.issubset(
+        timeline_ids = self.timeline_ids
+        if timeline_ids is not None and not timeline_ids.issubset(
             user_timeline_labels.keys()
         ):
             raise ValidationError(
@@ -111,43 +150,42 @@ class TimeFrameModel(models.Model):
             )
 
         errors = []
-        own_frames = type(self).objects.of(self.subject).prefetch_related("timelines")
+        same_subject_timeframes = (
+            type(self).objects.of(self.subject).prefetch_related("timelines")
+        )
         if self.pk is not None:
-            own_frames = own_frames.exclude(pk=self.pk)
-        if ignore_frame_ids:
-            own_frames = own_frames.exclude(pk__in=ignore_frame_ids)
-        for other in own_frames:
-            if candidate.shares_timeline_with(other.spec):
-                errors.append(
-                    f"{self.subject.time_frame_label()} already occupies the time "
-                    f"frame {_format_interval(other.spec)} on "
-                    f"{_format_timelines(candidate.shared_timelines(other.spec), user_timeline_labels)}."
+            same_subject_timeframes = same_subject_timeframes.exclude(pk=self.pk)
+        err_template = "{} already occupies the time frame {} on {}."
+        for other in same_subject_timeframes:
+            if not self.shares_timeline_with(other):
+                continue
+            errors.append(
+                err_template.format(
+                    self.subject.time_frame_label(),
+                    other.format_interval(),
+                    self.format_timelines(other, user_timeline_labels),
                 )
+            )
 
         siblings = list(self.subject.siblings())
         sibling_frames = defaultdict(list)
         for sibling_frame in self.subject.sibling_time_frames().prefetch_related(
             "timelines"
         ):
-            sibling_frames[sibling_frame.subject_id].append(sibling_frame.spec)
+            sibling_frames[sibling_frame.subject_id].append(sibling_frame)
 
         for sibling in siblings:
-            for spec in sibling_frames.get(sibling.pk) or [ALWAYS]:
-                if not (
-                    candidate.shares_timeline_with(spec)
-                    and candidate.overlaps_in_time(spec)
-                ):
-                    continue
-                if spec is ALWAYS:
+            for other in sibling_frames.get(sibling.pk) or [None]:
+                if other is None:
                     errors.append(
                         f"{sibling.time_frame_label()} has no time frame, so it is "
                         f"active at all times on all timelines."
                     )
-                else:
+                elif self.shares_timeline_with(other) and self.overlaps(other):
                     errors.append(
                         f"Overlaps with {sibling.time_frame_label()} "
-                        f"{_format_interval(spec)} on "
-                        f"{_format_timelines(candidate.shared_timelines(spec), user_timeline_labels)}."
+                        f"{other.format_interval()} on "
+                        f"{self.format_timelines(other, user_timeline_labels)}."
                     )
 
         if errors:
