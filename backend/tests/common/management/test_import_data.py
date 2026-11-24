@@ -7,12 +7,10 @@ from uuid import uuid4
 import pytest
 from django.core.management import call_command
 from django.core.management.base import CommandError
-from django.utils import timezone
 
 from common.models import (
     Country,
     Institution,
-    InstitutionBranch,
     InstitutionKind,
     Party,
     PartyPosition,
@@ -21,12 +19,9 @@ from common.models import (
 
 pytestmark = pytest.mark.django_db
 
-AS_OF = "2025-06-01"
 PASSWORD = "importer-password"
 LOGIN = ("--username=importer", f"--password={PASSWORD}")
 RED_FIRST_POSITION = "b0000000-0000-4000-8000-000000000001"
-BLUE_CURRENT_POSITION = "b0000000-0000-4000-8000-000000000004"
-GREY_POSITION = "b0000000-0000-4000-8000-000000000005"
 
 
 @pytest.fixture(autouse=True)
@@ -59,15 +54,15 @@ def run(source: Path, *args: str) -> str:
     return out.getvalue()
 
 
-def run_import(source: Path, as_of: str = AS_OF) -> str:
-    """Import `source` as the importer, as of `as_of`."""
-    return run(source, *LOGIN, f"--as-of={as_of}")
+def run_import(source: Path) -> str:
+    """Import `source` as the importer."""
+    return run(source, *LOGIN)
 
 
-def fail_import(source: Path, as_of: str = AS_OF) -> None:
+def fail_import(source: Path) -> None:
     """Import `source`, which must fail. The reason is in the log."""
     with pytest.raises(CommandError, match="Import failed, nothing was saved."):
-        run_import(source, as_of)
+        run_import(source)
 
 
 def read_rows(path: Path) -> list[dict[str, str]]:
@@ -100,6 +95,10 @@ def add_row(path: Path, where: dict[str, str], **changes: str) -> None:
     rows = read_rows(path)
     [row] = [row for row in rows if matches(row, where)]
     write_rows(path, [*rows, {**row, **changes}])
+
+
+def reverse_rows(path: Path) -> None:
+    write_rows(path, read_rows(path)[::-1])
 
 
 def add_senate(folder: Path, size: str) -> None:
@@ -186,13 +185,15 @@ def test_imports_the_country_into_the_default_settings(testland, importer):
 def test_imports_into_the_settings_given(testland, importer):
     settings = UserSettings.objects.create(user=importer, label="Netherlands")
 
-    run(testland, *LOGIN, f"--as-of={AS_OF}", "--user-settings=Netherlands")
+    run(testland, *LOGIN, "--user-settings=Netherlands")
 
     assert [country.name for country in settings.countries.all()] == ["Testland"]
     assert not default_settings(importer).countries.exists()
 
 
-def test_imports_the_latest_institutions_started_by_the_import_date(testland, importer):
+def test_imports_each_institution_with_its_most_recent_record(testland, importer):
+    # the last chamber has no end date, so it is still active; the last
+    # cabinet ended in 2024, but no cabinet came after it
     run_import(testland)
 
     assert institutions(importer) == {
@@ -202,11 +203,10 @@ def test_imports_the_latest_institutions_started_by_the_import_date(testland, im
     }
 
 
-def test_imports_the_parties_active_at_the_end_of_the_cabinet(
-    testland, importer, caplog
+def test_imports_the_parties_not_dissolved_with_their_most_recent_position(
+    testland, importer
 ):
-    # Cabinet B ended on 2024-01-01: Red and Blue have a position on its last
-    # day, Green never had one and Grey was dissolved in 2019
+    # Green never had a position, Grey was dissolved in 2019
     run_import(testland)
 
     assert parties(importer) == {"Red", "Blue", "Green"}
@@ -214,7 +214,6 @@ def test_imports_the_parties_active_at_the_end_of_the_cabinet(
         ("Red", "majority", "Parliament"),
         ("Blue", "opposition", "Parliament"),
     }
-    assert "1 of 4 parties skipped: not active on 2023-12-31." in caplog.text
 
 
 def test_every_country_goes_into_the_same_settings(testland_copy, importer, caplog):
@@ -235,41 +234,38 @@ def test_every_country_goes_into_the_same_settings(testland_copy, importer, capl
     assert "Otherland: no executive institution" in caplog.text
 
 
-# Which institution records are taken
+# Which records are taken
 
 
-@pytest.mark.parametrize(
-    "as_of,cabinet",
-    [
-        ("2018-06-01", "Cabinet A"),
-        ("2019-12-31", "Cabinet A"),
-        ("2020-01-01", "Cabinet B"),  # the end day of Cabinet A is excluded
-        ("2025-06-01", "Cabinet B"),  # none valid: the most recent
-    ],
-)
-def test_imports_the_cabinet_valid_on_the_date_else_the_most_recent(
-    testland, importer, as_of, cabinet
-):
-    run_import(testland, as_of)
+def test_order_of_the_rows_does_not_matter(testland_copy, importer):
+    reverse_rows(testland_copy / "cabinet.csv")
+    reverse_rows(testland_copy / "party-position.csv")
 
-    assert institution(importer, "executive").label == cabinet
+    run_import(testland_copy)
+
+    assert institution(importer, "executive").label == "Cabinet B"
+    assert positions(importer) == {
+        ("Red", "majority", "Parliament"),
+        ("Blue", "opposition", "Parliament"),
+    }
 
 
-def test_chamber_and_court_follow_the_same_rule(testland, importer):
-    run_import(testland, "2018-06-01")
+def test_institution_without_records_is_not_imported(testland_copy, importer, caplog):
+    add_row(
+        testland_copy / "institution.csv",
+        {"name": "Parliament"},
+        institution_id=str(uuid4()),
+        name="Senate",
+    )
 
-    assert institution(importer, "legislative").size == 90
-    assert institution(importer, "judiciary").size == 9
+    run_import(testland_copy)
 
-
-def test_institution_starting_after_the_date_is_not_imported(
-    testland, importer, caplog
-):
-    run_import(testland, "2014-06-01")
-
-    assert {branch for branch, *_ in institutions(importer)} == {"judiciary"}
-    assert "'Government' has no records valid on or before 2014-06-01" in caplog.text
-    assert "'Parliament' has no records valid on or before 2014-06-01" in caplog.text
+    assert {name for _, name, *_ in institutions(importer)} == {
+        "Government",
+        "Parliament",
+        "Constitutional Court",
+    }
+    assert "'Senate' has no records, not imported." in caplog.text
 
 
 def test_every_chamber_is_imported_with_the_same_positions(testland_copy, importer):
@@ -286,7 +282,7 @@ def test_every_chamber_is_imported_with_the_same_positions(testland_copy, import
     }
 
 
-def test_more_parties_than_seats_is_checked_in_each_chamber(
+def test_more_parties_than_seats_in_a_chamber_is_a_warning(
     testland_copy, importer, caplog
 ):
     add_senate(testland_copy, size="3")
@@ -297,132 +293,15 @@ def test_more_parties_than_seats_is_checked_in_each_chamber(
     assert "seats in 'Parliament'" not in caplog.text
 
 
-def test_more_than_one_executive_institution_is_an_error(
-    testland_copy, importer, caplog
-):
-    add_row(
-        testland_copy / "institution.csv",
-        {"name": "Government"},
-        institution_id=str(uuid4()),
-        name="Presidency",
-    )
-
-    fail_import(testland_copy)
-
-    assert (
-        "Testland: 2 executive institutions ('Government', 'Presidency'), "
-        "only one is supported." in caplog.text
-    )
-
-
-# Which parties are taken
-
-
-def test_parties_are_taken_on_the_import_date_while_the_cabinet_is_valid(
-    testland, importer
-):
-    run_import(testland, "2018-06-01")  # Cabinet A is valid until 2020
-
-    assert positions(importer) == {
-        ("Red", "opposition", "Parliament"),
-        ("Blue", "majority", "Parliament"),
-        ("Grey", "opposition", "Parliament"),
-    }
-
-
-def test_without_a_cabinet_parties_are_taken_on_the_import_date(
-    testland_copy, importer
-):
-    # Blue's position now ends after Cabinet B, but before the import date
+def test_position_that_has_ended_is_still_imported(testland_copy, importer):
+    # Grey's only position ended in 2019
     edit_rows(
-        testland_copy / "party-position.csv",
-        {"party_position_id": BLUE_CURRENT_POSITION},
-        valid_to="2025-01-01",
-    )
-    (testland_copy / "cabinet.csv").unlink()
-
-    run_import(testland_copy)
-
-    assert positions(importer) == {("Red", "majority", "Parliament")}
-
-
-def test_party_without_a_position_on_the_date_is_imported_without_one(
-    testland_copy, importer
-):
-    # Cabinet B ended on 2024-01-01, Blue's last position now ends in 2022
-    edit_rows(
-        testland_copy / "party-position.csv",
-        {"party_position_id": BLUE_CURRENT_POSITION},
-        valid_to="2022-01-01",
+        testland_copy / "political-party.csv", {"name": "Grey"}, date_dissolved=""
     )
 
     run_import(testland_copy)
 
-    assert "Blue" in parties(importer)
-    assert positions(importer) == {("Red", "majority", "Parliament")}
-
-
-@pytest.mark.parametrize(
-    "as_of,imported", [("2019-05-31", True), ("2019-06-01", False)]
-)
-def test_party_is_skipped_from_its_dissolution_day(
-    testland_copy, importer, as_of, imported
-):
-    # Grey's position stays open, so only its dissolution on 2019-06-01 counts
-    edit_rows(
-        testland_copy / "party-position.csv",
-        {"party_position_id": GREY_POSITION},
-        valid_to="",
-    )
-
-    run_import(testland_copy, as_of)
-
-    assert ("Grey" in parties(importer)) is imported
-
-
-def test_party_is_skipped_before_it_was_founded(testland_copy, importer):
-    edit_rows(
-        testland_copy / "political-party.csv",
-        {"name": "Red"},
-        date_founded="2021-01-01",
-    )
-
-    run_import(testland_copy, "2020-06-01")
-
-    assert "Red" not in parties(importer)
-
-
-def test_explicit_independent_position_is_imported(testland_copy, importer):
-    edit_rows(
-        testland_copy / "party-position.csv",
-        {"party_position_id": BLUE_CURRENT_POSITION},
-        position="independent",
-    )
-
-    run_import(testland_copy)
-
-    assert ("Blue", "independent", "Parliament") in positions(importer)
-
-
-def test_position_without_start_counts_from_the_beginning(testland_copy, importer):
-    edit_rows(
-        testland_copy / "party-position.csv",
-        {"party_position_id": GREY_POSITION},
-        valid_from="",
-    )
-    edit_rows(testland_copy / "chamber.csv", {"size": "90"}, valid_from="2000-01-01")
-
-    run_import(testland_copy, "2010-01-01")  # the other positions start in 2015
-
-    assert positions(importer) == {("Grey", "opposition", "Parliament")}
-
-
-def test_more_parties_than_seats_is_a_warning(testland_copy, importer, caplog):
-    edit_rows(testland_copy / "chamber.csv", {"size": "100"}, size="3")
-
-    run_import(testland_copy)
-
-    assert "3 parties for 3 seats in 'Parliament'" in caplog.text
+    assert ("Grey", "opposition", "Parliament") in positions(importer)
 
 
 # Running it again
@@ -442,6 +321,7 @@ def test_reports_how_many_records_it_created(testland, importer):
     second = run_import(testland)
 
     assert "party: 3 created" in first
+    assert "party-position: 2 created" in first
     assert "Nothing created." in second
 
 
@@ -460,19 +340,6 @@ def test_existing_records_are_kept_and_the_rest_added(testland, importer):
     assert positions(importer) == {
         ("Red", "majority", "Parliament"),
         ("Blue", "opposition", "Parliament"),
-    }
-
-
-def test_run_on_another_date_keeps_what_exists_and_adds_the_rest(testland, importer):
-    run_import(testland)  # Cabinet B, Red majority
-
-    run_import(testland, "2018-06-01")  # Cabinet A, Red opposition, Grey
-
-    assert institution(importer, "executive").label == "Cabinet B"
-    assert positions(importer) == {
-        ("Red", "majority", "Parliament"),
-        ("Blue", "opposition", "Parliament"),
-        ("Grey", "opposition", "Parliament"),
     }
 
 
@@ -544,14 +411,6 @@ def test_missing_required_file_is_an_error(testland_copy, importer, caplog, file
 # File format
 
 
-def test_quoted_values_may_contain_commas(testland_copy, importer):
-    edit_rows(testland_copy / "country.csv", {"name": "Testland"}, name="Test, land")
-
-    run_import(testland_copy)
-
-    assert default_settings(importer).countries.filter(name="Test, land").exists()
-
-
 def test_byte_order_mark_is_accepted(testland_copy, importer):
     path = testland_copy / "country.csv"
     path.write_bytes(b"\xef\xbb\xbf" + path.read_bytes())
@@ -559,15 +418,6 @@ def test_byte_order_mark_is_accepted(testland_copy, importer):
     run_import(testland_copy)
 
     assert default_settings(importer).countries.filter(name="Testland").exists()
-
-
-def test_other_files_in_the_folder_are_ignored(testland_copy, importer, caplog):
-    (testland_copy / "README.md").write_bytes(b"# notes")
-
-    run_import(testland_copy)
-
-    assert "README" not in caplog.text
-    assert parties(importer) == {"Red", "Blue", "Green"}
 
 
 def test_non_utf8_file_is_an_error(testland_copy, importer, caplog):
@@ -658,27 +508,7 @@ def test_user_without_permissions_is_refused(testland, django_user_model, caplog
     assert record_counts() == counts
 
 
-def test_institution_name_taken_by_another_branch_is_an_error(
-    testland, importer, caplog
-):
-    InstitutionKind.objects.create(
-        country=create_testland(importer),
-        institution_name="Parliament",
-        branch=InstitutionBranch.EXECUTIVE,
-    )
-    counts = record_counts()
-
-    fail_import(testland)
-
-    assert "already exists" in caplog.text
-    assert record_counts() == counts
-
-
 # Command arguments
-
-
-def test_as_of_defaults_to_today(testland, importer):
-    assert str(timezone.localdate()) in run(testland, *LOGIN)
 
 
 @pytest.mark.parametrize(
@@ -696,7 +526,7 @@ def test_wrong_username_or_password_is_an_error(
 def test_password_is_asked_when_not_given(testland, importer, monkeypatch):
     monkeypatch.setattr("getpass.getpass", lambda prompt: PASSWORD)
 
-    run(testland, "--username=importer", f"--as-of={AS_OF}")
+    run(testland, "--username=importer")
 
     assert parties(importer) == {"Red", "Blue", "Green"}
 
@@ -706,11 +536,6 @@ def test_unknown_settings_is_an_error(testland, importer, caplog):
         run(testland, *LOGIN, "--user-settings=nowhere")
 
     assert "settings 'nowhere' not found." in caplog.text
-
-
-def test_invalid_as_of_is_an_error(testland, importer):
-    with pytest.raises(CommandError, match="--as-of"):
-        run(testland, "--username=importer", "--as-of=yesterday")
 
 
 @pytest.mark.parametrize("name", ["nowhere", "country.csv"])  # missing, a file

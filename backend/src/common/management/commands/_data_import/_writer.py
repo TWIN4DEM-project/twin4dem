@@ -49,6 +49,12 @@ def write_country(
     ]
     for chamber in chambers:
         _find_or_create_positions(api, chamber, positions)
+        if len(saved_parties) >= chamber["size"]:
+            logger.warning(
+                f"{country.name}: {len(saved_parties)} parties for "
+                f"{chamber['size']} seats in '{chamber['label']}', each party "
+                "gets only its leader."
+            )
     if not chambers and positions:
         logger.warning(f"{country.name}: no chamber, party positions not imported.")
 
@@ -108,12 +114,15 @@ def _find_or_create_parties(
 def _find_or_create_positions(
     api: Api, chamber: dict, positions: list[tuple[dict, str]]
 ) -> None:
-    """The position of each party in `chamber`, unless it already has one there."""
+    """
+    The position of each party in `chamber`, unless it already has one there,
+    created in one request.
+    """
     positioned = {p["party"] for p in api.list("party-position", chamber=chamber["id"])}
-    for party, position in positions:
-        if party["id"] not in positioned:
-            api.create(
-                "party-position",
-                {"party": party["id"], "chamber": chamber["id"], "position": position},
-                f"position of party '{party['label']}' in '{chamber['label']}'",
-            )
+    missing = [
+        {"party": party["id"], "chamber": chamber["id"], "position": position}
+        for party, position in positions
+        if party["id"] not in positioned
+    ]
+    if missing:
+        api.create("party-position", missing, f"positions in '{chamber['label']}'")

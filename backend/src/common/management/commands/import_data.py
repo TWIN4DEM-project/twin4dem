@@ -1,11 +1,9 @@
 import getpass
 import logging
-from datetime import date
 from pathlib import Path
 
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
-from django.utils import timezone
 from twin4dem_data_contracts import models as contracts
 
 from ._data_import._api import Api
@@ -21,8 +19,9 @@ class Command(BaseCommand):
     help = (
         "Import data (CSV files following the twin4dem data contracts) into "
         "the settings of a superuser, through the app's API. Currently supports "
-        "constitutional-level data. Records that already exist are skipped, so "
-        "running it again only adds what is new."
+        "constitutional-level data. Each institution and party is imported "
+        "with its most recent record. Records that already exist are skipped, "
+        "so running it again only adds what is new."
     )
 
     def add_arguments(self, parser):
@@ -43,11 +42,6 @@ class Command(BaseCommand):
             help="Label of the user's settings that receive the data "
             "(default: default).",
         )
-        parser.add_argument(
-            "--as-of",
-            type=date.fromisoformat,
-            help="Date the data is taken from, as YYYY-MM-DD (default: today).",
-        )
 
     def handle(self, *args, **options):
         username = options["username"]
@@ -56,7 +50,6 @@ class Command(BaseCommand):
             raise CommandError(
                 f"Import source '{source}' does not exist or is not a folder."
             )
-        as_of = options["as_of"] or timezone.localdate()
         password = options["password"] or getpass.getpass(f"Password for {username}: ")
         try:
             api = Api(username, password)
@@ -64,8 +57,8 @@ class Command(BaseCommand):
             settings_id = find_settings(api, options["user_settings"])
             with transaction.atomic():
                 for country in records[contracts.Country]:
-                    institutions = select_institutions(records, country, as_of)
-                    parties = select_parties(records, country, institutions, as_of)
+                    institutions = select_institutions(records, country)
+                    parties = select_parties(records, country)
                     write_country(api, settings_id, country, institutions, parties)
         except DataImportError as e:
             logger.error(e)
@@ -73,7 +66,7 @@ class Command(BaseCommand):
 
         self.stdout.write(
             self.style.SUCCESS(
-                f"Imported {source} as of {as_of} into settings "
+                f"Imported {source} into settings "
                 f"'{options['user_settings']}' of {username}."
             )
         )

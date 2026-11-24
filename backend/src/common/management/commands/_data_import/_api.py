@@ -4,6 +4,8 @@ from django.test import Client
 
 from ._exceptions import DataImportError
 
+type Records = dict | list[dict]
+
 
 class Api:
     """
@@ -21,11 +23,12 @@ class Api:
     def list(self, endpoint: str, **filters) -> list[dict]:
         return self._client.get(f"/api/v1/{endpoint}/", filters).json()
 
-    def create(self, endpoint: str, data: dict, description: str) -> dict:
+    def create(self, endpoint: str, data: Records, description: str) -> Records:
+        """Create one record, or a list of records in one request."""
         response = self._client.post(
             f"/api/v1/{endpoint}/", data, content_type="application/json"
         )
         if response.status_code != 201:
             raise DataImportError(f"{description}: {response.json()}")
-        self.created[endpoint] += 1
+        self.created[endpoint] += len(data) if isinstance(data, list) else 1
         return response.json()
