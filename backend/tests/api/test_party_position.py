@@ -1037,8 +1037,7 @@ def test_update_into_chamber_with_frameless_position_400(
     assert response.status_code == 400
     assert response.json() == {
         "non_field_errors": [
-            "'majority' (majority) has no time frame, so it is active at all "
-            "times on all timelines."
+            "'majority' (majority) is active at all times on all timelines."
         ]
     }
     default.refresh_from_db()

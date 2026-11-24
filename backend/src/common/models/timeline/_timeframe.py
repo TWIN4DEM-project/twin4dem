@@ -1,4 +1,3 @@
-from collections import defaultdict
 from typing import TYPE_CHECKING
 
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
@@ -168,25 +167,32 @@ class TimeFrameModel(models.Model):
             )
 
         siblings = list(self.subject.siblings())
-        sibling_frames = defaultdict(list)
+        sibling_frames = {}
         for sibling_frame in self.subject.sibling_time_frames().prefetch_related(
             "timelines"
         ):
-            sibling_frames[sibling_frame.subject_id].append(sibling_frame)
+            sibling_frames.setdefault(sibling_frame.subject_id, []).append(
+                sibling_frame
+            )
 
         for sibling in siblings:
-            for other in sibling_frames.get(sibling.pk) or [None]:
-                if other is None:
-                    errors.append(
-                        f"{sibling.time_frame_label()} has no time frame, so it is "
-                        f"active at all times on all timelines."
-                    )
-                elif self.shares_timeline_with(other) and self.overlaps(other):
-                    errors.append(
-                        f"Overlaps with {sibling.time_frame_label()} "
-                        f"{other.format_interval()} on "
-                        f"{self.format_timelines(other, user_timeline_labels)}."
-                    )
+            s_time_frames = sibling_frames.get(sibling.pk, [])
+            if len(s_time_frames) == 0:
+                err = "{} is active at all times on all timelines.".format(
+                    sibling.time_frame_label()
+                )
+                errors.append(err)
+                continue
+
+            for other in s_time_frames:
+                if not self.overlaps(other):
+                    continue
+                err = "Overlaps with {} {} on {}.".format(
+                    sibling.time_frame_label(),
+                    other.format_interval(),
+                    self.format_timelines(other, user_timeline_labels),
+                )
+                errors.append(err)
 
         if errors:
             raise ValidationError(errors)
