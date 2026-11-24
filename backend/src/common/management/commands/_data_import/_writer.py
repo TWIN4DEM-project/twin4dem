@@ -1,6 +1,5 @@
 import logging
 
-from django.contrib.auth.models import AbstractBaseUser
 from django.core.exceptions import ValidationError
 from django.db import models
 from twin4dem_data_contracts import models as contracts
@@ -12,23 +11,30 @@ from common.models import (
     InstitutionKind,
     Party,
     PartyPosition,
-    UserSettings,
 )
 
+from ._api import Api
 from ._exceptions import DataImportError
 from ._selection import Instance
 
 logger = logging.getLogger(__name__)
 
 
+def find_settings(api: Api, label: str) -> int:
+    """The id of the logged-in user's settings with `label`."""
+    for settings in api.list("settings"):
+        if settings["label"] == label:
+            return settings["id"]
+    raise DataImportError(f"settings '{label}' not found.")
+
+
 def write_country(
-    user: AbstractBaseUser,
+    settings_id: int,
     country: contracts.Country,
     institutions: dict[InstitutionBranch, tuple[contracts.Institution, Instance]],
     parties: list[tuple[contracts.PoliticalParty, contracts.PartyPosition | None]],
 ) -> None:
-    settings = _find_or_create_settings(user, country.name)
-    saved_country = _find_or_create_country(settings, country.name)
+    saved_country = _find_or_create_country(settings_id, country.name)
     chamber = None
     for branch, (institution, instance) in institutions.items():
         kind = _find_or_create_kind(saved_country, institution.name, branch)
@@ -47,15 +53,10 @@ def write_country(
             _find_or_create_position(saved_party, chamber, position.position)
 
 
-def _find_or_create_settings(user: AbstractBaseUser, label: str) -> UserSettings:
-    found = UserSettings.objects.filter(user=user, label=label).first()
-    return found or _create(UserSettings(user=user, label=label), f"settings '{label}'")
-
-
-def _find_or_create_country(settings: UserSettings, name: str) -> Country:
-    found = Country.objects.filter(user_settings=settings, name=name).first()
+def _find_or_create_country(settings_id: int, name: str) -> Country:
+    found = Country.objects.filter(user_settings_id=settings_id, name=name).first()
     return found or _create(
-        Country(user_settings=settings, name=name), f"country '{name}'"
+        Country(user_settings_id=settings_id, name=name), f"country '{name}'"
     )
 
 

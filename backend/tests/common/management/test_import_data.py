@@ -22,14 +22,24 @@ from common.models import (
 pytestmark = pytest.mark.django_db
 
 AS_OF = "2025-06-01"
+PASSWORD = "importer-password"
+LOGIN = ("--username=importer", f"--password={PASSWORD}")
 RED_FIRST_POSITION = "b0000000-0000-4000-8000-000000000001"
 BLUE_CURRENT_POSITION = "b0000000-0000-4000-8000-000000000004"
 GREY_POSITION = "b0000000-0000-4000-8000-000000000005"
 
 
+@pytest.fixture(autouse=True)
+def fast_password_hashing(settings):
+    """The default hasher takes about a second for each password and login."""
+    settings.PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
+
+
 @pytest.fixture
 def importer(django_user_model):
-    return django_user_model.objects.create_user(username="importer")
+    return django_user_model.objects.create_superuser(
+        username="importer", password=PASSWORD
+    )
 
 
 @pytest.fixture
@@ -50,8 +60,8 @@ def run(source: Path, *args: str) -> str:
 
 
 def run_import(source: Path, as_of: str = AS_OF) -> str:
-    """Import `source` for the importer, as of `as_of`."""
-    return run(source, "--username=importer", f"--as-of={as_of}")
+    """Import `source` as the importer, as of `as_of`."""
+    return run(source, *LOGIN, f"--as-of={as_of}")
 
 
 def fail_import(source: Path, as_of: str = AS_OF) -> None:
@@ -92,9 +102,12 @@ def add_row(path: Path, where: dict[str, str], **changes: str) -> None:
     write_rows(path, [*rows, {**row, **changes}])
 
 
+def default_settings(user) -> UserSettings:
+    return UserSettings.objects.get(user=user, label="default")
+
+
 def create_testland(user) -> Country:
-    settings = UserSettings.objects.create(user=user, label="Testland")
-    return Country.objects.create(user_settings=settings, name="Testland")
+    return Country.objects.create(user_settings=default_settings(user), name="Testland")
 
 
 def institutions(user) -> set[tuple]:
@@ -145,11 +158,20 @@ def record_counts() -> list[int]:
 # What is imported
 
 
-def test_imports_the_country_into_settings_named_after_it(testland, importer):
+def test_imports_the_country_into_the_default_settings(testland, importer):
     run_import(testland)
 
-    settings = UserSettings.objects.get(user=importer, label="Testland")
+    countries = default_settings(importer).countries.all()
+    assert [country.name for country in countries] == ["Testland"]
+
+
+def test_imports_into_the_settings_given(testland, importer):
+    settings = UserSettings.objects.create(user=importer, label="Netherlands")
+
+    run(testland, *LOGIN, f"--as-of={AS_OF}", "--user-settings=Netherlands")
+
     assert [country.name for country in settings.countries.all()] == ["Testland"]
+    assert not default_settings(importer).countries.exists()
 
 
 def test_imports_the_latest_institutions_started_by_the_import_date(testland, importer):
@@ -177,9 +199,7 @@ def test_imports_the_parties_active_at_the_end_of_the_cabinet(
     assert "1 of 4 parties skipped: not active on 2023-12-31." in caplog.text
 
 
-def test_each_country_is_imported_into_its_own_settings(
-    testland_copy, importer, caplog
-):
+def test_every_country_goes_into_the_same_settings(testland_copy, importer, caplog):
     add_row(
         testland_copy / "country.csv",
         {"name": "Testland"},
@@ -189,8 +209,8 @@ def test_each_country_is_imported_into_its_own_settings(
 
     run_import(testland_copy)
 
-    labels = UserSettings.objects.filter(user=importer).values_list("label", flat=True)
-    assert set(labels) == {"default", "Testland", "Otherland"}
+    names = default_settings(importer).countries.values_list("name", flat=True)
+    assert set(names) == {"Testland", "Otherland"}
     otherland = Country.objects.get(user_settings__user=importer, name="Otherland")
     assert not otherland.institution_kinds.exists()
     assert not otherland.parties.exists()
@@ -409,7 +429,7 @@ def test_existing_records_are_kept_and_the_rest_added(testland, importer):
 
     run_import(testland)
 
-    assert UserSettings.objects.filter(user=importer, label="Testland").count() == 1
+    assert default_settings(importer).countries.count() == 1
     assert sorted(country.parties.values_list("label", flat=True)) == [
         "Blue",
         "Green",
@@ -497,7 +517,7 @@ def test_quoted_values_may_contain_commas(testland_copy, importer):
 
     run_import(testland_copy)
 
-    assert UserSettings.objects.filter(user=importer, label="Test, land").exists()
+    assert default_settings(importer).countries.filter(name="Test, land").exists()
 
 
 def test_byte_order_mark_is_accepted(testland_copy, importer):
@@ -506,7 +526,7 @@ def test_byte_order_mark_is_accepted(testland_copy, importer):
 
     run_import(testland_copy)
 
-    assert UserSettings.objects.filter(user=importer, label="Testland").exists()
+    assert default_settings(importer).countries.filter(name="Testland").exists()
 
 
 def test_other_files_in_the_folder_are_ignored(testland_copy, importer, caplog):
@@ -602,12 +622,34 @@ def test_institution_name_taken_by_another_branch_is_an_error(
 
 
 def test_as_of_defaults_to_today(testland, importer):
-    assert str(timezone.localdate()) in run(testland, "--username=importer")
+    assert str(timezone.localdate()) in run(testland, *LOGIN)
 
 
-def test_unknown_user_is_an_error(testland):
-    with pytest.raises(CommandError, match="User 'nobody' does not exist."):
-        run(testland, "--username=nobody")
+@pytest.mark.parametrize(
+    "username,password", [("nobody", PASSWORD), ("importer", "wrong")]
+)
+def test_wrong_username_or_password_is_an_error(
+    testland, importer, caplog, username, password
+):
+    with pytest.raises(CommandError, match="Import failed, nothing was saved."):
+        run(testland, f"--username={username}", f"--password={password}")
+
+    assert "Invalid username or password." in caplog.text
+
+
+def test_password_is_asked_when_not_given(testland, importer, monkeypatch):
+    monkeypatch.setattr("getpass.getpass", lambda prompt: PASSWORD)
+
+    run(testland, "--username=importer", f"--as-of={AS_OF}")
+
+    assert parties(importer) == {"Red", "Blue", "Green"}
+
+
+def test_unknown_settings_is_an_error(testland, importer, caplog):
+    with pytest.raises(CommandError, match="Import failed, nothing was saved."):
+        run(testland, *LOGIN, "--user-settings=nowhere")
+
+    assert "settings 'nowhere' not found." in caplog.text
 
 
 def test_invalid_as_of_is_an_error(testland, importer):
