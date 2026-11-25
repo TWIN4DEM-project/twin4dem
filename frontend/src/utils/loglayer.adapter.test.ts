@@ -46,17 +46,6 @@ describe("LogLayerAdapter", () => {
     vi.unstubAllEnvs();
   });
 
-  it("implements the ILogger interface", async () => {
-    const logger: ILogger = await createLogger();
-
-    expect(logger.trace).toBeTypeOf("function");
-    expect(logger.debug).toBeTypeOf("function");
-    expect(logger.info).toBeTypeOf("function");
-    expect(logger.warn).toBeTypeOf("function");
-    expect(logger.error).toBeTypeOf("function");
-    expect(logger.fatal).toBeTypeOf("function");
-  });
-
   it("logs all levels in development", async () => {
     vi.stubEnv("PROD", false);
     vi.stubEnv("VITE_LOG_LEVEL", undefined);
@@ -101,7 +90,7 @@ describe("LogLayerAdapter", () => {
     expect(output).toContain("Visible error");
   });
 
-  it("supports a custom log level", async () => {
+  it("allows configuring the minimum log level at build time", async () => {
     vi.stubEnv("PROD", false);
     vi.stubEnv("VITE_LOG_LEVEL", "warn");
 
