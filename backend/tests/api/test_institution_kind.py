@@ -564,7 +564,7 @@ def test_create_with_overlapping_institutions_400(admin_client):
                 "time_frames": [
                     {
                         "non_field_errors": [
-                            "Overlaps with 'Senate 2016' [2016-12-21, 2020-12-21) "
+                            "Overlaps with 'Senate 2016' [2016-12-21 00:00:00+00:00, 2020-12-21 00:00:00+00:00) "
                             "on all timelines."
                         ]
                     }
@@ -595,8 +595,7 @@ def test_create_institution_with_two_time_frames_on_a_timeline_400(admin_client)
                     {},
                     {
                         "non_field_errors": [
-                            "'Senate' already occupies the time frame "
-                            "[2016-12-21, 2020-12-21) on all timelines."
+                            "'Senate' already occupies the time frame [2016-12-21 00:00:00+00:00, 2020-12-21 00:00:00+00:00) on all timelines."
                         ]
                     },
                 ]

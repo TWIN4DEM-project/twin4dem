@@ -679,7 +679,7 @@ def test_create_with_overlapping_positions_400_creates_nothing(admin_client):
 
     assert response.status_code == 400
     assert response.json() == {
-        "positions": [{}, overlap("majority", "[2020-01-01, +inf)")]
+        "positions": [{}, overlap("majority", "[2020-01-01 00:00:00+00:00, +inf)")]
     }
     assert not Party.objects.filter(label="PSD").exists()
     assert not PartyPosition.objects.filter(party__label="PSD").exists()

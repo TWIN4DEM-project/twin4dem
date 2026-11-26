@@ -44,7 +44,6 @@ from .party import (
 )
 from .person import Person
 from .timeline import (
-    FrameSpec,
     TimeFrameModel,
     TimeFrameSubject,
     VirtualTimeline,
@@ -82,7 +81,6 @@ __all__ = (
     "PartyPositionTimeFrame",
     "PartyPositionType",
     "Person",
-    "FrameSpec",
     "TimeFrameModel",
     "TimeFrameSubject",
     "party_position_at",

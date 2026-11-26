@@ -1,95 +1,27 @@
 import copy
 from collections import defaultdict
-from dataclasses import dataclass
 
 from django import forms
 from django.contrib import admin
 
-from ..models import FrameSpec, TimeFrameSubject, VirtualTimeline
+from ..models import TimeFrameModel, TimeFrameSubject, VirtualTimeline
 from ..models.timeline import TimeFrameSubjectSiblings
-
-
-@dataclass(frozen=True)
-class TimeFrameCandidate:
-    """An in-memory frame candidate submitted through an admin inline."""
-
-    form: forms.Form
-    subject: TimeFrameSubject
-    spec: FrameSpec
-
-
-def _timeline_labels(subject: TimeFrameSubject) -> dict[int, str]:
-    """The timelines of the subject's global context, by id and label."""
-    return dict(
-        VirtualTimeline.objects.filter(
-            user_settings_id=subject.time_frame_user_settings_id()
-        ).values_list("id", "label")
-    )
-
-
-def _same_subject(first: TimeFrameCandidate, second: TimeFrameCandidate) -> bool:
-    if first.subject is second.subject:
-        return True
-    return (
-        first.subject.pk is not None
-        and second.subject.pk is not None
-        and first.subject.pk == second.subject.pk
-    )
-
-
-def _add_conflict_errors(
-    candidate: TimeFrameCandidate,
-    other_subject: TimeFrameSubject,
-    other_spec: FrameSpec,
-    labels: dict[int, str],
-    *,
-    same_subject: bool,
-) -> None:
-    if not candidate.spec.shares_timeline_with(other_spec):
-        return
-
-    if same_subject:
-        candidate.form.add_error(
-            None,
-            f"{candidate.subject.time_frame_label()} already occupies the time "
-            f"frame {other_spec.format_interval()} on "
-            f"{candidate.spec.format_timelines(other_spec, labels)}.",
-        )
-        return
-
-    if not candidate.spec.overlaps_in_time(other_spec):
-        return
-
-    if other_spec == FrameSpec(None, None, None):
-        candidate.form.add_error(
-            None,
-            f"{other_subject.time_frame_label()} has no time frame, so it is "
-            f"active at all times on all timelines.",
-        )
-        return
-
-    candidate.form.add_error(
-        None,
-        f"Overlaps with {other_subject.time_frame_label()} "
-        f"{other_spec.format_interval()} on "
-        f"{candidate.spec.format_timelines(other_spec, labels)}.",
-    )
-
-
-def timeline_selection_field() -> forms.ModelMultipleChoiceField:
-    # not the `timelines` model field: the frame must be validated together with
-    # its timelines, before anything is saved
-    return forms.ModelMultipleChoiceField(
-        queryset=VirtualTimeline.objects.select_related("user_settings"),
-        required=False,
-        label="Timelines",
-        help_text="Leave empty to apply the time frame to all timelines.",
-    )
 
 
 class TimelineSelectionFormMixin:
     # restricts the selectable timelines; set per request by the inline
     timeline_queryset = None
+
+    @staticmethod
+    def timeline_selection_field() -> forms.ModelMultipleChoiceField:
+        # not the `timelines` model field: the frame must be validated together
+        # with its timelines, before anything is saved
+        return forms.ModelMultipleChoiceField(
+            queryset=VirtualTimeline.objects.select_related("user_settings"),
+            required=False,
+            label="Timelines",
+            help_text="Leave empty to apply the time frame to all timelines.",
+        )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -99,33 +31,62 @@ class TimelineSelectionFormMixin:
         if frame is not None and frame.pk is not None:
             self.initial["timeline_selection"] = frame.timelines.all()
 
-    def frame_to_edit(self):
+    def frame_to_edit(self) -> TimeFrameModel | None:
         return self.instance
 
+    def time_frame(self) -> TimeFrameModel:
+        """The frame described by the form, not saved yet."""
+        raise NotImplementedError
+
     def time_frame_subject(self) -> TimeFrameSubject | None:
-        return getattr(self.instance, "subject", None)
-
-    def time_frame_spec(self) -> FrameSpec:
-        timeline_ids = self.selected_timeline_ids()
-        return FrameSpec(
-            self.cleaned_data.get("valid_from"),
-            self.cleaned_data.get("valid_to"),
-            None if timeline_ids is None else frozenset(timeline_ids),
-        )
-
-    def time_frame_candidate(self) -> TimeFrameCandidate | None:
-        subject = self.time_frame_subject()
-        if subject is None:
-            return None
-        return TimeFrameCandidate(
-            form=self, subject=subject, spec=self.time_frame_spec()
-        )
+        return getattr(self.time_frame(), "subject", None)
 
     def selected_timelines(self) -> list[VirtualTimeline]:
         return list(self.cleaned_data.get("timeline_selection") or ())
 
     def selected_timeline_ids(self) -> list[int] | None:
         return [timeline.pk for timeline in self.selected_timelines()] or None
+
+    def add_conflict_errors(
+        self,
+        other_subject: TimeFrameSubject,
+        other_frame: TimeFrameModel | None,
+        labels: dict[int, str],
+        *,
+        same_subject: bool,
+    ) -> None:
+        """Report a conflict between the form's frame and another frame.
+
+        ``other_frame=None`` means the other subject has no time frame, so it is
+        active at all times on all timelines.
+        """
+        frame = self.time_frame()
+        if other_frame is None:
+            if not same_subject:
+                self.add_error(
+                    None,
+                    f"{other_subject.time_frame_label()} has no time frame, so it "
+                    f"is active at all times on all timelines.",
+                )
+            return
+        if not frame.shares_timeline_with(other_frame):
+            return
+        if same_subject:
+            self.add_error(
+                None,
+                f"{self.time_frame_subject().time_frame_label()} already occupies "
+                f"the time frame {other_frame.format_interval()} on "
+                f"{frame.format_timelines(other_frame, labels)}.",
+            )
+            return
+        if not frame.overlaps(other_frame):
+            return
+        self.add_error(
+            None,
+            f"Overlaps with {other_subject.time_frame_label()} "
+            f"{other_frame.format_interval()} on "
+            f"{frame.format_timelines(other_frame, labels)}.",
+        )
 
 
 class TimelineQuerysetInlineMixin:
@@ -146,10 +107,13 @@ class TimelineQuerysetInlineMixin:
 
 
 class TimeFrameInlineForm(TimelineSelectionFormMixin, forms.ModelForm):
-    timeline_selection = timeline_selection_field()
+    timeline_selection = TimelineSelectionFormMixin.timeline_selection_field()
 
     class Meta:
         fields = ("valid_from", "valid_to")
+
+    def time_frame(self) -> TimeFrameModel:
+        return self.instance
 
     def clean(self):
         cleaned_data = super().clean()
@@ -174,74 +138,84 @@ class TimeFrameInlineAdminMixin:
 
 class TimeFrameInlineFormSet(forms.BaseInlineFormSet):
     @staticmethod
-    def validate_time_frame_candidates(candidates: list[TimeFrameCandidate]) -> None:
-        """Validate candidate frames together, before anything is saved."""
-        if not candidates:
+    def _timeline_labels(subject: TimeFrameSubject) -> dict[int, str]:
+        """The timelines of the subject's global context, by id and label."""
+        return dict(
+            VirtualTimeline.objects.filter(
+                user_settings_id=subject.time_frame_user_settings_id()
+            ).values_list("id", "label")
+        )
+
+    def validate_time_frames(self, submitted: list[forms.Form]) -> None:
+        """Validate the submitted frames together, before anything is saved."""
+        submitted = [
+            form for form in submitted if form.time_frame_subject() is not None
+        ]
+        if not submitted:
             return
 
-        groups: dict[TimeFrameSubjectSiblings, list[TimeFrameCandidate]] = defaultdict(
-            list
-        )
-        for candidate in candidates:
-            groups[candidate.subject.sibling_values].append(candidate)
+        subjects = {form: form.time_frame_subject() for form in submitted}
+        frames = {form: form.time_frame() for form in submitted}
+
+        groups: dict[TimeFrameSubjectSiblings, list[forms.Form]] = defaultdict(list)
+        for form in submitted:
+            groups[subjects[form].sibling_values].append(form)
 
         for group in groups.values():
-            labels = _timeline_labels(group[0].subject)
-            for candidate in group:
-                timeline_ids = candidate.spec.timeline_ids
+            subject = subjects[group[0]]
+            labels = self._timeline_labels(subject)
+
+            for form in group:
+                timeline_ids = frames[form].timeline_ids
                 if timeline_ids is not None and not timeline_ids <= labels.keys():
-                    candidate.form.add_error(
+                    form.add_error(
                         "timeline_selection",
                         "The timelines must belong to the same global context as "
                         "the time frame's subject.",
                     )
 
-            for candidate in group:
+            for form in group:
                 for other in group:
-                    if candidate is other:
+                    if form is other:
                         continue
-                    _add_conflict_errors(
-                        candidate,
-                        other.subject,
-                        other.spec,
+                    form.add_conflict_errors(
+                        subjects[other],
+                        frames[other],
                         labels,
-                        same_subject=_same_subject(candidate, other),
+                        same_subject=(
+                            subjects[form].pk is not None
+                            and subjects[form].pk == subjects[other].pk
+                        ),
                     )
 
-            subject = group[0].subject
-            candidate_subject_ids = {
-                candidate.subject.pk
-                for candidate in group
-                if candidate.subject.pk is not None
+            submitted_ids = {
+                subjects[form].pk for form in group if subjects[form].pk is not None
             }
-            siblings = subject.siblings().exclude(pk__in=candidate_subject_ids)
-            frames_by_subject: dict[int, list[FrameSpec]] = defaultdict(list)
-            sibling_frames = subject.sibling_time_frames().exclude(
-                subject_id__in=candidate_subject_ids
-            )
-            for frame in sibling_frames:
-                frames_by_subject[frame.subject_id].append(frame.spec)
+            siblings = subject.siblings().exclude(pk__in=submitted_ids)
+            frames_by_subject: dict[int, list[TimeFrameModel]] = defaultdict(list)
+            for sibling_frame in (
+                subject.sibling_time_frames()
+                .exclude(subject_id__in=submitted_ids)
+                .prefetch_related("timelines")
+            ):
+                frames_by_subject[sibling_frame.subject_id].append(sibling_frame)
+
             for sibling in siblings:
-                for candidate in group:
-                    for spec in frames_by_subject.get(sibling.pk, []) or [
-                        FrameSpec(None, None, None)
-                    ]:
-                        _add_conflict_errors(
-                            candidate,
-                            sibling,
-                            spec,
-                            labels,
-                            same_subject=False,
+                for form in group:
+                    for sibling_frame in frames_by_subject.get(sibling.pk) or [None]:
+                        form.add_conflict_errors(
+                            sibling, sibling_frame, labels, same_subject=False
                         )
 
     def clean(self):
         super().clean()
-        candidates = [
-            form.time_frame_candidate()
-            for form in self.forms
-            if form.is_valid() and not form.cleaned_data.get("DELETE")
-        ]
-        self.validate_time_frame_candidates(candidates)
+        self.validate_time_frames(
+            [
+                form
+                for form in self.forms
+                if form.is_valid() and not form.cleaned_data.get("DELETE")
+            ]
+        )
 
 
 class TimeFrameInline(TimelineQuerysetInlineMixin, admin.TabularInline):

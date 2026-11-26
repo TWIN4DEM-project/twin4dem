@@ -1,5 +1,4 @@
 from django.apps import apps
-from django.db.models import Count
 from django.db.models.signals import pre_delete
 from django.dispatch import receiver
 
@@ -21,7 +20,8 @@ def delete_orphaned_time_frames(sender, instance, **kwargs):
     Delete the time frames restricted to this timeline only. Otherwise, losing
     their last timeline link would silently make them apply to all timelines.
     """
+    other_timelines = VirtualTimeline.objects.exclude(pk=instance.pk)
     for model in time_frame_models():
-        model.objects.filter(timelines=instance).annotate(
-            link_count=Count("timelines")
-        ).filter(link_count=1).delete()
+        model.objects.filter(timelines=instance).exclude(
+            timelines__in=other_timelines
+        ).delete()

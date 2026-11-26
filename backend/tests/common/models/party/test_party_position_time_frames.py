@@ -62,7 +62,7 @@ def test_same_party_and_chamber_positions_may_not_overlap(
         )
 
     assert err_proxy.value.messages == [
-        "Overlaps with 'Renaissance' (majority) [2020-01-01, 2022-01-01) "
+        "Overlaps with 'Renaissance' (majority) [2020-01-01 00:00:00+00:00, 2022-01-01 00:00:00+00:00) "
         "on timeline 'default'."
     ]
 

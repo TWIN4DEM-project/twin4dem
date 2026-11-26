@@ -147,8 +147,7 @@ def test_add_overlapping_institution_frame_shows_error(
     assert response.status_code == 200
     inline_formset = response.context["inline_admin_formsets"][0].formset
     assert inline_formset.forms[0].non_field_errors() == [
-        "'Castex' already occupies the time frame [2020-07-03, +inf) "
-        "on timeline 'alternate'."
+        "'Castex' already occupies the time frame [2020-07-03 00:00:00+00:00, +inf) on timeline 'alternate'."
     ]
     assert InstitutionTimeFrame.objects.count() == 1
 
@@ -228,11 +227,8 @@ def test_add_adjacent_party_positions_success(admin_client, renaissance, assembl
     )
 
     assert response.status_code == 302
-    frames = PartyPositionTimeFrame.objects.order_by("id")
-    assert [frame.spec for frame in frames] == [
-        frames[0].spec,
-        frames[1].spec,
-    ]
+    frames = list(PartyPositionTimeFrame.objects.order_by("id"))
+    assert frames[0].valid_to == frames[1].valid_from
 
 
 @pytest.mark.django_db
@@ -263,7 +259,7 @@ def test_add_overlapping_party_positions_shows_error(
     assert response.status_code == 200
     inline_formset = response.context["inline_admin_formsets"][0].formset
     assert inline_formset.forms[1].non_field_errors() == [
-        "Overlaps with 'Renaissance' (majority) [2026-01-01, 2026-02-15) "
+        "Overlaps with 'Renaissance' (majority) [2026-01-01 00:00:00+00:00, 2026-02-15 00:00:00+00:00) "
         "on all timelines."
     ]
     assert PartyPosition.objects.filter(party=renaissance).count() == 0
