@@ -9,12 +9,26 @@ from common.models import (
     InstitutionKind,
     Simulation,
     SimulationInstitution,
+    Party,
 )
 
 
 @pytest.fixture
-def test_country(django_db_setup) -> Country:
-    return Country.objects.get(pk=1)
+def test_country(django_db_setup, django_db_blocker) -> Country:
+    with django_db_blocker.unblock():
+        return Country.objects.get(pk=1)
+
+
+@pytest.fixture
+def majority_party(django_db_setup, django_db_blocker) -> Party:
+    with django_db_blocker.unblock():
+        return Party.objects.get(pk=1)
+
+
+@pytest.fixture
+def opposition_party(django_db_setup, django_db_blocker) -> Party:
+    with django_db_blocker.unblock():
+        return Party.objects.get(pk=2)
 
 
 @pytest.fixture
