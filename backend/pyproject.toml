@@ -71,6 +71,7 @@ extend-select = ["TID251"]
 "common.models.timeline._timeframe".msg = "Import from the public common.models.timeline interface instead."
 "common.models.timeline._timeframe_qs".msg = "Import from the public common.models.timeline interface instead."
 "common.models.timeline._timeline".msg = "Import from the public common.models.timeline interface instead."
+"common.models.timeline._map".msg = "Import from the public common.models.timeline interface instead."
 "common.models.world._country".msg = "Import from the public common.models.world interface instead."
 "common.models.world._settings".msg = "Import from the public common.models.world interface instead."
 
