@@ -1,5 +1,3 @@
-from datetime import datetime, UTC
-
 import pytest
 from django.core.exceptions import ValidationError
 
@@ -13,10 +11,6 @@ from common.models import (
 pytestmark = pytest.mark.django_db
 
 
-def _dt(year: int, month: int = 1, day: int = 1) -> datetime:
-    return datetime(year, month, day, tzinfo=UTC)
-
-
 def _create(kind, label, valid_from=None, valid_to=None, timelines=()):
     institution = Institution.objects.create(kind=kind, label=label, size=10)
     if valid_from is not None or valid_to is not None or timelines:
@@ -27,15 +21,15 @@ def _create(kind, label, valid_from=None, valid_to=None, timelines=()):
 
 
 def test_same_kind_institutions_may_not_overlap(
-    french_taxonomy, default_timeline, alternate_timeline
+    dt, french_taxonomy, default_timeline, alternate_timeline
 ):
     cabinet = french_taxonomy[InstitutionBranch.EXECUTIVE]
-    _create(cabinet, "Philippe", _dt(2020), _dt(2022), [default_timeline])
-    second = _create(cabinet, "Borne", _dt(2030), _dt(2031), [alternate_timeline])
+    _create(cabinet, "Philippe", dt(2020), dt(2022), [default_timeline])
+    second = _create(cabinet, "Borne", dt(2030), dt(2031), [alternate_timeline])
 
     with pytest.raises(ValidationError) as err_proxy:
         InstitutionTimeFrame.objects.occupy(
-            second, _dt(2021), _dt(2023), [default_timeline]
+            second, dt(2021), dt(2023), [default_timeline]
         )
 
     assert err_proxy.value.messages == [
@@ -44,9 +38,9 @@ def test_same_kind_institutions_may_not_overlap(
     ]
 
 
-def test_different_kinds_may_overlap(cabinet, assemblee):
-    InstitutionTimeFrame.objects.occupy(cabinet, _dt(2020), _dt(2022))
-    InstitutionTimeFrame.objects.occupy(assemblee, _dt(2020), _dt(2022))
+def test_different_kinds_may_overlap(dt, cabinet, assemblee):
+    InstitutionTimeFrame.objects.occupy(cabinet, dt(2020), dt(2022))
+    InstitutionTimeFrame.objects.occupy(assemblee, dt(2020), dt(2022))
 
     assert InstitutionTimeFrame.objects.count() == 2
 
