@@ -14,6 +14,11 @@ from common.models import (
 
 
 @pytest.fixture
+def test_country(django_db_setup) -> Country:
+    return Country.objects.get(pk=1)
+
+
+@pytest.fixture
 def france(test_settings) -> Country:
     return Country.objects.create(user_settings=test_settings, name="France")
 
