@@ -64,6 +64,9 @@ extend-select = ["TID251"]
 "common.models.party._party".msg = "Import from the public common.models.party interface instead."
 "common.models.party._party_position".msg = "Import from the public common.models.party interface instead."
 "common.models.party._time_frame".msg = "Import from the public common.models.party interface instead."
+"common.models.person._person".msg = "Import from the public common.models.person interface instead."
+"common.models.person._office_holding".msg = "Import from the public common.models.person interface instead."
+"common.models.person._party_membership".msg = "Import from the public common.models.person interface instead."
 "common.models.runtime._belief".msg = "Import from the public common.models.runtime interface instead."
 "common.models.runtime._executive".msg = "Import from the public common.models.runtime interface instead."
 "common.models.runtime._influence".msg = "Import from the public common.models.runtime interface instead."
@@ -74,6 +77,7 @@ extend-select = ["TID251"]
 "common.models.timeline._timeframe".msg = "Import from the public common.models.timeline interface instead."
 "common.models.timeline._timeframe_qs".msg = "Import from the public common.models.timeline interface instead."
 "common.models.timeline._timeline".msg = "Import from the public common.models.timeline interface instead."
+"common.models.timeline._map".msg = "Import from the public common.models.timeline interface instead."
 "common.models.world._country".msg = "Import from the public common.models.world interface instead."
 "common.models.world._settings".msg = "Import from the public common.models.world interface instead."
 

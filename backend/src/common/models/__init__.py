@@ -42,7 +42,13 @@ from .party import (
     PartyPosition,
     party_position_at,
 )
-from .person import Person, OfficeHolding, OfficeSpan
+from .person import (
+    Person,
+    OfficeHolding,
+    OfficeSpan,
+    PartyMembership,
+    PartyMembershipPeriod,
+)
 from .timeline import (
     TimeFrameModel,
     TimeFrameSubject,
@@ -83,6 +89,8 @@ __all__ = (
     "Person",
     "OfficeHolding",
     "OfficeSpan",
+    "PartyMembership",
+    "PartyMembershipPeriod",
     "TimeFrameModel",
     "TimeFrameSubject",
     "party_position_at",
