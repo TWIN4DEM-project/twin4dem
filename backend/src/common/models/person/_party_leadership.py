@@ -10,7 +10,13 @@ class PartyLeadership(TimeFrameSubject):
     party = models.ForeignKey(
         "Party", on_delete=models.CASCADE, null=False, related_name="leaders"
     )
-    sibling_fields = ("person",)
+    sibling_fields = (
+        "person",
+        "party",
+    )
+
+    def time_frame_label(self) -> str:
+        return f"'{self.person.name}' leader"
 
     @property
     def time_frames(self) -> models.Manager:
