@@ -1,0 +1,2 @@
+court_id,institution_id,size,valid_from,valid_to,source_system,record_updated_at
+c7000000-0000-4000-8000-000000000001,10000000-0000-4000-8000-000000000003,9,2010-01-01,,test-fixture,2026-01-01T00:00:00Z

@@ -1,6 +1,7 @@
 import axios from "axios";
 import { useEffect, useState } from "react";
 import { type SimulationLog, SimulationLogSchema } from "@/types/simulation_log.ts";
+import { logger } from "@/utils/logger";
 
 export async function fetchSimulationLog(simulationId: number): Promise<SimulationLog> {
   const resp = await axios.get(`/api/v1/simulation/${simulationId}/log/`, {
@@ -38,7 +39,12 @@ export function useSimulationLog(
       const simulationLog = await fetchSimulationLog(simulationId);
       setSimulationLog(simulationLog);
     };
-    fetch().catch(console.error);
+    fetch().catch((error: unknown) => {
+      logger.error("Failed to fetch simulation log", {
+        simulationId,
+        errorType: error instanceof Error ? error.name : "UnknownError",
+      });
+    });
   }, [shouldFetch, simulationId, stepNo, simulationLog]);
 
   return simulationLog;

@@ -5,13 +5,33 @@ on:
     paths:
       - 'backend/**'
 
+permissions:
+  contents: read
+
 jobs:
   lint:
     name: Lint (make check)
     runs-on: ubuntu-latest
     steps:
+      - name: Refuse fork PRs
+        if: github.event.pull_request.head.repo.full_name != github.repository
+        run: |
+          echo "::error::Fork PRs can't read TWIN4DEM-project/twin4dem-data-contracts. A maintainer must push this branch to the main repo."
+          exit 1
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Create read-only token for twin4dem-data-contracts
+        id: t4d-data-contracts-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.TWIN4DEM_CI_CLIENT_ID }}
+          private-key: ${{ secrets.TWIN4DEM_CI_PRIVATE_KEY }}
+          owner: TWIN4DEM-project
+          repositories: twin4dem-data-contracts
+          permission-contents: read
 
       - name: Set up Python 3.13
         uses: actions/setup-python@v6
@@ -24,7 +44,12 @@ jobs:
             enable-cache: true
 
       - name: Run linter (make check)
-        # run Makefile located in backend/
+        env:
+          DEP_TOKEN: ${{ steps.t4d-data-contracts-token.outputs.token }}
+          GIT_TERMINAL_PROMPT: "0"
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: credential.https://github.com.helper
+          GIT_CONFIG_VALUE_0: '!f() { echo username=x-access-token; echo "password=$DEP_TOKEN"; }; f'
         run: |
           mkdir -p artifacts
           # Capture full output to artifact
@@ -40,6 +65,18 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+            persist-credentials: false
+
+      - name: Create read-only token for twin4dem-data-contracts
+        id: t4d-data-contracts-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.TWIN4DEM_CI_CLIENT_ID }}
+          private-key: ${{ secrets.TWIN4DEM_CI_PRIVATE_KEY }}
+          owner: TWIN4DEM-project
+          repositories: twin4dem-data-contracts
+          permission-contents: read
 
       - name: Set up Python 3.13
         uses: actions/setup-python@v6
@@ -57,6 +94,11 @@ jobs:
       - name: Run tests (make test) and produce JUnit xml
         env:
           PYTEST_ADDOPTS: --junitxml=pytest-results/junit.xml
+          DEP_TOKEN: ${{ steps.t4d-data-contracts-token.outputs.token }}
+          GIT_TERMINAL_PROMPT: "0"
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: credential.https://github.com.helper
+          GIT_CONFIG_VALUE_0: '!f() { echo username=x-access-token; echo "password=$DEP_TOKEN"; }; f'
         run: make -C backend test
       - name: Show test report
         uses: dorny/test-reporter@v2

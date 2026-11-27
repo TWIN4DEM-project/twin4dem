@@ -17,7 +17,7 @@ dependencies = [
     "django-vite>=3.1.0",
     "djangorestframework>=3.16.1",
     "psycopg2>=2.9.11",
-    "pydantic>=2.12.5",
+    "pydantic>=2.13.4,<2.14",
     "requests>=2.32.5",
 ]
 
@@ -26,6 +26,9 @@ package = true
 
 [tool.uv.build-backend]
 namespace = true
+
+[tool.uv.sources]
+twin4dem-data-contracts = { git = "https://github.com/TWIN4DEM-project/twin4dem-data-contracts.git", rev = "v0.1.0" }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -96,6 +99,7 @@ dev = [
     "pytest-cov>=7.0.0",
     "pytest-django>=4.11.1",
     "ruff>=0.14.9",
+    "twin4dem-data-contracts",
     "types-channels>=4.3.0.20250822",
 ]
 prod = []
