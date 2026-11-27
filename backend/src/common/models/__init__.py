@@ -48,6 +48,8 @@ from .person import (
     OfficeSpan,
     PartyMembership,
     PartyMembershipPeriod,
+    PartyLeadership,
+    PartyLeadershipStint,
 )
 from .timeline import (
     TimeFrameModel,
@@ -86,6 +88,8 @@ __all__ = (
     "PartyPosition",
     "PartyPositionTimeFrame",
     "PartyPositionType",
+    "PartyLeadership",
+    "PartyLeadershipStint",
     "Person",
     "OfficeHolding",
     "OfficeSpan",
