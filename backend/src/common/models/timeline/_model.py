@@ -70,16 +70,7 @@ class TimeFrameModel(models.Model):
 
     @property
     def is_on_all_timelines(self) -> bool:
-        if (
-            self.pending_timeline_ids is not None
-            and len(self.pending_timeline_ids) == 0
-        ):
-            return True
-        if self.pk is None:
-            return True
-        if self.timeline_ids is None:
-            return True
-        return False
+        return self.timeline_ids is None
 
     def overlaps(self, other: "TimeFrameModel") -> bool:
         """Whether the two frames' intervals intersect (the ends are excluded)."""
