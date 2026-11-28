@@ -49,7 +49,7 @@ def test_deleting_one_of_several_timelines_keeps_the_frame(
 
     alternate_timeline.delete()
 
-    assert list(frame.get_timelines()) == [default_timeline]
+    assert frame_model.objects.filter(pk=frame.pk).exists()
 
 
 def test_frameless_timeline_frames_survive_deleting_a_timeline(

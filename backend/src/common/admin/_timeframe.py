@@ -43,9 +43,6 @@ class TimelineSelectionFormMixin:
     def selected_timelines(self) -> list[VirtualTimeline]:
         return list(self.cleaned_data.get(self._SELECTION_FIELD_KEY) or ())
 
-    def selected_timeline_ids(self) -> list[int] | None:
-        return [timeline.pk for timeline in self.selected_timelines()] or None
-
     def add_conflict_errors(
         self,
         other_subject: TimeFrameSubject,
@@ -107,7 +104,7 @@ class TimeFrameInlineForm(TimelineSelectionFormMixin, forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
-        self.instance.pending_timeline_ids = self.selected_timeline_ids()
+        self.instance.pending_timelines = self.selected_timelines()
         return cleaned_data
 
     def save_time_frame(self):

@@ -155,10 +155,6 @@ class TimeFrameSubject(models.Model):
         """The subject's name in overlap error messages."""
         return f"'{self.label}'"
 
-    def time_frame_user_settings_id(self) -> int:
-        """The global context whose timelines the subject's frames apply to."""
-        raise NotImplementedError
-
     def sibling_time_frames(self) -> models.QuerySet:
         """The time frames of this subject's siblings.
 

@@ -13,6 +13,7 @@ from common.models import (
 from ._base import LCCModelSerializer
 from ._batch import BatchListSerializer
 from ._institution import AllowedTimelineField
+from ._timeline import validate_current_settings_timeline
 
 
 class AllowedPartyField(serializers.PrimaryKeyRelatedField):
@@ -50,6 +51,10 @@ class BasePartyPositionSerializer(LCCModelSerializer):
             raise serializers.ValidationError(
                 {"valid_to": "The time frame must end after it starts."}
             )
+        timeline = attrs.get("timeline")
+        validate_current_settings_timeline(
+            self.context["request"], [timeline] if timeline is not None else ()
+        )
         return attrs
 
     @transaction.atomic
