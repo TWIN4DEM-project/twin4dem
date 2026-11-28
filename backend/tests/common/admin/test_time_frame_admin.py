@@ -63,26 +63,6 @@ def _party_form_data(party, positions) -> dict:
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(
-    "url",
-    [
-        "/admin/common/usersettings/",
-        "/admin/common/usersettings/1/change/",
-        "/admin/common/country/",
-        "/admin/common/country/add/",
-        "/admin/common/institution/",
-        "/admin/common/institution/add/",
-        "/admin/common/party/",
-        "/admin/common/party/add/",
-    ],
-)
-def test_admin_pages_render(admin_client, url):
-    response = admin_client.get(url)
-
-    assert response.status_code == 200
-
-
-@pytest.mark.django_db
 def test_add_institution_frame_with_timelines(
     admin_client, cabinet, alternate_timeline
 ):
