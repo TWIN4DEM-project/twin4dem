@@ -1,4 +1,3 @@
-import copy
 from collections import defaultdict
 
 from django import forms
@@ -9,27 +8,27 @@ from ..models.timeline import TimeFrameSubjectSiblings
 
 
 class TimelineSelectionFormMixin:
-    # restricts the selectable timelines; set per request by the inline
-    timeline_queryset = None
+    _SELECTION_FIELD_KEY = "timeline_selection"
 
     @staticmethod
     def timeline_selection_field() -> forms.ModelMultipleChoiceField:
         # not the `timelines` model field: the frame must be validated together
         # with its timelines, before anything is saved
         return forms.ModelMultipleChoiceField(
-            queryset=VirtualTimeline.objects.select_related("user_settings"),
+            queryset=VirtualTimeline.objects.none(),
             required=False,
             label="Timelines",
             help_text="Leave empty to apply the time frame to all timelines.",
         )
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, user_settings_id: int | None = None, **kwargs):
         super().__init__(*args, **kwargs)
-        if self.timeline_queryset is not None:
-            self.fields["timeline_selection"].queryset = self.timeline_queryset
+        self.fields[self._SELECTION_FIELD_KEY].queryset = (
+            VirtualTimeline.objects.filter(user_settings_id=user_settings_id)
+        )
         frame = self.frame_to_edit()
         if frame is not None and frame.pk is not None:
-            self.initial["timeline_selection"] = frame.timelines.all()
+            self.initial[self._SELECTION_FIELD_KEY] = frame.timelines.all()
 
     def frame_to_edit(self) -> TimeFrameModel | None:
         return self.instance
@@ -42,7 +41,7 @@ class TimelineSelectionFormMixin:
         return getattr(self.time_frame(), "subject", None)
 
     def selected_timelines(self) -> list[VirtualTimeline]:
-        return list(self.cleaned_data.get("timeline_selection") or ())
+        return list(self.cleaned_data.get(self._SELECTION_FIELD_KEY) or ())
 
     def selected_timeline_ids(self) -> list[int] | None:
         return [timeline.pk for timeline in self.selected_timelines()] or None
@@ -89,20 +88,11 @@ class TimelineSelectionFormMixin:
         )
 
 
-class TimelineQuerysetInlineMixin:
+class CurrentSettingsInlineMixin:
     def get_formset(self, request, obj=None, **kwargs):
         formset = super().get_formset(request, obj, **kwargs)
-        if request.user.is_superuser:
-            return formset
-        base_form = formset.form
-        form = type(base_form.__name__, (base_form,), {})
-        form.base_fields = base_form.base_fields.copy()
-        field = copy.copy(form.base_fields["timeline_selection"])
-        field.queryset = VirtualTimeline.objects.filter(
-            user_settings__user=request.user
-        )
-        form.base_fields["timeline_selection"] = field
-        formset.form = form
+        settings = request.current_settings
+        formset.user_settings_id = settings.pk if settings is not None else None
         return formset
 
 
@@ -137,14 +127,21 @@ class TimeFrameInlineAdminMixin:
 
 
 class TimeFrameInlineFormSet(forms.BaseInlineFormSet):
-    @staticmethod
-    def _timeline_labels(subject: TimeFrameSubject) -> dict[int, str]:
-        """The timelines of the subject's global context, by id and label."""
-        return dict(
-            VirtualTimeline.objects.filter(
-                user_settings_id=subject.time_frame_user_settings_id()
-            ).values_list("id", "label")
+    # the inline binds this to the administration's current global context
+    user_settings_id: int | None = None
+
+    def get_form_kwargs(self, index):
+        return {
+            **super().get_form_kwargs(index),
+            "user_settings_id": self.user_settings_id,
+        }
+
+    def _timeline_labels(self) -> dict[int, str]:
+        """The current context's timelines, by id and label."""
+        timelines = VirtualTimeline.objects.filter(
+            user_settings_id=self.user_settings_id
         )
+        return dict(timelines.values_list("id", "label"))
 
     def validate_time_frames(self, submitted: list[forms.Form]) -> None:
         """Validate the submitted frames together, before anything is saved."""
@@ -156,6 +153,7 @@ class TimeFrameInlineFormSet(forms.BaseInlineFormSet):
 
         subjects = {form: form.time_frame_subject() for form in submitted}
         frames = {form: form.time_frame() for form in submitted}
+        labels = self._timeline_labels()
 
         groups: dict[TimeFrameSubjectSiblings, list[forms.Form]] = defaultdict(list)
         for form in submitted:
@@ -163,7 +161,6 @@ class TimeFrameInlineFormSet(forms.BaseInlineFormSet):
 
         for group in groups.values():
             subject = subjects[group[0]]
-            labels = self._timeline_labels(subject)
 
             for form in group:
                 timeline_ids = frames[form].timeline_ids
@@ -218,7 +215,7 @@ class TimeFrameInlineFormSet(forms.BaseInlineFormSet):
         )
 
 
-class TimeFrameInline(TimelineQuerysetInlineMixin, admin.TabularInline):
+class TimeFrameInline(CurrentSettingsInlineMixin, admin.TabularInline):
     form = TimeFrameInlineForm
     formset = TimeFrameInlineFormSet
     extra = 0

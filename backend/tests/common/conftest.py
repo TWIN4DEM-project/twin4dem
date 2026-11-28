@@ -6,7 +6,20 @@ from common.models import (
     InstitutionBranch,
     InstitutionKind,
     Party,
+    UserSettings,
 )
+
+
+@pytest.fixture
+def staff_user(django_user_model):
+    return django_user_model.objects.create_user(
+        username="clerk", password="clerk-pass", is_staff=True
+    )
+
+
+@pytest.fixture
+def staff_settings(staff_user) -> UserSettings:
+    return staff_user.user_settings.get(label=UserSettings.DEFAULT_LABEL)
 
 
 @pytest.fixture

@@ -10,9 +10,9 @@ from ..models import (
     PartyPositionTimeFrame,
 )
 from ._timeframe import (
+    CurrentSettingsInlineMixin,
     TimeFrameInlineAdminMixin,
     TimeFrameInlineFormSet,
-    TimelineQuerysetInlineMixin,
     TimelineSelectionFormMixin,
 )
 
@@ -77,7 +77,7 @@ class PartyPositionInlineForm(TimelineSelectionFormMixin, forms.ModelForm):
         frame.timelines.set(self.selected_timelines())
 
 
-class PartyPositionInline(TimelineQuerysetInlineMixin, admin.TabularInline):
+class PartyPositionInline(CurrentSettingsInlineMixin, admin.TabularInline):
     model = PartyPosition
     form = PartyPositionInlineForm
     formset = TimeFrameInlineFormSet
