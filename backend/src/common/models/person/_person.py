@@ -4,6 +4,7 @@ from django.db.models import Q, F
 
 from common.models import Country
 from ._office_holding import OfficeSpan
+from ._party_leadership import PartyLeadershipStint
 
 
 class Person(models.Model):
@@ -16,6 +17,10 @@ class Person(models.Model):
     @property
     def office_spans(self) -> models.QuerySet["OfficeSpan"]:
         return OfficeSpan.objects.filter(subject__person=self)
+
+    @property
+    def leadership_stints(self) -> models.QuerySet["PartyLeadershipStint"]:
+        return PartyLeadershipStint.objects.filter(subject__person=self)
 
     class Meta:
         db_table = "people"
