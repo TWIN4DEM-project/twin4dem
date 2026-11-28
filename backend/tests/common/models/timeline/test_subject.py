@@ -1,8 +1,6 @@
 import pytest
 from django.core.exceptions import ValidationError
 
-from common.models import UserSettings
-
 from .stub_app.models import StubSubject, StubTimeFrame
 
 
@@ -56,22 +54,6 @@ def test_blank_pending_timelines_validate_as_all_timelines(
 
     with pytest.raises(ValidationError):
         frame.full_clean()
-
-
-def test_timeline_must_belong_to_subject_country_context(stub_subject):
-    other_settings = UserSettings.objects.create(
-        user=stub_subject.country.user_settings.user, label="alternate world"
-    )
-
-    with pytest.raises(ValidationError) as err_proxy:
-        StubTimeFrame.objects.occupy(
-            stub_subject, timelines=[other_settings.timelines.get()]
-        )
-
-    assert err_proxy.value.messages == [
-        "The timelines must belong to the same global context as the "
-        "time frame's subject."
-    ]
 
 
 def test_frameless_subject_is_active(dt, stub_subject, default_timeline):

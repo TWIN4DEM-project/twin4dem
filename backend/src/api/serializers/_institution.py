@@ -15,6 +15,7 @@ from common.models import (
 
 from ._base import LCCModelSerializer
 from ._batch import BatchListSerializer
+from ._timeline import validate_current_settings_timeline
 
 
 class AllowedCountryField(serializers.PrimaryKeyRelatedField):
@@ -77,6 +78,9 @@ class TimeFrameSerializer(LCCModelSerializer):
             raise serializers.ValidationError(
                 {"valid_to": "The time frame must end after it starts."}
             )
+        validate_current_settings_timeline(
+            self.context["request"], attrs.get("timelines", ())
+        )
         return attrs
 
 

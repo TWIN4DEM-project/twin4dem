@@ -16,6 +16,7 @@ from common.models import (
     PartyPositionTimeFrame,
     VirtualTimeline,
 )
+from common.session import set_current_settings
 
 pytestmark = pytest.mark.django_db
 
@@ -564,8 +565,13 @@ def test_superuser_gets_other_users_position(admin_client, user_position, method
 
 
 def test_superuser_creates_for_other_users_party(
-    admin_client, user_party, user_chamber, user_timeline
+    admin_client, user_party, user_chamber, user_timeline, test_user_settings, rf
 ):
+    request = rf.get("/")
+    request.session = admin_client.session
+    set_current_settings(request, test_user_settings)
+    request.session.save()
+
     response = post(
         admin_client,
         body(user_party, chamber=user_chamber.id, timeline=user_timeline.id),
@@ -788,8 +794,7 @@ def test_create_on_timeline_of_other_settings_400(admin_client, psd, user_timeli
     assert response.status_code == 400
     assert response.json() == {
         "non_field_errors": [
-            "The timelines must belong to the same global context as the time "
-            "frame's subject."
+            "The timelines must belong to the currently active user settings."
         ]
     }
     assert not psd.positions.exists()

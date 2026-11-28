@@ -737,8 +737,8 @@ def test_create_on_timeline_of_other_settings_400(admin_client, test_user_settin
                 "time_frames": [
                     {
                         "non_field_errors": [
-                            "The timelines must belong to the same global context "
-                            "as the time frame's subject."
+                            "The timelines must belong to the currently active user "
+                            "settings."
                         ]
                     }
                 ]

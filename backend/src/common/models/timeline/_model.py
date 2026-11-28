@@ -109,6 +109,18 @@ class TimeFrameModel(models.Model):
         names = sorted(f"'{labels.get(i, i)}'" for i in shared_ids)
         return ("timeline " if len(names) == 1 else "timelines ") + ", ".join(names)
 
+    def _timeline_labels(self, others: list["TimeFrameModel"]) -> dict[int, str]:
+        timeline_ids = set(self.timeline_ids or ())
+        for other in others:
+            timeline_ids.update(other.timeline_ids or ())
+        if not timeline_ids:
+            return {}
+        return dict(
+            VirtualTimeline.objects.filter(pk__in=timeline_ids).values_list(
+                "id", "label"
+            )
+        )
+
     def validate_time_frame(self) -> None:
         """Validate this frame of its subject on its timelines.
 
@@ -116,38 +128,13 @@ class TimeFrameModel(models.Model):
         may not be active at the same time on the same timeline. A sibling
         without time frames is active at all times on all timelines.
         """
-        user_timeline_labels = dict(
-            VirtualTimeline.objects.filter(
-                user_settings_id=self.subject.time_frame_user_settings_id()
-            ).values_list("id", "label")
-        )
-
-        timeline_ids = self.timeline_ids
-        if timeline_ids is not None and not timeline_ids.issubset(
-            user_timeline_labels.keys()
-        ):
-            raise ValidationError(
-                "The timelines must belong to the same global context as the "
-                "time frame's subject."
-            )
-
         errors = []
         same_subject_timeframes = (
             type(self).objects.of(self.subject).prefetch_related("timelines")
         )
         if self.pk is not None:
             same_subject_timeframes = same_subject_timeframes.exclude(pk=self.pk)
-        err_template = "{} already occupies the time frame {} on {}."
-        for other in same_subject_timeframes:
-            if not self.shares_timeline_with(other):
-                continue
-            errors.append(
-                err_template.format(
-                    self.subject.time_frame_label(),
-                    other.format_interval(),
-                    self.format_timelines(other, user_timeline_labels),
-                )
-            )
+        same_subject_timeframes = list(same_subject_timeframes)
 
         siblings = list(self.subject.siblings())
         sibling_frames = {}
@@ -156,6 +143,25 @@ class TimeFrameModel(models.Model):
         ):
             sibling_frames.setdefault(sibling_frame.subject_id, []).append(
                 sibling_frame
+            )
+
+        compared_frames = [
+            frame for frames in sibling_frames.values() for frame in frames
+        ]
+        timeline_labels = self._timeline_labels(
+            [*same_subject_timeframes, *compared_frames]
+        )
+
+        err_template = "{} already occupies the time frame {} on {}."
+        for other in same_subject_timeframes:
+            if not self.shares_timeline_with(other):
+                continue
+            errors.append(
+                err_template.format(
+                    self.subject.time_frame_label(),
+                    other.format_interval(),
+                    self.format_timelines(other, timeline_labels),
+                )
             )
 
         for sibling in siblings:
@@ -173,7 +179,7 @@ class TimeFrameModel(models.Model):
                 err = "Overlaps with {} {} on {}.".format(
                     sibling.time_frame_label(),
                     other.format_interval(),
-                    self.format_timelines(other, user_timeline_labels),
+                    self.format_timelines(other, timeline_labels),
                 )
                 errors.append(err)
 
