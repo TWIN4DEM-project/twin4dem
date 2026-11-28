@@ -11,13 +11,15 @@ if TYPE_CHECKING:
 class UserSettings(models.Model):
     """A global context: the simulated 'world' of a user (one user, many contexts)."""
 
+    DEFAULT_LABEL = "default"
+
     id = models.AutoField(primary_key=True)
     user = models.ForeignKey(
         to=settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="user_settings",
     )
-    label = models.CharField(null=False, max_length=50, default="default")
+    label = models.CharField(null=False, max_length=50, default=DEFAULT_LABEL)
     # defaults for the institutions (cabinets, chambers, courts) of this context
     government_probability_for = models.FloatField(default=0.5)
     parliament_majority_probability_for = models.FloatField(default=0.5)
