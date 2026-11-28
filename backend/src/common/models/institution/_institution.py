@@ -65,10 +65,6 @@ class Institution(TimeFrameSubject):
     def country(self):
         return self.kind.country
 
-    def time_frame_user_settings_id(self) -> int:
-        """The global context whose timelines the subject's frames apply to."""
-        return self.country.user_settings_id
-
     def sibling_time_frames(self) -> models.QuerySet:
         """The time frames of this subject's siblings."""
         return InstitutionTimeFrame.objects.filter(subject__in=self.siblings())

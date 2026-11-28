@@ -58,10 +58,10 @@ class TimeFrameModel(models.Model):
 
     @property
     def timeline_ids(self) -> frozenset[int] | None:
-        """The timelines the frame is restricted to; None means all timelines.
+        """The IDs of the timelines this time frame is restricted to.
 
-        Reads ``pending_timeline_ids`` when set, i.e. before the links are
-        saved.
+        ``None`` means no restriction - the time frame is valid on all timelines.
+        ``pending_timelines`` takes precedence over anything else.
         """
         timelines = self._get_own_timelines()
         if timelines is None:
