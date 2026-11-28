@@ -5,7 +5,7 @@ from django.db import models
 from django.db.models import F, Q
 
 from ._subject import TimeFrameSubject
-from ._timeframe_qs import TimeFrameQuerySet
+from ._query_set import TimeFrameQuerySet
 from ._timeline import VirtualTimeline
 
 
