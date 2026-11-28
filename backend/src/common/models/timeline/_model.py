@@ -1,4 +1,5 @@
-from typing import TYPE_CHECKING
+from collections import defaultdict
+from typing import TYPE_CHECKING, Any
 
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import models
@@ -47,7 +48,7 @@ class TimeFrameModel(models.Model):
     # timelines to validate against instead of the stored links (empty: all
     # timelines); set before full_clean() when links are saved together with
     # the frame
-    pending_timeline_ids: list[int] | None = None
+    pending_timelines: list[VirtualTimeline] | None = None
 
     def __str__(self):
         return f"{self._meta.model_name}={self.subject_id} {self.format_interval()}"
@@ -62,11 +63,17 @@ class TimeFrameModel(models.Model):
         Reads ``pending_timeline_ids`` when set, i.e. before the links are
         saved.
         """
-        if self.pending_timeline_ids is not None:
-            return frozenset(self.pending_timeline_ids) or None
+        timelines = self._get_own_timelines()
+        if timelines is None:
+            return None
+        return frozenset(x.pk for x in timelines)
+
+    def _get_own_timelines(self) -> frozenset[VirtualTimeline] | None:
+        if self.pending_timelines is not None:
+            return frozenset(timeline for timeline in self.pending_timelines) or None
         if self.pk is None:
             return None
-        return frozenset(timeline.pk for timeline in self.timelines.all()) or None
+        return frozenset(timeline for timeline in self.timelines.all()) or None
 
     @property
     def is_on_all_timelines(self) -> bool:
@@ -109,18 +116,6 @@ class TimeFrameModel(models.Model):
         names = sorted(f"'{labels.get(i, i)}'" for i in shared_ids)
         return ("timeline " if len(names) == 1 else "timelines ") + ", ".join(names)
 
-    def _timeline_labels(self, others: list["TimeFrameModel"]) -> dict[int, str]:
-        timeline_ids = set(self.timeline_ids or ())
-        for other in others:
-            timeline_ids.update(other.timeline_ids or ())
-        if not timeline_ids:
-            return {}
-        return dict(
-            VirtualTimeline.objects.filter(pk__in=timeline_ids).values_list(
-                "id", "label"
-            )
-        )
-
     def validate_time_frame(self) -> None:
         """Validate this frame of its subject on its timelines.
 
@@ -129,62 +124,85 @@ class TimeFrameModel(models.Model):
         without time frames is active at all times on all timelines.
         """
         errors = []
-        same_subject_timeframes = (
-            type(self).objects.of(self.subject).prefetch_related("timelines")
+        subj_frames = self._query_subject_time_frames()
+        sibling_frames = list(
+            self.subject.sibling_time_frames().prefetch_related("timelines")
         )
+        labels = self._get_labels([*subj_frames, *sibling_frames])
+
+        self._validate_subject_time_frames(errors, subj_frames, labels)
+        self._validate_sibling_time_frames(errors, sibling_frames, labels)
+
+        if errors:
+            raise ValidationError(errors)
+
+    def _query_subject_time_frames(self) -> list[Any]:
+        own_subj_frames = type(self).objects.of(self.subject)
         if self.pk is not None:
-            same_subject_timeframes = same_subject_timeframes.exclude(pk=self.pk)
-        same_subject_timeframes = list(same_subject_timeframes)
+            own_subj_frames = own_subj_frames.exclude(pk=self.pk)
+        own_subj_frames = list(own_subj_frames.prefetch_related("timelines"))
+        return own_subj_frames
 
-        siblings = list(self.subject.siblings())
-        sibling_frames = {}
-        for sibling_frame in self.subject.sibling_time_frames().prefetch_related(
-            "timelines"
-        ):
-            sibling_frames.setdefault(sibling_frame.subject_id, []).append(
-                sibling_frame
-            )
-
-        compared_frames = [
-            frame for frames in sibling_frames.values() for frame in frames
-        ]
-        timeline_labels = self._timeline_labels(
-            [*same_subject_timeframes, *compared_frames]
+    def _get_labels(self, others: list["TimeFrameModel"]) -> dict[int, str]:
+        result: dict[int, str] = {}
+        all_timelines = list(self._get_own_timelines() or ())
+        all_timelines.extend(
+            timeline
+            for other in others
+            for timeline in (other._get_own_timelines() or ())
         )
+        for timeline in all_timelines:
+            result[timeline.pk] = timeline.label
+        return result
 
+    def _validate_subject_time_frames(
+        self, errors: list[Any], frames: list[Any], labels: dict[int, str]
+    ):
         err_template = "{} already occupies the time frame {} on {}."
-        for other in same_subject_timeframes:
-            if not self.shares_timeline_with(other):
+        for frame in frames:
+            if not self.shares_timeline_with(frame):
                 continue
             errors.append(
                 err_template.format(
                     self.subject.time_frame_label(),
-                    other.format_interval(),
-                    self.format_timelines(other, timeline_labels),
+                    frame.format_interval(),
+                    self.format_timelines(frame, labels),
                 )
             )
 
-        for sibling in siblings:
-            s_time_frames = sibling_frames.get(sibling.pk, [])
-            if len(s_time_frames) == 0:
+    def _validate_sibling_time_frames(
+        self, errors: list[Any], frames: list[Any], labels: dict[int, str]
+    ):
+        siblings = list(self.subject.siblings())
+        time_frame_map = self._by_subject_id(frames)
+
+        for s in siblings:
+            s_frames = time_frame_map.get(s.pk, [])
+            if len(s_frames) == 0:
                 err = "{} is active at all times on all timelines.".format(
-                    sibling.time_frame_label()
+                    s.time_frame_label()
                 )
                 errors.append(err)
                 continue
 
-            for other in s_time_frames:
-                if not self.overlaps(other):
+            for frame in s_frames:
+                if not self.overlaps(frame):
                     continue
                 err = "Overlaps with {} {} on {}.".format(
-                    sibling.time_frame_label(),
-                    other.format_interval(),
-                    self.format_timelines(other, timeline_labels),
+                    s.time_frame_label(),
+                    frame.format_interval(),
+                    self.format_timelines(frame, labels),
                 )
                 errors.append(err)
 
-        if errors:
-            raise ValidationError(errors)
+    @staticmethod
+    def _by_subject_id(
+        frames: list["TimeFrameModel"],
+    ) -> dict[int, list["TimeFrameModel"]]:
+        result = defaultdict(list)
+        for frame in frames:
+            result[frame.subject_id].append(frame)
+        return result
 
     def clean(self):
         super().clean()

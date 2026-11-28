@@ -50,7 +50,7 @@ def test_blank_pending_timelines_validate_as_all_timelines(
     StubTimeFrame.objects.occupy(first, dt(2020), dt(2022), [alternate_timeline])
     second = make_stub_subject("second")
     frame = StubTimeFrame(subject=second, valid_from=dt(2021), valid_to=dt(2023))
-    frame.pending_timeline_ids = []
+    frame.pending_timelines = []
 
     with pytest.raises(ValidationError):
         frame.full_clean()

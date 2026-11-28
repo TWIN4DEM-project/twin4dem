@@ -60,7 +60,7 @@ class PartyPositionInlineForm(TimelineSelectionFormMixin, forms.ModelForm):
             valid_from=self.cleaned_data.get("valid_from"),
             valid_to=self.cleaned_data.get("valid_to"),
         )
-        frame.pending_timeline_ids = self.selected_timeline_ids()
+        frame.pending_timelines = self.selected_timelines()
         return frame
 
     def save_time_frame(self):
