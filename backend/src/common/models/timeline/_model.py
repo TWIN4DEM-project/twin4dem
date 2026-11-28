@@ -118,14 +118,6 @@ class TimeFrameModel(models.Model):
         names = sorted(f"'{labels.get(i, i)}'" for i in shared_ids)
         return ("timeline " if len(names) == 1 else "timelines ") + ", ".join(names)
 
-    def get_timelines(self) -> models.QuerySet[VirtualTimeline]:
-        """The timelines this time frame is active on."""
-        if self.is_on_all_timelines:
-            return VirtualTimeline.objects.filter(
-                user_settings_id=self.subject.time_frame_user_settings_id()
-            )
-        return self.timelines.all()
-
     def validate_time_frame(self) -> None:
         """Validate this frame of its subject on its timelines.
 

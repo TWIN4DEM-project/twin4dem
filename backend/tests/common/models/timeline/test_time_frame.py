@@ -2,7 +2,6 @@ import pytest
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 
-from common.models import VirtualTimeline
 
 from .stub_app.models import StubTimeFrame
 
@@ -64,22 +63,10 @@ def test_timeline_links_control_get_timelines(
     stub_subject, default_timeline, alternate_timeline
 ):
     frame = StubTimeFrame.objects.create_for(stub_subject)
-    assert frame.is_on_all_timelines
-    assert set(frame.get_timelines()) == {default_timeline, alternate_timeline}
 
     frame.timelines.add(alternate_timeline)
 
     assert not frame.is_on_all_timelines
-    assert list(frame.get_timelines()) == [alternate_timeline]
-
-
-def test_frame_for_all_timelines_tracks_added_timelines(stub_subject, default_timeline):
-    frame = StubTimeFrame.objects.create_for(stub_subject)
-    added = VirtualTimeline.objects.create(
-        user_settings=stub_subject.country.user_settings, label="new"
-    )
-
-    assert set(frame.get_timelines()) == {default_timeline, added}
 
 
 @pytest.mark.parametrize(

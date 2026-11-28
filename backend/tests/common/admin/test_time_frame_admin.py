@@ -99,7 +99,6 @@ def test_add_institution_frame_without_timelines_applies_to_all(
     assert response.status_code == 302
     frame = InstitutionTimeFrame.objects.of(cabinet).get()
     assert frame.is_on_all_timelines
-    assert set(frame.get_timelines()) == {default_timeline, alternate_timeline}
 
 
 @pytest.mark.django_db
@@ -181,7 +180,6 @@ def test_add_party_position_without_timeline_applies_to_all(
     position = renaissance.positions.get()
     frame = PartyPositionTimeFrame.objects.of(position).get()
     assert frame.is_on_all_timelines
-    assert set(frame.get_timelines()) == {default_timeline, alternate_timeline}
 
 
 @pytest.mark.django_db
