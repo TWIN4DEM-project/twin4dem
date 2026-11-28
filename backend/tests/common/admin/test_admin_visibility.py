@@ -1,8 +1,11 @@
 from datetime import UTC, datetime
 
 import pytest
+
 from django.contrib.admin.sites import site
-from django.test import RequestFactory
+from django.contrib.auth.models import Permission
+from django.urls import reverse
+from django.test.client import Client
 
 from common.admin import (
     CountryAdmin,
@@ -24,17 +27,29 @@ from common.models import (
 from common.session import set_current_settings
 
 
-def admin_request(rf, user):
-    request = rf.get("/admin/")
+def grant_view_permission(user, model):
+    user.user_permissions.add(
+        Permission.objects.get(
+            content_type__app_label=model._meta.app_label,
+            content_type__model=model._meta.model_name,
+            codename=f"view_{model._meta.model_name}",
+        )
+    )
+
+
+def admin_request(rf, client, user):
+    user_settings = user.user_settings.get()
+    request = select_settings(rf, client, user_settings)
     request.user = user
     return request
 
 
-def select_settings(client, user_settings):
-    request = RequestFactory().get("/admin/")
+def select_settings(rf, client, user_settings):
+    request = rf.get("/admin/")
     request.session = client.session
     set_current_settings(request, user_settings)
     request.session.save()
+    return request
 
 
 @pytest.mark.django_db
@@ -48,15 +63,18 @@ def select_settings(client, user_settings):
     ],
 )
 def test_non_superuser_sees_only_their_own_rows(
-    staff_user, admin_user, rf, model_admin_class, model, owned_rows
+    staff_user, admin_client, model_admin_class, model, owned_rows
 ):
-    view = model_admin_class(model, site)
+    grant_view_permission(staff_user, model)
+    staff_client = Client()
+    staff_client.force_login(staff_user)
 
-    own = view.get_queryset(admin_request(rf, staff_user))
-    everything = view.get_queryset(admin_request(rf, admin_user))
+    url = reverse(f"admin:{model._meta.app_label}_{model._meta.model_name}_changelist")
+    staff_res = staff_client.get(url)
+    admin_res = admin_client.get(url)
 
-    assert own.count() == owned_rows
-    assert everything.count() == model.objects.count()
+    assert staff_res.context["cl"].queryset.count() == owned_rows
+    assert admin_res.context["cl"].queryset.count() == model.objects.count()
 
 
 def formfield_of(model_admin_class, model, field_name, request):
@@ -75,13 +93,26 @@ def formfield_of(model_admin_class, model, field_name, request):
     ],
 )
 def test_foreign_key_choices_are_restricted_to_the_owning_user(
-    staff_user, admin_user, rf, model_admin_class, model, field_name, owned_rows
+    staff_user,
+    admin_user,
+    admin_client,
+    rf,
+    model_admin_class,
+    model,
+    field_name,
+    owned_rows,
 ):
     restricted = formfield_of(
-        model_admin_class, model, field_name, admin_request(rf, staff_user)
+        model_admin_class,
+        model,
+        field_name,
+        admin_request(rf, admin_client, staff_user),
     )
     unrestricted = formfield_of(
-        model_admin_class, model, field_name, admin_request(rf, admin_user)
+        model_admin_class,
+        model,
+        field_name,
+        admin_request(rf, admin_client, admin_user),
     )
     total = model._meta.get_field(field_name).related_model.objects.count()
 
@@ -90,14 +121,18 @@ def test_foreign_key_choices_are_restricted_to_the_owning_user(
 
 
 @pytest.mark.django_db
-def test_chamber_choices_are_restricted_to_the_owning_user(staff_user, admin_user, rf):
+def test_chamber_choices_are_restricted_to_the_owning_user(
+    staff_user, admin_user, admin_client, rf
+):
     inline = PartyPositionInline(PartyPosition, site)
     db_field = PartyPosition._meta.get_field("chamber")
 
     restricted = inline.formfield_for_foreignkey(
-        db_field, admin_request(rf, staff_user)
+        db_field, admin_request(rf, admin_client, staff_user)
     )
-    every = inline.formfield_for_foreignkey(db_field, admin_request(rf, admin_user))
+    every = inline.formfield_for_foreignkey(
+        db_field, admin_request(rf, admin_client, admin_user)
+    )
 
     assert restricted.queryset.count() == 0
     assert (
@@ -117,11 +152,11 @@ def test_chamber_choices_are_restricted_to_the_owning_user(staff_user, admin_use
     ],
 )
 def test_inline_uses_the_selected_settings(
-    admin_client, admin_user, parent_fixture, url, request
+    rf, admin_client, admin_user, parent_fixture, url, request
 ):
     parent = request.getfixturevalue(parent_fixture)
     selected = UserSettings.objects.create(user=admin_user, label="selected")
-    select_settings(admin_client, selected)
+    select_settings(rf, admin_client, selected)
 
     response = admin_client.get(url.format(pk=parent.pk))
 
